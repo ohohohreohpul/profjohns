@@ -57,7 +57,7 @@ export function SurfaceShell({
         style={{ borderTopColor: def.accent }}
         className={cn(
           "fixed bottom-0 right-0 top-0 z-40 flex flex-col border-l border-t-2 bg-paper",
-          wide ? "left-0" : "w-[min(760px,94vw)]",
+          wide ? "left-0" : "w-[min(960px,96vw)]",
           "shadow-[-12px_0_40px_-16px_rgba(0,0,0,0.22)]",
           closing ? "animate-panel-out" : "animate-panel-in",
         )}

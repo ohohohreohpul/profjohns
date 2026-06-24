@@ -16,12 +16,12 @@ import {
   PencilSimpleLine as PenLine,
   ArrowsOutSimple as Maximize2,
   Minus,
+  type Icon,
 } from "@phosphor-icons/react";
 import { SurfaceShell } from "./surface-shell";
 import { WritingDocument } from "./writing-document";
 import { ExportMenu } from "./export-menu";
 import { StyleSelector, ReferencesPanel } from "./references-panel";
-import { Badge } from "@/components/ui/badge";
 import { getModel } from "@/lib/models";
 import { useCanvasStore } from "@/store/canvas-store";
 import { useNodeInputSources } from "@/store/use-sources";
@@ -51,7 +51,7 @@ export function WritingSurface({
   const [busy, setBusy] = React.useState(false);
   const [busyLabel, setBusyLabel] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<"ai" | "outline">("ai");
+  const [tab, setTab] = React.useState<"ai" | "sources" | "outline">("ai");
 
   const outline = doc?.outline ?? [];
   const draftText = React.useMemo(
@@ -117,35 +117,38 @@ export function WritingSurface({
       }
     >
       <div className="flex h-full">
-        <SourcesRail nodeId={nodeId} />
-
-        <div className="min-w-0 flex-1 overflow-y-auto bg-grey-50 px-8 py-10">
+        {/* The document is the hero — it owns the main area at every width. */}
+        <div className="min-w-0 flex-1 overflow-y-auto bg-grey-50 px-6 py-8 lg:px-10">
           <WritingDocument nodeId={nodeId} direction={direction} />
           <ReferencesPanel nodeId={nodeId} />
         </div>
 
-        <aside className="flex w-80 shrink-0 flex-col border-l border-grey-200 bg-paper">
+        {/* One tabbed assistant — AI writer, the sources you can cite, outline. */}
+        <aside className="flex w-[340px] shrink-0 flex-col border-l border-grey-200 bg-paper">
           <div className="flex items-center gap-1 border-b border-grey-100 p-1.5">
-            <button
+            <TabButton
+              active={tab === "ai"}
               onClick={() => setTab("ai")}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${tab === "ai" ? "bg-ink text-paper" : "text-grey-600 hover:bg-grey-100"}`}
-            >
-              <Sparkles className="size-3.5" />
-              AI writer
-            </button>
-            <button
+              icon={Sparkles}
+              label="AI writer"
+            />
+            <TabButton
+              active={tab === "sources"}
+              onClick={() => setTab("sources")}
+              icon={Quote}
+              label="Sources"
+              count={sources.length || undefined}
+            />
+            <TabButton
+              active={tab === "outline"}
               onClick={() => setTab("outline")}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${tab === "outline" ? "bg-ink text-paper" : "text-grey-600 hover:bg-grey-100"}`}
-            >
-              <ListTree className="size-3.5" />
-              Outline
-              {outline.length > 0 && (
-                <span className="text-grey-400">{outline.length}</span>
-              )}
-            </button>
+              icon={ListTree}
+              label="Outline"
+              count={outline.length || undefined}
+            />
           </div>
 
-          {tab === "ai" ? (
+          {tab === "ai" && (
             <AiPanel
               model={model}
               sources={sources}
@@ -158,7 +161,9 @@ export function WritingSurface({
               onRunWrite={runWrite}
               onApplyEdit={applyEdit}
             />
-          ) : (
+          )}
+          {tab === "sources" && <SourcesPanel nodeId={nodeId} />}
+          {tab === "outline" && (
             <OutlinePanel
               outline={outline}
               onChange={(o) => setDocOutline(nodeId, o)}
@@ -170,7 +175,38 @@ export function WritingSurface({
   );
 }
 
-function SourcesRail({ nodeId }: { nodeId: string }) {
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: Icon;
+  label: string;
+  count?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11.5px] font-medium transition-colors ${active ? "bg-ink text-paper" : "text-grey-600 hover:bg-grey-100"}`}
+    >
+      <Icon className="size-3.5 shrink-0" />
+      {label}
+      {count != null && (
+        <span
+          className={`tabular-nums ${active ? "text-grey-300" : "text-grey-400"}`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function SourcesPanel({ nodeId }: { nodeId: string }) {
   const papers = useNodeInputSources(nodeId);
   const highlightMap = useCanvasStore((s) => s.highlights);
   const appendBlock = useCanvasStore((s) => s.appendBlock);
@@ -207,19 +243,16 @@ function SourcesRail({ nodeId }: { nodeId: string }) {
   }
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-r border-grey-200 bg-paper lg:flex">
-      <div className="flex items-center gap-2 border-b border-grey-100 px-4 py-3">
-        <Quote className="size-4 text-grey-500" />
-        <span className="text-sm font-medium text-ink">Connected sources</span>
-        <Badge variant="outline" className="ml-auto">
-          {papers.length}
-        </Badge>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <p className="border-b border-grey-100 px-3 py-2.5 text-[11px] leading-snug text-grey-400">
+        Cite any connected source into your draft, or drop in a highlight you
+        saved while reading.
+      </p>
       <div className="flex-1 overflow-y-auto p-3">
         {papers.length === 0 ? (
-          <p className="px-1 py-2 text-[11px] leading-snug text-grey-400">
-            No sources connected. Wire a Sources, Find Sources, Paper, or Review
-            node into this draft, then cite from it here.
+          <p className="rounded-lg border border-dashed border-grey-200 px-3 py-6 text-center text-[11px] leading-snug text-grey-400">
+            No sources connected. Wire a Sources, Paper, or Library node into
+            this draft on the canvas, then cite from it here.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -265,7 +298,7 @@ function SourcesRail({ nodeId }: { nodeId: string }) {
 
                   <button
                     onClick={() => cite(paper)}
-                    className="mt-2 flex w-full items-center justify-center gap-1 rounded-md bg-grey-100 py-1 text-[11px] font-medium text-grey-700 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-grey-200"
+                    className="mt-2 flex w-full items-center justify-center gap-1 rounded-md bg-grey-100 py-1.5 text-[11px] font-medium text-grey-700 transition-colors hover:bg-grey-200 hover:text-ink"
                   >
                     <Plus className="size-3" />
                     Cite in draft
@@ -276,7 +309,7 @@ function SourcesRail({ nodeId }: { nodeId: string }) {
           </ul>
         )}
       </div>
-    </aside>
+    </div>
   );
 }
 
