@@ -1,0 +1,541 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+/*
+  ProfJohns — design system.
+  Monochrome base with a teal brand accent drawn from the logo (#019A99).
+  Layered greys, paper-white surfaces. Hierarchy comes from scale and weight.
+*/
+
+@theme {
+  --color-ink: oklch(16% 0 0);
+  --color-paper: oklch(99% 0 0);
+
+  --color-grey-50: oklch(98% 0 0);
+  --color-grey-100: oklch(96% 0 0);
+  --color-grey-200: oklch(92% 0 0);
+  --color-grey-300: oklch(86% 0 0);
+  --color-grey-400: oklch(72% 0 0);
+  --color-grey-500: oklch(58% 0 0);
+  --color-grey-600: oklch(46% 0 0);
+  --color-grey-700: oklch(34% 0 0);
+  --color-grey-800: oklch(24% 0 0);
+  --color-grey-900: oklch(16% 0 0);
+
+  /* Brand accent — teal from the ProfJohns logo (#019A99). */
+  --color-accent: oklch(60% 0.12 195);
+  --color-accent-fg: oklch(99% 0 0);
+  --color-accent-dark: oklch(52% 0.10 200);
+  --color-accent-deep: oklch(38% 0.06 230);
+
+  /* Per-node semantic identity — one restrained accent per node type. */
+  --color-node-explorer: oklch(58% 0.13 248); /* blue — search/gather */
+  --color-node-processor: oklch(56% 0.16 300); /* violet — AI synthesis */
+  --color-node-block: oklch(55% 0.035 260); /* slate — content */
+  --color-node-text: oklch(55% 0.035 260); /* slate — notes */
+  --color-node-shell: oklch(62% 0 0); /* neutral — container */
+  --color-node-reader: oklch(68% 0.12 70); /* amber — reading surface */
+  --color-node-writing: oklch(53% 0.11 158); /* green — the draft */
+  --color-node-assistant: oklch(60% 0.12 195); /* teal — AI chat (brand) */
+  --color-node-media: oklch(58% 0.12 200); /* cyan — visual media */
+  --color-node-link: oklch(60% 0.14 25); /* coral — external web link */
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  --radius-card: 0.5rem;
+
+  --shadow-flat: 0 1px 0 0 oklch(16% 0 0 / 0.04);
+  --shadow-lift: 0 8px 28px -12px oklch(16% 0 0 / 0.22);
+}
+
+:root {
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --border: var(--color-grey-200);
+  --muted: var(--color-grey-500);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Next.js root div must fill viewport. */
+#__next,
+#root {
+  height: 100%;
+}
+
+/* Tighten the default tracking on display type for an editorial feel. */
+.tracking-display {
+  letter-spacing: -0.03em;
+}
+
+/* ---- Phase A: Page Transitions ---- */
+
+/* Surface entrance (existing, kept). */
+@keyframes surface-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-surface-in {
+  animation: surface-in 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Surface exit — reverse of entrance. */
+@keyframes surface-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.985); }
+}
+.animate-surface-out {
+  animation: surface-out 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Canvas behind a surface: dimmed but no scale — avoids white gaps. */
+.canvas-behind-surface {
+  filter: brightness(0.94);
+  transition: filter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Side panel — slides in from the right, canvas stays visible. */
+@keyframes panel-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-panel-in {
+  animation: panel-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes panel-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+.animate-panel-out {
+  animation: panel-out 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+/* Backdrop that lets canvas peek through on the left. */
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-backdrop-in {
+  animation: backdrop-in 200ms ease-out;
+}
+
+/* Onboarding page phase transition — fade + scale. */
+@keyframes phase-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+.animate-phase-out {
+  animation: phase-out 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes phase-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-phase-in {
+  animation: phase-in 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Preloader step — staggered fade in + slide up. */
+@keyframes step-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-step-enter {
+  animation: step-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Animated checkmark — stroke draw effect. */
+@keyframes check-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.animate-check-draw {
+  animation: check-draw 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Preloader progress bar. */
+@keyframes progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.animate-progress-fill {
+  animation: progress-fill 2600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform-origin: left;
+}
+
+/* White flash — brief full-screen overlay before canvas appears. */
+@keyframes flash-out {
+  0% { opacity: 1; }
+  60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-flash-out {
+  animation: flash-out 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ---- Phase B: Node Lifecycle ---- */
+
+/* Node entrance (existing — now applied to all). */
+@keyframes node-in {
+  from { opacity: 0; transform: translateX(-12px) scale(0.96); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-node-in {
+  animation: node-in 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Node delete — scale down + fade out. */
+@keyframes node-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+.animate-node-out {
+  animation: node-out 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+/* Node selection — subtle scale bump that settles. */
+.node-selected-bump {
+  animation: selection-bump 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes selection-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+/* Edge draw-in pulse. */
+@keyframes edge-draw {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+.react-flow__edge-path.edge-animate {
+  stroke-dasharray: 1000;
+  animation: edge-draw 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ---- Phase C: Micro-Interactions ---- */
+
+/* Shake for errors. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.animate-shake {
+  animation: shake 350ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* Floating toolbar — scale up from cursor. */
+@keyframes float-in {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(0.6); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.animate-float-in {
+  animation: float-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Thread bubble — slide in. */
+@keyframes bubble-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes bubble-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-bubble-in-right {
+  animation: bubble-in-right 150ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.animate-bubble-in-left {
+  animation: bubble-in-left 150ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Auto-dismiss fade. */
+@keyframes fade-out-delay {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-fade-dismiss {
+  animation: fade-out-delay 5s ease-out forwards;
+}
+
+/* Filter panel grid animation. */
+.filter-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.filter-grid.open {
+  grid-template-rows: 1fr;
+}
+.filter-grid > div {
+  overflow: hidden;
+}
+
+/* Tab indicator sliding pill. */
+.tab-pill {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Phase D: Loading & Empty States ---- */
+
+/* Skeleton shimmer. */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-grey-200) 25%,
+    var(--color-grey-100) 50%,
+    var(--color-grey-200) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border-radius: 4px;
+}
+
+/* Branded loading — wordmark pulse. */
+@keyframes wordmark-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+.animate-wordmark {
+  animation: wordmark-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Blank canvas CTA — float in from below. */
+@keyframes cta-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-cta-enter {
+  animation: cta-enter 500ms 1.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Handle bounce hint. */
+@keyframes handle-bounce {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+.animate-handle-bounce {
+  animation: handle-bounce 800ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* ---- Existing animations (kept) ---- */
+
+/* Subtle highlight mark used by the reading agent anchors. */
+.anchor-mark {
+  background: var(--color-grey-200);
+  box-shadow: inset 2px 0 0 0 var(--color-ink);
+  border-radius: 2px;
+}
+
+/* Gentle pulse for the onboarding hint — draws the eye to the Run button. */
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(16% 0 0 / 0.18); }
+  50% { box-shadow: 0 0 0 4px oklch(16% 0 0 / 0.06); }
+}
+.animate-hint-pulse {
+  animation: hint-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ContentEditable placeholder — shows when block is empty. */
+[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-grey-300);
+  pointer-events: none;
+}
+
+/* ---- React Flow overrides ---- */
+/* Atmospheric light canvas — faint color pools + warm paper, so the board
+   reads as a space rather than a blank grid. Depth lives on the nodes. */
+.react-flow__background {
+  background:
+    radial-gradient(1100px 720px at 16% -8%, color-mix(in oklab, var(--color-node-processor) 9%, transparent), transparent 60%),
+    radial-gradient(900px 600px at 96% 108%, color-mix(in oklab, var(--color-node-writing) 8%, transparent), transparent 55%),
+    oklch(97.5% 0.004 95);
+}
+
+/* Palette buttons (left toolbar) — echo each node's accent on hover so the
+   palette and the nodes share one identity language. Reads --a off the button. */
+.palette-btn {
+  color: var(--color-grey-600);
+}
+.palette-btn:hover {
+  color: var(--a);
+  background: color-mix(in oklab, var(--a) 12%, transparent);
+}
+
+/* Glass node surface — translucent paper, soft float shadow, top light-catch.
+   This is the core of the light-immersive look. */
+.node-surface {
+  background: color-mix(in oklab, var(--color-paper) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  backdrop-filter: blur(12px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(21, 23, 28, 0.04),
+    0 22px 50px -28px rgba(21, 23, 28, 0.38);
+}
+.node-surface:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 2px 6px rgba(21, 23, 28, 0.05),
+    0 26px 56px -26px rgba(21, 23, 28, 0.45);
+}
+/* Selected — a single crisp accent hairline ring hugging the border, with the
+   same neutral float depth. No soft colored glow (reads as amateur). */
+.node-surface.is-selected,
+.node-surface.is-selected:hover {
+  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent),
+    0 18px 44px -22px rgba(21, 23, 28, 0.42);
+}
+
+/* Hand (pan) tool cursor. */
+.canvas-grab .react-flow__pane {
+  cursor: grab;
+}
+.canvas-grab .react-flow__pane:active {
+  cursor: grabbing;
+}
+.canvas-grab .react-flow__node {
+  cursor: grab !important;
+}
+
+/* Select tool cursor — default pointer. */
+.react-flow__pane {
+  cursor: default;
+}
+
+/* Force arrow cursor on nodes — React Flow defaults to grab. */
+.react-flow__node {
+  cursor: default !important;
+}
+.rf-cursor-fix .react-flow__node {
+  cursor: default !important;
+}
+.react-flow__node input,
+.react-flow__node textarea,
+.react-flow__node [contenteditable] {
+  cursor: auto;
+}
+.canvas-grab .react-flow__node {
+  cursor: grab !important;
+}
+.react-flow__node > * {
+  cursor: default;
+}
+.react-flow__node input,
+.react-flow__node textarea,
+.react-flow__node [contenteditable],
+.react-flow__node .nodrag {
+  cursor: auto;
+}
+
+.react-flow__edge-path {
+  stroke: url(#lattice-edge);
+  stroke-width: 2;
+  transition: stroke-width 200ms, opacity 200ms;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 2.5;
+  opacity: 1;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--color-grey-100);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 9999px;
+  transition: all 150ms;
+}
+
+.react-flow__handle:hover {
+  width: 12px;
+  height: 12px;
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--border);
+  color: var(--color-ink);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--color-grey-100);
+}
+
+.react-flow__controls-button svg {
+  fill: var(--color-ink);
+}
+
+/* Node dragging — lift shadow. */
+.react-flow__node {
+  cursor: default !important;
+}
+.react-flow__node.dragging {
+  transition: filter 100ms, opacity 100ms;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.14));
+  opacity: 0.92;
+}
+
+/* Edge draw animation — flowing dash pattern. */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: edge-flow 0.5s linear infinite;
+}
+
+@keyframes edge-flow {
+  to { stroke-dashoffset: -10; }
+}
