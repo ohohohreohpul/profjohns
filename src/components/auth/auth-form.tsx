@@ -30,14 +30,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       if (isLogin) {
         const { error } = await signInWithEmail(email, password);
         if (error) throw error;
-        router.push(redirect);
+        window.location.href = redirect;
       } else {
         const { error, data } = await signUpWithEmail(email, password);
         if (error) throw error;
         if (data.user && !data.session) {
           setNotice("Check your email for a confirmation link.");
         } else if (data.session) {
-          router.push(redirect);
+          window.location.href = redirect;
         }
       }
     } catch (err: unknown) {
