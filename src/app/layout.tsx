@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { NavProgress } from "@/components/brand/nav-progress";
 import { RouteOverlay } from "@/components/brand/route-overlay";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { AuthGuard } from "@/lib/auth/auth-guard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,11 +19,13 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <TooltipProvider delayDuration={200}>
-            <NavProgress />
-            <RouteOverlay />
-            {children}
-          </TooltipProvider>
+          <AuthGuard>
+            <TooltipProvider delayDuration={200}>
+              <NavProgress />
+              <RouteOverlay />
+              {children}
+            </TooltipProvider>
+          </AuthGuard>
         </AuthProvider>
       </body>
     </html>
