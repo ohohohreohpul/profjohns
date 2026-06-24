@@ -43,8 +43,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        setState({ user, loading: false, enabled: true });
+      // Seed from getSession() — it reads the session straight from cookies
+      // with NO network round-trip, so a valid signed-in session resolves
+      // immediately. (getUser() validates over the network and would
+      // false-logout the user — bouncing them to /login — on any transient
+      // failure, slow response, or rate limit.) The server boundary still
+      // validates via getUser() in the proxy, backed by RLS.
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setState({ user: session?.user ?? null, loading: false, enabled: true });
       });
 
       const {
