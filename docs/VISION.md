@@ -181,20 +181,29 @@ Pragmatic path (no fine-tuning required to start):
 
 Each phase ends in something usable; later phases depend on earlier infra.
 
-**Phase 0 — Deepen Canvas (no infra; ships now)**
-- Synthesize → structured claims (claim → evidence → citation), compare /
-  contradictions over the curated keep-set.
-- Draft → grounded writing with inline citations + **citation-existence
-  verification** (lookup vs OpenAlex/Crossref).
-- Vision on Media → connect a figure to Synthesize/Assistant; Claude explains /
-  compares it.
-- Exit: the end-to-end *manual* workflow is excellent on the current stack.
+**Phase 0 — Deepen Canvas (no infra) — DONE (2026-06-26)**
+- [x] **TipTap editor foundation** — real rich-text Draft (inline node + full
+  surface share one doc); citations are first-class inline marks; migration-safe.
+- [x] **Synthesize → structured** — `synth` mode returns claims (claim →
+  evidence → source) + contradictions + themes over the connected sources.
+- [x] **Johns (Citationist) — citation audit** — `audit` mode flags each draft
+  claim supported / weak / unsupported against the connected sources (Audit tab).
+  Existence-lookup vs OpenAlex/Crossref is a later Citationist refinement.
+- [x] **Lily (Stylist) — write in your voice** — `dna` mode derives an
+  account-level style profile (pasted text or uploaded paper) that conditions
+  the writer. Pulled forward from Phase 3; RAG/exemplars + fine-tune still later.
+- [ ] **Vision on Media** — connect a figure to Synthesize/Assistant. The one
+  Phase-0 item still open.
+- Plus shipped: hand tool + connection management, account-wide Readroom, Link
+  node, full-page doc editor. Auth (Supabase) is wired (login/proxy/RLS-ready).
 
-**Phase 1 — Backend foundation (the unlock)**
-- Supabase: Auth + Postgres + Storage. Move Project/CanvasDoc/Source/Media
-  server-side; localStorage becomes a cache.
+**Phase 1 — Backend foundation (the unlock) — NEXT**
+- Supabase: Auth (DONE) + Postgres + Storage. Move Project/CanvasDoc/Source/
+  Media + **Lily's styleProfile** + home interests server-side; localStorage
+  becomes a cache. `supabase/schema.sql` drafts most tables (needs a
+  `style_profile` + `home_interests` delta and to be *wired* to the client).
 - Exit: multi-device, per-user persistence; no visible "feature" but everything
-  below becomes possible.
+  below becomes possible. **Execution plan: `docs/BACKEND-PHASE1.md`.**
 
 **Phase 2 — Agent abstraction + Agents surface**
 - `Agent` model + a management page (the "other page"). Generalize Sources /
