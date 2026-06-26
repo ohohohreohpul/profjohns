@@ -37,7 +37,10 @@ export function RouteOverlay() {
     <AnimatePresence>
       {show && (
         <motion.div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-grey-50"
+          // pointer-events-none: a transient route loader must never trap
+          // clicks (a stuck/exiting layer would otherwise block the canvas,
+          // e.g. focusing the editor).
+          className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center bg-grey-50"
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

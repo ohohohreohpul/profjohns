@@ -66,8 +66,10 @@ export function DocEditor({
     content: seed.current,
     editorProps: {
       attributes: {
+        // `nodrag`/`nopan` must be on the editable element itself so React Flow
+        // doesn't consume the pointerdown (which steals focus from the caret).
         class: cn(
-          "tiptap-doc max-w-none outline-none",
+          "tiptap-doc nodrag nopan max-w-none outline-none",
           compact ? "min-h-[180px] text-[13.5px] leading-[1.7]" : "min-h-[320px]",
         ),
       },
@@ -102,7 +104,11 @@ export function DocEditor({
   }, [editor, storeContent]);
 
   return (
-    <div className="nodrag nowheel">
+    <div
+      className="nodrag nopan nowheel"
+      // Keep clicks for the caret from reaching React Flow's node handlers.
+      onPointerDownCapture={(e) => e.stopPropagation()}
+    >
       {editor && <Toolbar editor={editor} />}
       <EditorContent editor={editor} />
     </div>
