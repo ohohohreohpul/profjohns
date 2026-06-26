@@ -105,8 +105,13 @@ interface CanvasState {
   focusedShellId: string | null;
   /** The project this canvas belongs to (transient context, set on load). */
   projectId: string;
+  /** Which canvas the in-memory board actually represents — set ONLY after a
+   *  board finishes hydrating. DB sync gates saves on this so a board is never
+   *  written to the wrong canvas during a navigation race. Transient. */
+  boardCanvasId: string;
 
   setProjectId: (id: string) => void;
+  setBoardCanvasId: (id: string) => void;
   setDirection: (direction: string) => void;
   setNodeSources: (nodeId: string, papers: PaperSource[]) => void;
   onNodesChange: (changes: NodeChange<CanvasNode>[]) => void;
@@ -303,8 +308,10 @@ export const useCanvasStore = create<CanvasState>()(
       hintSeen: false,
       focusedShellId: null,
       projectId: "",
+      boardCanvasId: "",
 
       setProjectId: (id) => set({ projectId: id }),
+      setBoardCanvasId: (id) => set({ boardCanvasId: id }),
       setDirection: (direction) => set({ direction }),
 
       setNodeSources: (nodeId, papers) =>

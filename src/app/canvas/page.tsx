@@ -113,8 +113,15 @@ function CanvasWorkspace() {
   // gets a fresh seed; an existing one is rehydrated from its namespaced key.
   React.useEffect(() => {
     setActiveCanvasId(canvasId);
+    // Mark which canvas the board represents only AFTER it finishes hydrating,
+    // so DB sync never saves a board to the wrong canvas during navigation.
+    // (We do NOT reset boardCanvasId up-front: that would trigger a persisted
+    // write of the still-stale board under the new canvas's key. The save-gate
+    // already blocks saves while boardCanvasId still holds the previous id.)
+    const markLoaded = () => useCanvasStore.setState({ boardCanvasId: canvasId });
+
     if (!canvasId || hasStoredCanvas(canvasId)) {
-      useCanvasStore.persist.rehydrate();
+      Promise.resolve(useCanvasStore.persist.rehydrate()).then(markLoaded);
     } else {
       useCanvasStore.getState().reset(direction);
       useCanvasStore.setState({ hasHydrated: true });
@@ -130,6 +137,7 @@ function CanvasWorkspace() {
           });
         }
       }
+      markLoaded();
     }
     useCanvasStore.temporal.getState().clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
