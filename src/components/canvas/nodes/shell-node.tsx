@@ -41,7 +41,7 @@ export function ShellNode({ id, data, selected }: CanvasNodeProps) {
   return (
     <div
       className={cn(
-        "animate-node-in group/shell relative flex min-w-[200px] flex-col rounded-2xl bg-amber-50/30 transition-shadow duration-200",
+        "animate-node-in group/shell relative flex size-full min-w-[200px] flex-col rounded-2xl bg-amber-50/30 transition-shadow duration-200",
         "shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_2px_8px_-2px_rgba(0,0,0,0.04)]",
         "hover:shadow-[0_2px_6px_0_rgba(0,0,0,0.05),0_6px_16px_-4px_rgba(0,0,0,0.06)]",
         selected && "shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_6px_20px_-4px_rgba(0,0,0,0.08)] ring-1 ring-ink/20",
@@ -83,6 +83,8 @@ export function ShellNode({ id, data, selected }: CanvasNodeProps) {
         )}
         <button
           onClick={() => removeNode(id)}
+          title="Remove section (keeps its nodes)"
+          aria-label="Remove section (keeps its nodes)"
           className="nodrag grid size-6 shrink-0 place-items-center rounded-md text-amber-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover/shell:opacity-100"
         >
           <X className="size-3.5" />

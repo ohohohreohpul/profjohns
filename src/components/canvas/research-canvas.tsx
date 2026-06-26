@@ -9,6 +9,7 @@ import {
   Controls,
   SelectionMode,
   useReactFlow,
+  getNodesBounds,
   type OnConnectStart,
   type OnConnectEnd,
 } from "@xyflow/react";
@@ -64,9 +65,11 @@ function CanvasInner() {
     addNode,
     spendCredits,
     setNodeSources,
+    groupNodes,
+    reparentNode,
   } = useCanvasStore();
 
-  const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
+  const { screenToFlowPosition, zoomIn, zoomOut, fitView, getNodes } = useReactFlow();
   const dragOrigin = React.useRef<string | null>(null);
   const [spawn, setSpawn] = React.useState<SpawnRequest | null>(null);
   const [paneMenu, setPaneMenu] = React.useState<{
@@ -80,59 +83,20 @@ function CanvasInner() {
   const selectedCount = nodes.filter((n) => n.selected).length;
   const isPanning = isSpaceHeld || tool === "hand";
 
-  // "Wrap with Shell" — shown when multiple nodes are selected
+  // "Wrap with Shell" — group the current selection. All the bounding-box,
+  // reparenting, and parent-ordering work lives in the store's groupNodes.
   function handleWrapSelection() {
-    const state = useCanvasStore.getState();
-    const selected = state.nodes.filter((n) => n.selected && n.data.kind !== "shell");
+    const selected = getNodes().filter(
+      (n) => n.selected && n.data.kind !== "shell",
+    );
     if (selected.length < 2) return;
-
-    // Find bounding box of selected nodes
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of selected) {
-      minX = Math.min(minX, n.position.x);
-      minY = Math.min(minY, n.position.y);
-      maxX = Math.max(maxX, n.position.x + (n.measured?.width ?? 288));
-      maxY = Math.max(maxY, n.position.y + (n.measured?.height ?? 180));
-    }
-
-    // Create shell encompassing them
-    const shellId = addNode("shell", {
-      x: minX - 24,
-      y: minY - 48,
-    });
-
-    // Wait for the next tick so the shell node exists in React Flow
-    requestAnimationFrame(() => {
-      const s2 = useCanvasStore.getState();
-      // Reparent selected nodes under the shell
-      const updated = s2.nodes.map((n) => {
-        if (selected.find((s) => s.id === n.id)) {
-          return {
-            ...n,
-            parentId: shellId,
-            position: {
-              x: n.position.x - minX + 24,
-              y: n.position.y - minY + 48,
-            },
-            selected: false,
-          };
-        }
-        return n;
-      });
-      // Resize shell to fit children
-      const shellW = maxX - minX + 48;
-      const shellH = maxY - minY + 72;
-      const shellUpdated = updated.map((n) =>
-        n.id === shellId
-          ? {
-              ...n,
-              style: { width: Math.max(320, shellW), height: Math.max(200, shellH) },
-              selected: true,
-            }
-          : n,
-      );
-      useCanvasStore.setState({ nodes: shellUpdated });
-    });
+    // React Flow's nodes carry measured sizes; getNodesBounds gives the true
+    // selection rect so the shell wraps the content exactly.
+    const bounds = getNodesBounds(selected);
+    groupNodes(
+      selected.map((n) => n.id),
+      bounds,
+    );
   }
 
   // Keyboard: Space = temporary pan · ⌘Z/⌘⇧Z = undo/redo · Delete = remove
@@ -323,47 +287,48 @@ function CanvasInner() {
     addNode(kind, { x: center.x - 144 + jitter, y: center.y - 80 + jitter });
   }
 
-  // Drag-to-stack: when a node is dropped, check if it landed on a Stack node
+  // Drop a node onto a Shell to group it; drag it back out to ungroup. Uses
+  // the dragged node's CENTER against shell bounds, and the store's
+  // reparentNode owns the relative/absolute math + parent ordering.
   const handleNodeDragStop: import("@xyflow/react").OnNodeDrag = React.useCallback(
-    (
-      _event,
-      draggedNode,
-    ) => {
+    (_event, draggedNode) => {
       const state = useCanvasStore.getState();
-      const d = draggedNode.data as Record<string, unknown>;
-      if (d.kind === "shell") return;
+      if ((draggedNode.data as Record<string, unknown>).kind === "shell") return;
 
-      const dBox = {
-        x: draggedNode.position.x,
-        y: draggedNode.position.y,
-        w: (draggedNode.measured?.width ?? 288),
-        h: (draggedNode.measured?.height ?? 180),
+      const parent = draggedNode.parentId
+        ? state.nodes.find((n) => n.id === draggedNode.parentId)
+        : undefined;
+      const abs = parent
+        ? {
+            x: draggedNode.position.x + parent.position.x,
+            y: draggedNode.position.y + parent.position.y,
+          }
+        : draggedNode.position;
+      const center = {
+        x: abs.x + (draggedNode.measured?.width ?? 288) / 2,
+        y: abs.y + (draggedNode.measured?.height ?? 180) / 2,
       };
 
-      // Check Shell nesting — drop node into shell
-      const shells = state.nodes.filter((n) => n.data.kind === "shell");
-      for (const shell of shells) {
-        const sW = shell.measured?.width ?? 480;
-        const sH = shell.measured?.height ?? 320;
-        if (
-          dBox.x < shell.position.x + sW &&
-          dBox.x + dBox.w > shell.position.x &&
-          dBox.y < shell.position.y + sH &&
-          dBox.y + dBox.h > shell.position.y
-        ) {
-          const relX = draggedNode.position.x - shell.position.x;
-          const relY = Math.max(48, draggedNode.position.y - shell.position.y);
-          const updatedNodes = state.nodes.map((n) =>
-            n.id === draggedNode.id
-              ? { ...n, parentId: shell.id, position: { x: relX, y: relY } }
-              : n,
-          );
-          useCanvasStore.setState({ nodes: updatedNodes });
-          return;
-        }
+      const target = state.nodes.find((n) => {
+        if (n.data.kind !== "shell" || n.id === draggedNode.id) return false;
+        const w = n.measured?.width ?? (n.style?.width as number) ?? 480;
+        const h = n.measured?.height ?? (n.style?.height as number) ?? 320;
+        return (
+          center.x >= n.position.x &&
+          center.x <= n.position.x + w &&
+          center.y >= n.position.y &&
+          center.y <= n.position.y + h
+        );
+      });
+
+      if (target) {
+        if (draggedNode.parentId !== target.id) reparentNode(draggedNode.id, target.id);
+      } else if (draggedNode.parentId) {
+        // Dragged out of its shell and not over any other → ungroup.
+        reparentNode(draggedNode.id, null);
       }
     },
-    [],
+    [reparentNode],
   );
 
   // Drag a found source out of the Sources node → drop it as a Paper node.

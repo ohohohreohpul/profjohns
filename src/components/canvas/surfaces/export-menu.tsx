@@ -15,7 +15,7 @@ import {
   type ExportFormat,
 } from "@/lib/export";
 import { formatReference, DEFAULT_STYLE } from "@/lib/citation";
-import type { WritingDoc } from "@/lib/document";
+import { extractCitedPaperIds, type WritingDoc } from "@/lib/document";
 import { useNodeInputSources } from "@/store/use-sources";
 
 const FORMATS: ExportFormat[] = ["markdown", "latex", "text", "docx"];
@@ -35,7 +35,7 @@ export function ExportMenu({
     setBusy(true);
     try {
       const style = doc.style ?? DEFAULT_STYLE;
-      const references = (doc.citationIds ?? [])
+      const references = extractCitedPaperIds(doc.content)
         .map((id) => allSources.find((p) => p.id === id))
         .filter((p): p is NonNullable<typeof p> => Boolean(p))
         .map((p, i) => formatReference(p, style, i + 1));

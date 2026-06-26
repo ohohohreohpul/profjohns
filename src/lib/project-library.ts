@@ -1,5 +1,7 @@
+import type { JSONContent } from "@tiptap/core";
 import type { PaperSource } from "./mock";
 import type { Canvas } from "@/store/workspace-store";
+import { extractText } from "./document";
 
 const CANVAS_KEY = "lattice-canvas-v1";
 
@@ -23,7 +25,10 @@ export interface ProjectLibrary {
 }
 
 interface PersistedCanvasState {
-  docs?: Record<string, { title?: string; blocks?: { text?: string }[] }>;
+  docs?: Record<
+    string,
+    { title?: string; content?: JSONContent; blocks?: { text?: string }[] }
+  >;
   sources?: Record<string, PaperSource[]>;
 }
 
@@ -54,7 +59,9 @@ export function readProjectLibrary(
     if (!st) continue;
 
     for (const [nodeId, doc] of Object.entries(st.docs ?? {})) {
-      const text = (doc.blocks ?? []).map((b) => b.text ?? "").join(" ");
+      const text = doc.content
+        ? extractText(doc.content)
+        : (doc.blocks ?? []).map((b) => b.text ?? "").join(" ");
       documents.push({
         id: nodeId,
         canvasId: cv.id,

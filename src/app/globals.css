@@ -539,3 +539,58 @@ body {
 @keyframes edge-flow {
   to { stroke-dashoffset: -10; }
 }
+
+/* TipTap document editor — typographic rhythm for the Writing surface. */
+.tiptap-doc {
+  font-family: var(--font-serif, Georgia, serif);
+  color: var(--color-grey-800);
+}
+.tiptap-doc p {
+  margin: 0 0 0.75em;
+  line-height: 1.75;
+}
+.tiptap-doc h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin: 1.1em 0 0.4em;
+}
+.tiptap-doc h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin: 1em 0 0.35em;
+}
+.tiptap-doc ul,
+.tiptap-doc ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.4em;
+}
+.tiptap-doc ul { list-style: disc; }
+.tiptap-doc ol { list-style: decimal; }
+.tiptap-doc li { margin: 0.15em 0; }
+.tiptap-doc blockquote {
+  margin: 0 0 0.75em;
+  padding-left: 0.9em;
+  border-left: 2px solid var(--color-grey-200);
+  color: var(--color-grey-500);
+}
+.tiptap-doc:focus { outline: none; }
+
+/* Empty-document placeholder (TipTap Placeholder extension). */
+.tiptap-doc p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-grey-400);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Inline citation chip — carries data-paper-id; references derive from these. */
+.lattice-citation {
+  color: var(--color-node-reader);
+  font-weight: 500;
+  cursor: default;
+}

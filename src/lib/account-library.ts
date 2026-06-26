@@ -1,7 +1,18 @@
+import type { JSONContent } from "@tiptap/core";
 import type { PaperSource } from "./mock";
 import type { Project, Canvas } from "@/store/workspace-store";
+import { extractText } from "./document";
 
 const CANVAS_KEY = "lattice-canvas-v1";
+
+/** Document text from either the new ProseMirror content or legacy blocks. */
+function docText(doc: {
+  content?: JSONContent;
+  blocks?: { text?: string }[];
+}): string {
+  if (doc.content) return extractText(doc.content);
+  return (doc.blocks ?? []).map((b) => b.text ?? "").join(" ").trim();
+}
 
 export type LibraryKind = "document" | "source" | "link" | "media";
 
@@ -41,7 +52,10 @@ interface PersistedNode {
 }
 
 interface PersistedCanvasState {
-  docs?: Record<string, { title?: string; blocks?: { text?: string }[] }>;
+  docs?: Record<
+    string,
+    { title?: string; content?: JSONContent; blocks?: { text?: string }[] }
+  >;
   sources?: Record<string, PaperSource[]>;
   nodes?: PersistedNode[];
 }
@@ -132,7 +146,7 @@ export function readAccountLibrary(
 
     // Documents — one per draft node.
     for (const [nodeId, doc] of Object.entries(st.docs ?? {})) {
-      const text = (doc.blocks ?? []).map((b) => b.text ?? "").join(" ").trim();
+      const text = docText(doc);
       const words = text.split(/\s+/).filter(Boolean).length;
       items.push({
         key: `doc:${cv.id}:${nodeId}`,

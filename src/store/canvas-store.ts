@@ -14,12 +14,11 @@ import {
 import { NODE_DEFINITIONS, type NodeKind } from "@/lib/node-catalog";
 import { DEFAULT_MODEL_ID } from "@/lib/models";
 import {
-  makeBlock,
   makeDefaultDoc,
-  sanitizeHtml,
-  type BlockType,
+  migrateBlocksToContent,
   type WritingDoc,
 } from "@/lib/document";
+import type { JSONContent } from "@tiptap/core";
 import type { CitationStyle } from "@/lib/citation";
 import type { PaperSource } from "@/lib/mock";
 import { nextHighlightId, type Highlight } from "@/lib/highlight";
@@ -119,6 +118,15 @@ interface CanvasState {
     data?: Record<string, unknown>,
   ) => string;
   removeNode: (nodeId: string) => void;
+  /** Wrap a set of nodes in a new shell; returns the shell id. `bounds` is the
+   *  selection's absolute rect (from React Flow's measured nodes) so the shell
+   *  is sized correctly — node.measured isn't mirrored into this store. */
+  groupNodes: (
+    nodeIds: string[],
+    bounds?: { x: number; y: number; width: number; height: number },
+  ) => string | null;
+  /** Move a node into a shell, or out to the top level when shellId is null. */
+  reparentNode: (nodeId: string, shellId: string | null) => void;
   removeEdge: (edgeId: string) => void;
   /** Sever every connection touching a node (incoming and outgoing). */
   disconnectNode: (nodeId: string) => void;
@@ -136,23 +144,9 @@ interface CanvasState {
 
   ensureDoc: (nodeId: string, direction: string) => void;
   updateDocTitle: (nodeId: string, title: string) => void;
-  updateBlockText: (
-    nodeId: string,
-    blockId: string,
-    text: string,
-    html?: string,
-  ) => void;
-  setBlockType: (nodeId: string, blockId: string, type: BlockType) => void;
-  addBlockAfter: (
-    nodeId: string,
-    afterBlockId: string,
-    type: BlockType,
-  ) => string;
-  removeBlock: (nodeId: string, blockId: string) => void;
-  appendBlock: (nodeId: string, type: BlockType, text: string) => string;
-  setDocPlainText: (nodeId: string, text: string) => void;
+  /** Replace the document body (ProseMirror JSON) — the editor is the source. */
+  setDocContent: (nodeId: string, content: JSONContent) => void;
   setDocStyle: (nodeId: string, style: CitationStyle) => void;
-  addCitation: (nodeId: string, paperId: string) => void;
   setDocOutline: (nodeId: string, outline: string[]) => void;
   dismissHint: () => void;
   focusOnShell: (shellId: string) => void;
@@ -256,6 +250,39 @@ function makeNode(
   return base;
 }
 
+/**
+ * React Flow requires a parent node to appear BEFORE its children in the
+ * array; otherwise children render at the wrong position (or not at all).
+ * Returns a stably-reordered copy that always satisfies that invariant.
+ */
+function orderByParent(nodes: CanvasNode[]): CanvasNode[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const out: CanvasNode[] = [];
+  const seen = new Set<string>();
+  function visit(node: CanvasNode) {
+    if (seen.has(node.id)) return;
+    const parent = node.parentId ? byId.get(node.parentId) : undefined;
+    if (parent && !seen.has(parent.id)) visit(parent);
+    seen.add(node.id);
+    out.push(node);
+  }
+  for (const n of nodes) visit(n);
+  return out;
+}
+
+/** Absolute (canvas) position of a node, resolving one level of parenting. */
+function absolutePosition(
+  node: CanvasNode,
+  nodes: CanvasNode[],
+): { x: number; y: number } {
+  const parent = node.parentId
+    ? nodes.find((n) => n.id === node.parentId)
+    : undefined;
+  return parent
+    ? { x: node.position.x + parent.position.x, y: node.position.y + parent.position.y }
+    : { x: node.position.x, y: node.position.y };
+}
+
 export const useCanvasStore = create<CanvasState>()(
   temporal(
     persist(
@@ -316,12 +343,119 @@ export const useCanvasStore = create<CanvasState>()(
   },
 
   removeNode: (nodeId) =>
-    set((state) => ({
-      nodes: state.nodes.filter((n) => n.id !== nodeId),
-      edges: state.edges.filter(
-        (e) => e.source !== nodeId && e.target !== nodeId,
-      ),
-    })),
+    set((state) => {
+      const target = state.nodes.find((n) => n.id === nodeId);
+      // Removing a shell frees its children (re-absolutized + detached) rather
+      // than leaving them orphaned with a dangling parentId.
+      const nodes = state.nodes
+        .filter((n) => n.id !== nodeId)
+        .map((n) =>
+          target && n.parentId === nodeId
+            ? {
+                ...n,
+                parentId: undefined,
+                position: {
+                  x: n.position.x + target.position.x,
+                  y: n.position.y + target.position.y,
+                },
+              }
+            : n,
+        );
+      return {
+        nodes: orderByParent(nodes),
+        edges: state.edges.filter(
+          (e) => e.source !== nodeId && e.target !== nodeId,
+        ),
+      };
+    }),
+
+  // Wrap a selection in a new shell. One place owns grouping: it sizes the
+  // shell to the selection's bounding box, reparents each node with positions
+  // relative to the shell, and keeps the parent-before-child ordering.
+  groupNodes: (nodeIds, bounds) => {
+    let shellId: string | null = null;
+    set((state) => {
+      const selected = state.nodes.filter(
+        (n) => nodeIds.includes(n.id) && n.data.kind !== "shell",
+      );
+      if (selected.length < 1) return {};
+
+      // Prefer the measured rect from React Flow (passed in); fall back to
+      // store positions + default sizes when it isn't available.
+      let minX: number, minY: number, maxX: number, maxY: number;
+      if (bounds) {
+        minX = bounds.x;
+        minY = bounds.y;
+        maxX = bounds.x + bounds.width;
+        maxY = bounds.y + bounds.height;
+      } else {
+        minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+        for (const n of selected) {
+          const a = absolutePosition(n, state.nodes);
+          minX = Math.min(minX, a.x);
+          minY = Math.min(minY, a.y);
+          maxX = Math.max(maxX, a.x + (n.measured?.width ?? 288));
+          maxY = Math.max(maxY, a.y + (n.measured?.height ?? 180));
+        }
+      }
+
+      const PAD_X = 24, HEAD = 56, PAD_B = 24;
+      const shellPos = { x: minX - PAD_X, y: minY - HEAD };
+      const id = `n${state.nextId}`;
+      shellId = id;
+      const shell: CanvasNode = {
+        ...makeNode(id, "shell", shellPos),
+        selected: true,
+        style: {
+          width: Math.max(320, maxX - minX + PAD_X * 2),
+          height: Math.max(200, maxY - minY + HEAD + PAD_B),
+        },
+      };
+
+      const selIds = new Set(selected.map((n) => n.id));
+      const updated = state.nodes.map((n) => {
+        if (!selIds.has(n.id)) return n;
+        const a = absolutePosition(n, state.nodes);
+        return {
+          ...n,
+          parentId: id,
+          selected: false,
+          position: { x: a.x - shellPos.x, y: a.y - shellPos.y },
+        };
+      });
+
+      return {
+        nodes: orderByParent([...updated, shell]),
+        nextId: state.nextId + 1,
+      };
+    });
+    return shellId;
+  },
+
+  // Move a node into a shell (shellId) or out to the top level (null),
+  // converting between relative and absolute coordinates so it never jumps.
+  reparentNode: (nodeId, shellId) =>
+    set((state) => {
+      const node = state.nodes.find((n) => n.id === nodeId);
+      if (!node || node.id === shellId || node.parentId === shellId) return {};
+      const abs = absolutePosition(node, state.nodes);
+
+      let next: CanvasNode;
+      if (shellId) {
+        const shell = state.nodes.find((n) => n.id === shellId);
+        if (!shell || shell.data.kind !== "shell") return {};
+        next = {
+          ...node,
+          parentId: shellId,
+          position: { x: abs.x - shell.position.x, y: Math.max(40, abs.y - shell.position.y) },
+        };
+      } else {
+        next = { ...node, parentId: undefined, position: abs };
+      }
+
+      const nodes = state.nodes.map((n) => (n.id === nodeId ? next : n));
+      return { nodes: orderByParent(nodes) };
+    }),
 
   removeEdge: (edgeId) =>
     set((state) => ({
@@ -431,75 +565,11 @@ export const useCanvasStore = create<CanvasState>()(
       return { docs: { ...state.docs, [nodeId]: { ...doc, title } } };
     }),
 
-  updateBlockText: (nodeId, blockId, text, html) =>
+  setDocContent: (nodeId, content) =>
     set((state) => {
       const doc = state.docs[nodeId];
       if (!doc) return state;
-      const cleanHtml = html === undefined ? undefined : sanitizeHtml(html);
-      const blocks = doc.blocks.map((b) =>
-        b.id === blockId ? { ...b, text, html: cleanHtml } : b,
-      );
-      return { docs: { ...state.docs, [nodeId]: { ...doc, blocks } } };
-    }),
-
-  setBlockType: (nodeId, blockId, type) =>
-    set((state) => {
-      const doc = state.docs[nodeId];
-      if (!doc) return state;
-      const blocks = doc.blocks.map((b) =>
-        b.id === blockId ? { ...b, type } : b,
-      );
-      return { docs: { ...state.docs, [nodeId]: { ...doc, blocks } } };
-    }),
-
-  addBlockAfter: (nodeId, afterBlockId, type) => {
-    const block = makeBlock(type);
-    set((state) => {
-      const doc = state.docs[nodeId];
-      if (!doc) return state;
-      const index = doc.blocks.findIndex((b) => b.id === afterBlockId);
-      const blocks = [...doc.blocks];
-      blocks.splice(index + 1, 0, block);
-      return { docs: { ...state.docs, [nodeId]: { ...doc, blocks } } };
-    });
-    return block.id;
-  },
-
-  removeBlock: (nodeId, blockId) =>
-    set((state) => {
-      const doc = state.docs[nodeId];
-      if (!doc || doc.blocks.length <= 1) return state;
-      const blocks = doc.blocks.filter((b) => b.id !== blockId);
-      return { docs: { ...state.docs, [nodeId]: { ...doc, blocks } } };
-    }),
-
-  appendBlock: (nodeId, type, text) => {
-    const block = makeBlock(type, text);
-    set((state) => {
-      const doc = state.docs[nodeId];
-      if (!doc) return state;
-      return {
-        docs: {
-          ...state.docs,
-          [nodeId]: { ...doc, blocks: [...doc.blocks, block] },
-        },
-      };
-    });
-    return block.id;
-  },
-
-  setDocPlainText: (nodeId, text) =>
-    set((state) => {
-      const doc = state.docs[nodeId];
-      if (!doc) return state;
-      const chunks = text.split(/\n\n+/);
-      const blocks = chunks
-        .filter((c) => c.trim())
-        .map((c) => makeBlock("paragraph", c.trim()));
-      if (blocks.length === 0) {
-        blocks.push(makeBlock("paragraph", ""));
-      }
-      return { docs: { ...state.docs, [nodeId]: { ...doc, blocks } } };
+      return { docs: { ...state.docs, [nodeId]: { ...doc, content } } };
     }),
 
   setDocStyle: (nodeId, style) =>
@@ -507,20 +577,6 @@ export const useCanvasStore = create<CanvasState>()(
           const doc = state.docs[nodeId];
           if (!doc) return state;
           return { docs: { ...state.docs, [nodeId]: { ...doc, style } } };
-        }),
-
-      addCitation: (nodeId, paperId) =>
-        set((state) => {
-          const doc = state.docs[nodeId];
-          if (!doc) return state;
-          const current = doc.citationIds ?? [];
-          if (current.includes(paperId)) return state;
-          return {
-            docs: {
-              ...state.docs,
-              [nodeId]: { ...doc, citationIds: [...current, paperId] },
-            },
-          };
         }),
 
       setDocOutline: (nodeId, outline) =>
@@ -594,7 +650,31 @@ reset: (direction) =>
         seeded: state.seeded,
         hintSeen: state.hintSeen,
       }),
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => (state) => {
+        // Migrate any document still on the legacy block[] shape to ProseMirror
+        // JSON so existing drafts survive the editor change. Transparent.
+        if (state?.docs) {
+          let changed = false;
+          const docs: Record<string, WritingDoc> = {};
+          for (const [id, doc] of Object.entries(state.docs)) {
+            const legacy = doc as WritingDoc & {
+              blocks?: { type?: "heading" | "paragraph"; text?: string }[];
+              citationIds?: string[];
+            };
+            if (!legacy.content && legacy.blocks) {
+              changed = true;
+              docs[id] = {
+                title: legacy.title ?? "",
+                content: migrateBlocksToContent(legacy.blocks),
+                style: legacy.style,
+                outline: legacy.outline ?? [],
+              };
+            } else {
+              docs[id] = doc;
+            }
+          }
+          if (changed) useCanvasStore.setState({ docs });
+        }
         useCanvasStore.setState({ hasHydrated: true });
       },
     },

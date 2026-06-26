@@ -17,6 +17,7 @@ import {
 } from "@/lib/citation";
 import { useCanvasStore } from "@/store/canvas-store";
 import { useNodeInputSources } from "@/store/use-sources";
+import { extractCitedPaperIds } from "@/lib/document";
 
 export function StyleSelector({ nodeId }: { nodeId: string }) {
   const style = useCanvasStore((s) => s.docs[nodeId]?.style ?? DEFAULT_STYLE);
@@ -47,10 +48,10 @@ export function ReferencesPanel({ nodeId }: { nodeId: string }) {
   const style: CitationStyle = useCanvasStore(
     (s) => s.docs[nodeId]?.style ?? DEFAULT_STYLE,
   );
-  const citationIds = useCanvasStore((s) => s.docs[nodeId]?.citationIds);
+  const content = useCanvasStore((s) => s.docs[nodeId]?.content);
   const allSources = useNodeInputSources(nodeId);
 
-  const cited = (citationIds ?? [])
+  const cited = extractCitedPaperIds(content)
     .map((id) => allSources.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => Boolean(p));
 

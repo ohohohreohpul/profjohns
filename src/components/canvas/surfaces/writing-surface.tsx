@@ -27,6 +27,12 @@ import { useCanvasStore } from "@/store/canvas-store";
 import { useNodeInputSources } from "@/store/use-sources";
 import { writeFromSources, editText } from "@/lib/ai-client";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
+import { getDocEditor } from "@/components/editor/doc-editor";
+import {
+  extractText,
+  extractCitedPaperIds,
+  paragraphsToContent,
+} from "@/lib/document";
 
 export function WritingSurface({
   nodeId,
@@ -41,8 +47,7 @@ export function WritingSurface({
 }) {
   const model = getModel(modelId);
   const spendCredits = useCanvasStore((s) => s.spendCredits);
-  const appendBlock = useCanvasStore((s) => s.appendBlock);
-  const setDocPlainText = useCanvasStore((s) => s.setDocPlainText);
+  const setDocContent = useCanvasStore((s) => s.setDocContent);
   const doc = useCanvasStore((s) => s.docs[nodeId]);
   const setDocOutline = useCanvasStore((s) => s.setDocOutline);
   const sources = useNodeInputSources(nodeId);
@@ -54,10 +59,7 @@ export function WritingSurface({
   const [tab, setTab] = React.useState<"ai" | "sources" | "outline">("ai");
 
   const outline = doc?.outline ?? [];
-  const draftText = React.useMemo(
-    () => (doc?.blocks ?? []).map((b) => b.text).join("\n\n"),
-    [doc?.blocks],
-  );
+  const draftText = React.useMemo(() => extractText(doc?.content), [doc?.content]);
 
   async function runWrite(preset?: string) {
     const instr = (preset ?? instruction).trim();
@@ -71,11 +73,11 @@ export function WritingSurface({
     setError(null);
     try {
       const answer = await writeFromSources(instr, sources, draftText);
-      answer
-        .split(/\n{2,}/)
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .forEach((p) => appendBlock(nodeId, "paragraph", p));
+      const nodes = paragraphsToContent(answer);
+      const editor = getDocEditor(nodeId);
+      // Append the generated prose to the end of the draft (undoable in-editor).
+      if (editor) editor.chain().focus("end").insertContent(nodes).run();
+      else setDocContent(nodeId, { type: "doc", content: nodes });
       spendCredits(model.creditsPerRun);
       if (!preset) setInstruction("");
     } catch (err: unknown) {
@@ -94,7 +96,10 @@ export function WritingSurface({
     setError(null);
     try {
       const answer = await editText(draftText, instr);
-      setDocPlainText(nodeId, answer);
+      const content = { type: "doc", content: paragraphsToContent(answer) };
+      const editor = getDocEditor(nodeId);
+      if (editor) editor.commands.setContent(content);
+      else setDocContent(nodeId, content);
       spendCredits(model.creditsPerRun);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Edit failed.");
@@ -209,37 +214,59 @@ function TabButton({
 function SourcesPanel({ nodeId }: { nodeId: string }) {
   const papers = useNodeInputSources(nodeId);
   const highlightMap = useCanvasStore((s) => s.highlights);
-  const appendBlock = useCanvasStore((s) => s.appendBlock);
-  const addCitation = useCanvasStore((s) => s.addCitation);
 
   function citationIndex(paper: (typeof papers)[number]) {
     const doc = useCanvasStore.getState().docs[nodeId];
     const style = doc?.style ?? DEFAULT_STYLE;
-    const existing = doc?.citationIds ?? [];
+    const existing = extractCitedPaperIds(doc?.content);
     const index = existing.includes(paper.id)
       ? existing.indexOf(paper.id) + 1
       : existing.length + 1;
     return { style, index };
   }
 
+  // Cite = insert the in-text citation marker at the cursor, carrying the
+  // paperId on a citation mark. The references panel derives the cited set
+  // from these marks — single source of truth.
   function cite(paper: (typeof papers)[number]) {
+    const editor = getDocEditor(nodeId);
+    if (!editor) return;
     const { style, index } = citationIndex(paper);
-    addCitation(nodeId, paper.id);
-    appendBlock(
-      nodeId,
-      "paragraph",
-      `${paper.title} ${formatInText(paper, style, index)}.`,
-    );
+    editor
+      .chain()
+      .focus()
+      .insertContent([
+        { type: "text", text: " " },
+        {
+          type: "text",
+          text: formatInText(paper, style, index),
+          marks: [{ type: "citation", attrs: { paperId: paper.id } }],
+        },
+      ])
+      .run();
   }
 
   function insertQuote(paper: (typeof papers)[number], text: string) {
+    const editor = getDocEditor(nodeId);
+    if (!editor) return;
     const { style, index } = citationIndex(paper);
-    addCitation(nodeId, paper.id);
-    appendBlock(
-      nodeId,
-      "paragraph",
-      `“${text}” ${formatInText(paper, style, index)}`,
-    );
+    editor
+      .chain()
+      .focus("end")
+      .insertContent([
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: `“${text}” ` },
+            {
+              type: "text",
+              text: formatInText(paper, style, index),
+              marks: [{ type: "citation", attrs: { paperId: paper.id } }],
+            },
+          ],
+        },
+      ])
+      .run();
   }
 
   return (
