@@ -16,6 +16,7 @@ import {
 } from "@/store/canvas-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useProfileSync } from "@/store/use-profile-sync";
+import { useCanvasDbSync } from "@/lib/sync/use-canvas-db-sync";
 import { parseSourcesParam } from "@/components/home/hero-sources-popover";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,9 @@ function CanvasWorkspace() {
   // Keep the "For You" interest profile in sync with kept sources on this
   // canvas — no AI; a weighted tally of concepts + keywords.
   useProfileSync();
+
+  // Phase 1 — sync this board's state with Supabase when signed in (no-op otherwise).
+  useCanvasDbSync(canvasId, projectId);
 
   const reset = useCanvasStore((s) => s.reset);
   const storedDirection = useCanvasStore((s) => s.direction);

@@ -4,6 +4,7 @@ import { NavProgress } from "@/components/brand/nav-progress";
 import { RouteOverlay } from "@/components/brand/route-overlay";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { AuthGuard } from "@/lib/auth/auth-guard";
+import { PersistenceSync } from "@/components/sync/persistence-sync";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
+          <PersistenceSync />
           <AuthGuard>
             <TooltipProvider delayDuration={200}>
               <NavProgress />

@@ -12,9 +12,16 @@ create table if not exists public.profiles (
   email text not null default '',
   display_name text default '',
   avatar_url text default '',
+  -- Account-level app settings (Phase 1).
+  style_profile text,                                  -- Lily's learned voice
+  home_interests jsonb not null default '[]'::jsonb,   -- Discover tabs
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Settings columns are added idempotently for projects created before Phase 1.
+alter table public.profiles add column if not exists style_profile text;
+alter table public.profiles add column if not exists home_interests jsonb not null default '[]'::jsonb;
 
 -- Auto-create a profile row when a user signs up.
 create or replace function public.handle_new_user()
@@ -44,7 +51,7 @@ create trigger on_auth_user_created
 -- Projects — a research workspace
 -- ----------------------------------------------------------------------------
 create table if not exists public.projects (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,                 -- client-generated id (e.g. proj-<ts>)
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null default 'Untitled project',
   direction text not null default '',
@@ -60,8 +67,8 @@ create index if not exists projects_updated_at_idx on public.projects (updated_a
 -- Canvases — a board within a project (nodes + edges + per-node data)
 -- ----------------------------------------------------------------------------
 create table if not exists public.canvases (
-  id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.projects (id) on delete cascade,
+  id text primary key,                 -- client-generated id (e.g. cv-<ts>)
+  project_id text not null references public.projects (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null default 'Main canvas',
   -- The full React Flow state: nodes, edges, per-node data, direction, etc.
@@ -79,7 +86,7 @@ create index if not exists canvases_user_id_idx on public.canvases (user_id);
 -- Sources — a deduped paper/figure record per user
 -- ----------------------------------------------------------------------------
 create table if not exists public.sources (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,                 -- client PaperSource id
   user_id uuid not null references auth.users (id) on delete cascade,
   -- External identifiers for dedup
   external_id text,          -- DOI, arXiv ID, Semantic Scholar paper ID, etc.
@@ -109,9 +116,9 @@ create index if not exists sources_user_id_idx on public.sources (user_id);
 -- ----------------------------------------------------------------------------
 create table if not exists public.pinned_sources (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.projects (id) on delete cascade,
+  project_id text not null references public.projects (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
-  source_id uuid not null references public.sources (id) on delete cascade,
+  source_id text not null references public.sources (id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (project_id, source_id)
 );
@@ -125,7 +132,7 @@ create index if not exists pinned_sources_user_idx on public.pinned_sources (use
 create table if not exists public.media (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  project_id uuid references public.projects (id) on delete set null,
+  project_id text references public.projects (id) on delete set null,
   name text not null default '',
   storage_path text not null,   -- path in the media bucket
   mime_type text not null default 'application/octet-stream',
