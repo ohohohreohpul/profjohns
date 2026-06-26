@@ -41,7 +41,8 @@ type AiMode =
   | "refine"
   | "libchat"
   | "libcat"
-  | "audit";
+  | "audit"
+  | "dna";
 
 interface SourceContext {
   title: string;
@@ -63,6 +64,8 @@ interface AiRequest {
   allowedSources?: SourceProvider[];
   /** Free-text research directions, used by the `refine` mode. */
   directions?: string[];
+  /** Lily's voice profile — injected into the `write` mode when present. */
+  style?: string;
 }
 
 interface ApiResponse<T> {
@@ -99,6 +102,8 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are the assistant for a user's personal research library. Answer ONLY from the catalog of library items provided (each line is '[key] kind | title | projects | details'). Help the user locate items, see connections across projects, and decide what to revisit. Refer to items by their title, and mention which project they live in when useful. Be concise and concrete. If something is not in the library, say so plainly — never invent items.",
   libcat:
     "You are organizing a user's research library into a clean set of themes. Read the catalog (each line is '[key] kind | title | projects | details') and group the items into 4-8 meaningful, non-overlapping categories by subject/theme (not by file type). Return ONLY a JSON array, no prose or code fences: [{\"category\": string, \"keys\": [string]}]. category = a short 1-3 word human label; keys = the exact [key] values that belong to it. Every item should appear in exactly one category; omit a key only if it truly fits nowhere.",
+  dna:
+    "You are a writing-voice analyst. From the author's writing sample(s), infer a concise, reusable VOICE PROFILE another writer could follow to sound like this author. Cover: overall tone/register; sentence length & rhythm; preferred structure (how they open, build, and conclude an argument); diction & favored/avoided words; use of hedging vs. assertion; how they handle citations and evidence; and any signature habits. Return PLAIN PROSE (no JSON), ~120-180 words, written as direct guidance ('Write in...', 'Prefer...', 'Avoid...'). Describe only what the sample evidences — do not invent.",
   audit:
     "You are a meticulous citation auditor. You are given a draft and a numbered list of the SOURCES available to the author. Identify the draft's distinct factual/empirical CLAIMS (skip the author's own framing, transitions, and opinions) and judge whether each is backed by the provided sources. Return ONLY a JSON array, no prose or code fences: [{\"claim\": string, \"status\": \"supported\" | \"weak\" | \"unsupported\", \"source\": number | null, \"note\": string}]. claim = the claim quoted or closely paraphrased (<=160 chars); status = 'supported' if a source clearly backs it, 'weak' if a source is only tangentially related or partially supports it, 'unsupported' if no provided source backs it; source = the 1-based number of the best supporting source, or null when unsupported; note = at most 16 words on why. Be strict — never credit a source that does not actually contain the claim. Cover the most important claims (up to ~12).",
 };
@@ -132,8 +137,8 @@ export async function POST(
     );
   }
 
-  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit"];
+  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style } = body;
+  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna"];
   if (!validModes.includes(mode)) {
     return NextResponse.json(
       { success: false, data: null, error: `Unknown mode: ${mode}`, configured: true },
@@ -247,6 +252,13 @@ export async function POST(
         { status: 400 },
       );
     }
+  } else if (mode === "dna") {
+    if (!text || text.trim().length < 200) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Add a longer writing sample (a few paragraphs) so Lily can learn your voice.", configured: true },
+        { status: 400 },
+      );
+    }
   } else {
     if (!text || text.trim().length < 20) {
       return NextResponse.json(
@@ -351,13 +363,22 @@ export async function POST(
     contextLabel = "SOURCES";
     contextBody = buildSourcesBlock(sources as SourceContext[]);
     userContent = `Audit this draft's claims against the sources above.\n\nDRAFT:\n${(draft as string).slice(0, 12000)}`;
+  } else if (mode === "dna") {
+    contextLabel = "WRITING SAMPLE";
+    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
+    userContent = "Infer this author's reusable voice profile.";
   } else {
     contextLabel = "PAPER";
     contextBody = `${title ? `TITLE: ${title}\n\n` : ""}${(text as string).slice(0, MAX_CONTEXT_CHARS)}`;
     userContent = mode === "ask" ? (question as string) : "Summarize this paper.";
   }
 
-  const systemPrompt = `${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}`;
+  // Lily: condition the writer on the author's learned voice profile.
+  const voiceBlock =
+    mode === "write" && style?.trim()
+      ? `\n\nAUTHOR VOICE PROFILE — write in this voice (it governs tone/rhythm/diction; never let it override factual accuracy or citations):\n${style.trim()}`
+      : "";
+  const systemPrompt = `${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}${voiceBlock}`;
 
   try {
     const res = await fetch(OR_BASE, {

@@ -36,6 +36,8 @@ import {
 } from "@/lib/ai-client";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
 import { getDocEditor } from "@/components/editor/doc-editor";
+import { LilyVoice } from "./lily-voice";
+import { useWorkspaceStore } from "@/store/workspace-store";
 import {
   extractText,
   extractCitedPaperIds,
@@ -59,6 +61,8 @@ export function WritingSurface({
   const doc = useCanvasStore((s) => s.docs[nodeId]);
   const setDocOutline = useCanvasStore((s) => s.setDocOutline);
   const sources = useNodeInputSources(nodeId);
+  const styleProfile = useWorkspaceStore((s) => s.styleProfile);
+  const [useVoice, setUseVoice] = React.useState(true);
 
   const [instruction, setInstruction] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -80,7 +84,12 @@ export function WritingSurface({
     setBusyLabel("Writing…");
     setError(null);
     try {
-      const answer = await writeFromSources(instr, sources, draftText);
+      const answer = await writeFromSources(
+        instr,
+        sources,
+        draftText,
+        useVoice && styleProfile ? styleProfile : undefined,
+      );
       const nodes = paragraphsToContent(answer);
       const editor = getDocEditor(nodeId);
       // Append the generated prose to the end of the draft (undoable in-editor).
@@ -179,6 +188,8 @@ export function WritingSurface({
               onInstruction={setInstruction}
               onRunWrite={runWrite}
               onApplyEdit={applyEdit}
+              useVoice={useVoice}
+              onToggleVoice={setUseVoice}
             />
           )}
           {tab === "sources" && <SourcesPanel nodeId={nodeId} />}
@@ -395,6 +406,8 @@ function AiPanel({
   onInstruction,
   onRunWrite,
   onApplyEdit,
+  useVoice,
+  onToggleVoice,
 }: {
   model: ReturnType<typeof getModel>;
   sources: ReturnType<typeof useNodeInputSources>;
@@ -406,11 +419,16 @@ function AiPanel({
   onInstruction: (v: string) => void;
   onRunWrite: (preset?: string) => void;
   onApplyEdit: (instr: string, label: string) => void;
+  useVoice: boolean;
+  onToggleVoice: (v: boolean) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto p-3">
-        <p className="flex items-center gap-1 px-1 text-[11px] text-grey-500">
+        {/* Lily — write in the author's learned voice. */}
+        <LilyVoice useVoice={useVoice} onToggleVoice={onToggleVoice} />
+
+        <p className="mt-3 flex items-center gap-1 px-1 text-[11px] text-grey-500">
           <Link2 className="size-3" />
           {sources.length} connected source{sources.length === 1 ? "" : "s"}
         </p>

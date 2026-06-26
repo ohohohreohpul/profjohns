@@ -36,7 +36,8 @@ interface AiRequestBody {
     | "refine"
     | "libchat"
     | "libcat"
-    | "audit";
+    | "audit"
+    | "dna";
   text?: string;
   title?: string;
   question?: string;
@@ -47,6 +48,8 @@ interface AiRequestBody {
   allowedSources?: SourceProvider[];
   /** Free-text research directions, used by the `refine` mode. */
   directions?: string[];
+  /** Lily's voice profile — conditions the `write` mode. */
+  style?: string;
 }
 
 /** A proposed search angle — the AI also routes it to the best database. */
@@ -128,6 +131,7 @@ export function writeFromSources(
   instruction: string,
   sources: PaperSource[],
   draft?: string,
+  style?: string,
 ): Promise<string> {
   const compact: SourceContext[] = sources.map((s) => ({
     title: s.title,
@@ -135,7 +139,12 @@ export function writeFromSources(
     year: s.year,
     abstract: s.abstract,
   }));
-  return callAi({ mode: "write", instruction, sources: compact, draft });
+  return callAi({ mode: "write", instruction, sources: compact, draft, style });
+}
+
+/** Lily — derive a reusable writing-voice profile from the author's sample. */
+export function deriveStyleProfile(sample: string): Promise<string> {
+  return callAi({ mode: "dna", text: sample });
 }
 
 export function batchSummarizeSources(sources: PaperSource[]): Promise<string> {

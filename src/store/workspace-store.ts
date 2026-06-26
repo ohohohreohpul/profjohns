@@ -40,6 +40,8 @@ interface WorkspaceState {
   homeInterests: HomeInterest[];
   /** Sources pinned to a project from the Discover feed ("Save to Space"). */
   pinnedSources: Record<string, PaperSource[]>;
+  /** Lily's learned writing-voice profile (account-level), or null if untrained. */
+  styleProfile: string | null;
 
   addProject: (name: string, direction: string) => string;
   removeProject: (id: string) => void;
@@ -56,6 +58,8 @@ interface WorkspaceState {
   removeHomeInterest: (label: string) => void;
   pinSource: (projectId: string, source: PaperSource) => void;
   unpinSource: (projectId: string, sourceId: string) => void;
+  /** Set or clear Lily's learned voice profile. */
+  setStyleProfile: (profile: string | null) => void;
   /** Remove canvases whose project no longer exists + dangling/legacy board keys. */
   pruneOrphans: () => void;
 }
@@ -81,6 +85,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       homeOrder: [],
       homeInterests: DEFAULT_INTERESTS,
       pinnedSources: {},
+      styleProfile: null,
       hasHydrated: false,
 
       addProject: (name, direction) => {
@@ -207,6 +212,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           };
         }),
 
+      setStyleProfile: (profile) => set({ styleProfile: profile }),
+
       pruneOrphans: () =>
         set((s) => {
           const projectIds = new Set(s.projects.map((p) => p.id));
@@ -244,6 +251,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         homeOrder: s.homeOrder,
         homeInterests: s.homeInterests,
         pinnedSources: s.pinnedSources,
+        styleProfile: s.styleProfile,
       }),
       onRehydrateStorage: () => () => {
         useWorkspaceStore.setState({ hasHydrated: true });

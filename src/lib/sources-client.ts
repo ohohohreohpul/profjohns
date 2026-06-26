@@ -82,3 +82,15 @@ export async function uploadPdf(file: File): Promise<PaperSource> {
     category: `${json.data.pages} pages`,
   };
 }
+
+/** Extract the FULL text of a PDF (e.g. to train Lily on the author's voice). */
+export async function readPdfText(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/pdf", { method: "POST", body: form });
+  const json = (await res.json()) as ApiResponse<PdfResult>;
+  if (!res.ok || !json.success || !json.data) {
+    throw new Error(json.error ?? "Could not read that PDF.");
+  }
+  return json.data.text;
+}
