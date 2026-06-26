@@ -37,7 +37,8 @@ interface AiRequestBody {
     | "libchat"
     | "libcat"
     | "audit"
-    | "dna";
+    | "dna"
+    | "synth";
   text?: string;
   title?: string;
   question?: string;
@@ -102,6 +103,20 @@ function parseJsonArray<T>(raw: string): T[] {
   return parsed as T[];
 }
 
+/** Parse a JSON object out of a model response, tolerating fences/preamble. */
+function parseJsonObject<T>(raw: string): T {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) {
+    throw new Error("Expected a JSON object from the assistant.");
+  }
+  return JSON.parse(raw.slice(start, end + 1)) as T;
+}
+
+function numList(v: unknown): number[] {
+  return Array.isArray(v) ? v.filter((n): n is number => typeof n === "number") : [];
+}
+
 async function callAi(body: AiRequestBody): Promise<string> {
   const res = await fetch("/api/ai", {
     method: "POST",
@@ -145,6 +160,61 @@ export function writeFromSources(
 /** Lily — derive a reusable writing-voice profile from the author's sample. */
 export function deriveStyleProfile(sample: string): Promise<string> {
   return callAi({ mode: "dna", text: sample });
+}
+
+/** Structured synthesis over a source set — `sources` are 1-based indices into
+ *  the connected source list, in the order passed to synthesizeSources. */
+export interface SynthClaim {
+  claim: string;
+  sources: number[];
+  evidence: string;
+}
+export interface SynthContradiction {
+  claim: string;
+  sources: number[];
+  note: string;
+}
+export interface SynthTheme {
+  theme: string;
+  sources: number[];
+}
+export interface Synthesis {
+  claims: SynthClaim[];
+  contradictions: SynthContradiction[];
+  themes: SynthTheme[];
+}
+
+/** Synthesize connected sources into structured claims, contradictions, themes. */
+export async function synthesizeSources(
+  sources: PaperSource[],
+): Promise<Synthesis> {
+  const raw = await callAi({ mode: "synth", sources: toContext(sources) });
+  const obj = parseJsonObject<Partial<Synthesis>>(raw);
+  const claims = Array.isArray(obj.claims) ? obj.claims : [];
+  const contradictions = Array.isArray(obj.contradictions) ? obj.contradictions : [];
+  const themes = Array.isArray(obj.themes) ? obj.themes : [];
+  return {
+    claims: claims
+      .map((c) => ({
+        claim: String(c?.claim ?? "").trim(),
+        sources: numList(c?.sources),
+        evidence: String(c?.evidence ?? "").trim(),
+      }))
+      .filter((c) => c.claim),
+    contradictions: contradictions
+      .map((c) => ({
+        claim: String(c?.claim ?? "").trim(),
+        sources: numList(c?.sources),
+        note: String(c?.note ?? "").trim(),
+      }))
+      .filter((c) => c.claim),
+    themes: themes
+      .map((t) => ({
+        theme: String(t?.theme ?? "").trim(),
+        sources: numList(t?.sources),
+      }))
+      .filter((t) => t.theme),
+  };
 }
 
 export function batchSummarizeSources(sources: PaperSource[]): Promise<string> {

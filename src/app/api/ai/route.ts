@@ -42,7 +42,8 @@ type AiMode =
   | "libchat"
   | "libcat"
   | "audit"
-  | "dna";
+  | "dna"
+  | "synth";
 
 interface SourceContext {
   title: string;
@@ -102,6 +103,8 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are the assistant for a user's personal research library. Answer ONLY from the catalog of library items provided (each line is '[key] kind | title | projects | details'). Help the user locate items, see connections across projects, and decide what to revisit. Refer to items by their title, and mention which project they live in when useful. Be concise and concrete. If something is not in the library, say so plainly — never invent items.",
   libcat:
     "You are organizing a user's research library into a clean set of themes. Read the catalog (each line is '[key] kind | title | projects | details') and group the items into 4-8 meaningful, non-overlapping categories by subject/theme (not by file type). Return ONLY a JSON array, no prose or code fences: [{\"category\": string, \"keys\": [string]}]. category = a short 1-3 word human label; keys = the exact [key] values that belong to it. Every item should appear in exactly one category; omit a key only if it truly fits nowhere.",
+  synth:
+    "You are a research synthesist working over a numbered list of SOURCES. Produce a STRUCTURED synthesis. Return ONLY a JSON object (no prose, no code fences): {\"claims\": [{\"claim\": string, \"sources\": [number], \"evidence\": string}], \"contradictions\": [{\"claim\": string, \"sources\": [number], \"note\": string}], \"themes\": [{\"theme\": string, \"sources\": [number]}]}. claim = a substantive finding stated plainly (<=140 chars); evidence = at most 18 words on what backs it; sources = the 1-based numbers of the sources that support each item; contradictions = genuine disagreements between sources (cite the conflicting source numbers, note what differs); themes = 2-4 short cross-cutting topic labels. Ground everything in the provided sources — never invent claims, numbers, or sources. Aim for up to ~8 claims.",
   dna:
     "You are a writing-voice analyst. From the author's writing sample(s), infer a concise, reusable VOICE PROFILE another writer could follow to sound like this author. Cover: overall tone/register; sentence length & rhythm; preferred structure (how they open, build, and conclude an argument); diction & favored/avoided words; use of hedging vs. assertion; how they handle citations and evidence; and any signature habits. Return PLAIN PROSE (no JSON), ~120-180 words, written as direct guidance ('Write in...', 'Prefer...', 'Avoid...'). Describe only what the sample evidences — do not invent.",
   audit:
@@ -138,7 +141,7 @@ export async function POST(
   }
 
   const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna"];
+  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth"];
   if (!validModes.includes(mode)) {
     return NextResponse.json(
       { success: false, data: null, error: `Unknown mode: ${mode}`, configured: true },
@@ -252,6 +255,13 @@ export async function POST(
         { status: 400 },
       );
     }
+  } else if (mode === "synth") {
+    if (!sources || sources.length === 0) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Connect at least one source to synthesize.", configured: true },
+        { status: 400 },
+      );
+    }
   } else if (mode === "dna") {
     if (!text || text.trim().length < 200) {
       return NextResponse.json(
@@ -296,7 +306,7 @@ export async function POST(
   const maxTokens =
     mode === "write" || mode === "edit"
       ? MAX_OUTPUT_WRITE
-      : mode === "triage" || mode === "audit"
+      : mode === "triage" || mode === "audit" || mode === "synth"
         ? 2048
         : MAX_OUTPUT_DEFAULT;
 
@@ -367,6 +377,10 @@ export async function POST(
     contextLabel = "WRITING SAMPLE";
     contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
     userContent = "Infer this author's reusable voice profile.";
+  } else if (mode === "synth") {
+    contextLabel = "SOURCES";
+    contextBody = buildSourcesBlock(sources as SourceContext[]);
+    userContent = "Synthesize these sources into claims, contradictions, and themes.";
   } else {
     contextLabel = "PAPER";
     contextBody = `${title ? `TITLE: ${title}\n\n` : ""}${(text as string).slice(0, MAX_CONTEXT_CHARS)}`;
