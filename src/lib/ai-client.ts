@@ -35,7 +35,8 @@ interface AiRequestBody {
     | "gaps"
     | "refine"
     | "libchat"
-    | "libcat";
+    | "libcat"
+    | "audit";
   text?: string;
   title?: string;
   question?: string;
@@ -260,4 +261,36 @@ export async function categorizeLibrary(
       keys: c.keys.filter((k) => typeof k === "string" && k.trim()),
     }))
     .filter((c) => c.category && c.keys.length > 0);
+}
+
+/** A citation-audit verdict for one claim (Johns). `source` is the 1-based
+ *  index into the audited source set, or null when unsupported. */
+export interface AuditFinding {
+  claim: string;
+  status: "supported" | "weak" | "unsupported";
+  source: number | null;
+  note: string;
+}
+
+const AUDIT_STATUSES = new Set(["supported", "weak", "unsupported"]);
+
+/** Johns — audit a draft's claims against the connected sources. */
+export async function auditDraft(
+  draft: string,
+  sources: PaperSource[],
+): Promise<AuditFinding[]> {
+  const raw = await callAi({
+    mode: "audit",
+    draft,
+    sources: toContext(sources),
+  });
+  return parseJsonArray<AuditFinding>(raw)
+    .filter((f) => f && typeof f.claim === "string" && AUDIT_STATUSES.has(f.status))
+    .map((f) => ({
+      claim: f.claim.trim(),
+      status: f.status,
+      source:
+        typeof f.source === "number" && f.source >= 1 ? Math.floor(f.source) : null,
+      note: typeof f.note === "string" ? f.note.trim() : "",
+    }));
 }

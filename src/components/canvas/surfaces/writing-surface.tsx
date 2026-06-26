@@ -16,6 +16,9 @@ import {
   PencilSimpleLine as PenLine,
   ArrowsOutSimple as Maximize2,
   Minus,
+  ShieldCheck,
+  CheckCircle,
+  XCircle,
   type Icon,
 } from "@phosphor-icons/react";
 import { SurfaceShell } from "./surface-shell";
@@ -25,7 +28,12 @@ import { StyleSelector, ReferencesPanel } from "./references-panel";
 import { getModel } from "@/lib/models";
 import { useCanvasStore } from "@/store/canvas-store";
 import { useNodeInputSources } from "@/store/use-sources";
-import { writeFromSources, editText } from "@/lib/ai-client";
+import {
+  writeFromSources,
+  editText,
+  auditDraft,
+  type AuditFinding,
+} from "@/lib/ai-client";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
 import { getDocEditor } from "@/components/editor/doc-editor";
 import {
@@ -56,7 +64,7 @@ export function WritingSurface({
   const [busy, setBusy] = React.useState(false);
   const [busyLabel, setBusyLabel] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<"ai" | "sources" | "outline">("ai");
+  const [tab, setTab] = React.useState<"ai" | "sources" | "outline" | "audit">("ai");
 
   const outline = doc?.outline ?? [];
   const draftText = React.useMemo(() => extractText(doc?.content), [doc?.content]);
@@ -135,7 +143,7 @@ export function WritingSurface({
               active={tab === "ai"}
               onClick={() => setTab("ai")}
               icon={Sparkles}
-              label="AI writer"
+              label="Write"
             />
             <TabButton
               active={tab === "sources"}
@@ -150,6 +158,12 @@ export function WritingSurface({
               icon={ListTree}
               label="Outline"
               count={outline.length || undefined}
+            />
+            <TabButton
+              active={tab === "audit"}
+              onClick={() => setTab("audit")}
+              icon={ShieldCheck}
+              label="Audit"
             />
           </div>
 
@@ -172,6 +186,14 @@ export function WritingSurface({
             <OutlinePanel
               outline={outline}
               onChange={(o) => setDocOutline(nodeId, o)}
+            />
+          )}
+          {tab === "audit" && (
+            <AuditPanel
+              draftText={draftText}
+              sources={sources}
+              creditsPerRun={model.creditsPerRun}
+              onSpend={spendCredits}
             />
           )}
         </aside>
@@ -551,5 +573,155 @@ function OutlinePanel({
         </button>
       </div>
     </div>
+  );
+}
+
+const STATUS_META: Record<
+  AuditFinding["status"],
+  { label: string; icon: Icon; cls: string }
+> = {
+  supported: { label: "Supported", icon: CheckCircle, cls: "text-emerald-600" },
+  weak: { label: "Weak", icon: ShieldCheck, cls: "text-amber-600" },
+  unsupported: { label: "Unsupported", icon: XCircle, cls: "text-red-600" },
+};
+
+/**
+ * Johns — the citation auditor. Matches the draft's claims against the
+ * connected sources and flags which are supported, weakly supported, or
+ * unsupported, so every claim can be traced back to evidence.
+ */
+function AuditPanel({
+  draftText,
+  sources,
+  creditsPerRun,
+  onSpend,
+}: {
+  draftText: string;
+  sources: ReturnType<typeof useNodeInputSources>;
+  creditsPerRun: number;
+  onSpend: (amount: number) => void;
+}) {
+  const [findings, setFindings] = React.useState<AuditFinding[] | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const canRun = draftText.trim().length >= 20 && sources.length > 0;
+
+  async function runAudit() {
+    if (!canRun || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await auditDraft(draftText, sources);
+      setFindings(result);
+      onSpend(creditsPerRun);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Audit failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const counts = React.useMemo(() => {
+    const c = { supported: 0, weak: 0, unsupported: 0 };
+    for (const f of findings ?? []) c[f.status] += 1;
+    return c;
+  }, [findings]);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-grey-500">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[var(--color-node-reader)]" />
+          Johns checks each claim in your draft against the connected sources —
+          so nothing goes unsupported.
+        </p>
+
+        {findings && findings.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <CountPill n={counts.supported} label="supported" cls="text-emerald-600" />
+            <CountPill n={counts.weak} label="weak" cls="text-amber-600" />
+            <CountPill n={counts.unsupported} label="unsupported" cls="text-red-600" />
+          </div>
+        )}
+
+        {findings && (
+          <ul className="mt-3 space-y-2">
+            {findings.map((f, i) => {
+              const meta = STATUS_META[f.status];
+              const StatusIcon = meta.icon;
+              const src = f.source ? sources[f.source - 1] : undefined;
+              return (
+                <li
+                  key={i}
+                  className="rounded-lg border border-grey-200 p-2.5"
+                >
+                  <div className="flex items-start gap-2">
+                    <StatusIcon className={`mt-0.5 size-3.5 shrink-0 ${meta.cls}`} />
+                    <div className="min-w-0">
+                      <p className="text-[12px] leading-snug text-ink">{f.claim}</p>
+                      {f.note && (
+                        <p className="mt-1 text-[10.5px] leading-snug text-grey-400">
+                          {f.note}
+                        </p>
+                      )}
+                      {src && (
+                        <p className="mt-1 truncate text-[10.5px] text-grey-500">
+                          <span className="font-medium">[{f.source}]</span>{" "}
+                          {src.title}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {findings && findings.length === 0 && (
+          <p className="mt-3 rounded-lg border border-dashed border-grey-200 px-3 py-6 text-center text-[11px] text-grey-400">
+            No distinct claims found to audit yet.
+          </p>
+        )}
+
+        {error && (
+          <p className="mt-3 flex items-start gap-1.5 rounded-md border border-red-200 bg-red-50/50 p-2.5 text-[11px] leading-snug text-red-600">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+            {error}
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-grey-100 p-3">
+        {!canRun && (
+          <p className="mb-2 text-[11px] leading-snug text-grey-400">
+            {sources.length === 0
+              ? "Connect sources to audit the draft against."
+              : "Write a draft first, then run the audit."}
+          </p>
+        )}
+        <button
+          onClick={runAudit}
+          disabled={!canRun || busy}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md bg-ink py-2 text-xs font-medium text-paper transition-colors hover:bg-grey-800 disabled:opacity-40"
+        >
+          {busy ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <ShieldCheck className="size-3.5" />
+          )}
+          {findings ? "Re-run audit" : "Audit citations"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CountPill({ n, label, cls }: { n: number; label: string; cls: string }) {
+  return (
+    <span className="rounded-full border border-grey-200 px-2 py-0.5 text-[10.5px] font-medium text-grey-600">
+      <span className={`tabular-nums ${cls}`}>{n}</span> {label}
+    </span>
   );
 }

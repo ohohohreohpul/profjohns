@@ -40,7 +40,8 @@ type AiMode =
   | "gaps"
   | "refine"
   | "libchat"
-  | "libcat";
+  | "libcat"
+  | "audit";
 
 interface SourceContext {
   title: string;
@@ -98,6 +99,8 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are the assistant for a user's personal research library. Answer ONLY from the catalog of library items provided (each line is '[key] kind | title | projects | details'). Help the user locate items, see connections across projects, and decide what to revisit. Refer to items by their title, and mention which project they live in when useful. Be concise and concrete. If something is not in the library, say so plainly — never invent items.",
   libcat:
     "You are organizing a user's research library into a clean set of themes. Read the catalog (each line is '[key] kind | title | projects | details') and group the items into 4-8 meaningful, non-overlapping categories by subject/theme (not by file type). Return ONLY a JSON array, no prose or code fences: [{\"category\": string, \"keys\": [string]}]. category = a short 1-3 word human label; keys = the exact [key] values that belong to it. Every item should appear in exactly one category; omit a key only if it truly fits nowhere.",
+  audit:
+    "You are a meticulous citation auditor. You are given a draft and a numbered list of the SOURCES available to the author. Identify the draft's distinct factual/empirical CLAIMS (skip the author's own framing, transitions, and opinions) and judge whether each is backed by the provided sources. Return ONLY a JSON array, no prose or code fences: [{\"claim\": string, \"status\": \"supported\" | \"weak\" | \"unsupported\", \"source\": number | null, \"note\": string}]. claim = the claim quoted or closely paraphrased (<=160 chars); status = 'supported' if a source clearly backs it, 'weak' if a source is only tangentially related or partially supports it, 'unsupported' if no provided source backs it; source = the 1-based number of the best supporting source, or null when unsupported; note = at most 16 words on why. Be strict — never credit a source that does not actually contain the claim. Cover the most important claims (up to ~12).",
 };
 
 function getErrorMessage(error: unknown): string {
@@ -130,7 +133,7 @@ export async function POST(
   }
 
   const { mode, text, title, question, instruction, sources, draft, allowedSources, directions } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat"];
+  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit"];
   if (!validModes.includes(mode)) {
     return NextResponse.json(
       { success: false, data: null, error: `Unknown mode: ${mode}`, configured: true },
@@ -231,6 +234,19 @@ export async function POST(
         { status: 400 },
       );
     }
+  } else if (mode === "audit") {
+    if (!draft || draft.trim().length < 20) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Write a draft to audit first.", configured: true },
+        { status: 400 },
+      );
+    }
+    if (!sources || sources.length === 0) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Connect sources to audit the draft against.", configured: true },
+        { status: 400 },
+      );
+    }
   } else {
     if (!text || text.trim().length < 20) {
       return NextResponse.json(
@@ -268,7 +284,7 @@ export async function POST(
   const maxTokens =
     mode === "write" || mode === "edit"
       ? MAX_OUTPUT_WRITE
-      : mode === "triage"
+      : mode === "triage" || mode === "audit"
         ? 2048
         : MAX_OUTPUT_DEFAULT;
 
@@ -331,6 +347,10 @@ export async function POST(
     contextLabel = "LIBRARY CATALOG";
     contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
     userContent = "Group these library items into themed categories.";
+  } else if (mode === "audit") {
+    contextLabel = "SOURCES";
+    contextBody = buildSourcesBlock(sources as SourceContext[]);
+    userContent = `Audit this draft's claims against the sources above.\n\nDRAFT:\n${(draft as string).slice(0, 12000)}`;
   } else {
     contextLabel = "PAPER";
     contextBody = `${title ? `TITLE: ${title}\n\n` : ""}${(text as string).slice(0, MAX_CONTEXT_CHARS)}`;
