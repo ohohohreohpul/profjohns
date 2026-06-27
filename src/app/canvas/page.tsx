@@ -217,6 +217,7 @@ function CanvasWorkspace() {
         direction={storedDirection || direction}
         creditsUsed={creditsUsed}
         projectId={projectId}
+        canvasId={canvasId}
       />
       <div
         className={cn(

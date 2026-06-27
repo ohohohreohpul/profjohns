@@ -212,3 +212,11 @@ export async function saveCanvasState(
     state,
   });
 }
+
+/** Wipe a canvas board's stored `state` (recovery for a corrupted board). */
+export async function clearCanvasState(canvasId: string): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid || !canvasId) return;
+  await sb.from("canvases").update({ state: {} }).eq("id", canvasId);
+}

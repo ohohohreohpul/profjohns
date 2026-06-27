@@ -14,6 +14,8 @@ import {
   Robot as Bot,
   Plug,
   ArrowLeft,
+  DotsThree,
+  Eraser,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -24,9 +26,10 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { useCanvasStore } from "@/store/canvas-store";
+import { useCanvasStore, clearStoredCanvas } from "@/store/canvas-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useTemporal } from "@/store/use-temporal";
+import { clearCanvasState } from "@/lib/db/repo";
 
 const PROJECT_SURFACES = [
   { label: "Canvases", href: "/canvases", icon: Network },
@@ -94,6 +97,56 @@ function SurfacesMenu({ projectId }: { projectId: string }) {
   );
 }
 
+async function resetBoard(canvasId: string, direction: string) {
+  if (!canvasId) return;
+  if (
+    !confirm(
+      "Reset this board? It clears this canvas's contents and starts fresh. This can't be undone.",
+    )
+  ) {
+    return;
+  }
+  clearStoredCanvas(canvasId); // remove the local board blob
+  useCanvasStore.getState().reset(direction); // fresh seed in memory
+  useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
+  await clearCanvasState(canvasId); // wipe the DB copy (no-op signed out)
+}
+
+function BoardMenu({
+  canvasId,
+  direction,
+}: {
+  canvasId: string;
+  direction: string;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          aria-label="Board options"
+          title="Board options"
+          className="grid size-8 place-items-center rounded-md text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
+        >
+          <DotsThree className="size-4" weight="bold" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="end" className="w-56 p-1">
+        <button
+          onClick={() => void resetBoard(canvasId, direction)}
+          className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] font-medium text-grey-700 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <Eraser className="size-4 shrink-0" />
+          Reset board
+        </button>
+        <p className="px-2 pb-1 pt-0.5 text-[10.5px] leading-snug text-grey-400">
+          Clears this canvas and starts fresh — use if a board shows the wrong
+          contents.
+        </p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function exportCanvas() {
   const s = useCanvasStore.getState();
   const snapshot = {
@@ -121,10 +174,12 @@ export function TopBar({
   direction,
   creditsUsed,
   projectId = "",
+  canvasId = "",
 }: {
   direction: string;
   creditsUsed: number;
   projectId?: string;
+  canvasId?: string;
 }) {
   const { canUndo, canRedo, undo, redo } = useTemporal();
   const project = useWorkspaceStore((s) =>
@@ -200,6 +255,7 @@ export function TopBar({
           <Download className="size-3.5" />
           Export canvas
         </Button>
+        <BoardMenu canvasId={canvasId} direction={direction} />
       </div>
     </header>
   );
