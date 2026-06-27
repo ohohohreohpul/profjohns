@@ -14,6 +14,7 @@ import {
   ArrowRight,
   ArrowUpRight,
 } from "@phosphor-icons/react";
+import { useUpdateNodeInternals } from "@xyflow/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
 import { useCanvasStore } from "@/store/canvas-store";
 import {
@@ -237,6 +238,19 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
   // Once research is underway the node morphs from a slim input into a wide
   // two-pane workspace (plan on the left, results on the right).
   const wide = angles.length > 0 || hasResults;
+
+  // The node animates its width (320↔840px) over ~300ms. React Flow doesn't
+  // observe CSS-animated size, so connected edges stay pinned to the handle's
+  // stale position ("from the back"). Re-measure across the transition so the
+  // edge re-anchors to the moving handle.
+  const updateNodeInternals = useUpdateNodeInternals();
+  React.useEffect(() => {
+    updateNodeInternals(id);
+    const timers = [120, 240, 340].map((ms) =>
+      setTimeout(() => updateNodeInternals(id), ms),
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [wide, id, updateNodeInternals]);
 
   // Group results by cluster, clusters ordered by their best score.
   const clusters = React.useMemo(() => {

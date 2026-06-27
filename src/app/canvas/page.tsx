@@ -225,7 +225,10 @@ function CanvasWorkspace() {
           surfaceOpen && "canvas-behind-surface",
         )}
       >
-        <ResearchCanvas />
+        {/* Key by canvas id so switching boards remounts the flow + nodes —
+            no leftover per-node local state (e.g. a typed search term) leaks
+            from the previous canvas. */}
+        <ResearchCanvas key={canvasId} />
         {isBlank && <BlankCta />}
       </div>
       <SurfaceOverlay />
