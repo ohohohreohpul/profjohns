@@ -61,7 +61,21 @@ const canvasStorage = {
   getItem: (name: string): string | null =>
     typeof localStorage === "undefined" ? null : localStorage.getItem(keyFor(name)),
   setItem: (name: string, value: string): void => {
-    if (typeof localStorage !== "undefined") localStorage.setItem(keyFor(name), value);
+    if (typeof localStorage === "undefined") return;
+    // Guard against the navigation race. On A->B navigation `activeCanvasId`
+    // flips to B immediately, but the in-memory board is still A until its
+    // async rehydrate/reset completes and `boardCanvasId` is marked B. Any
+    // setState in that window would otherwise persist A's board under B's key,
+    // making every canvas converge on one board. Only persist once the board
+    // is confirmed to represent the active canvas (boardCanvasId === active).
+    let board = "";
+    try {
+      board = useCanvasStore.getState().boardCanvasId;
+    } catch {
+      // store not yet constructed (initial hydration) — fall through.
+    }
+    if (board !== activeCanvasId) return;
+    localStorage.setItem(keyFor(name), value);
   },
   removeItem: (name: string): void => {
     if (typeof localStorage !== "undefined") localStorage.removeItem(keyFor(name));
