@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { ArrowsOutSimple as Maximize2, Copy, Trash as Trash2, Play, LinkBreak as Unlink } from "@phosphor-icons/react";
+import { ArrowsOutSimple as Maximize2, Copy, Trash as Trash2, Play, LinkBreak as Unlink, DotsSixVertical } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { NODE_DEFINITIONS, type NodeKind } from "@/lib/node-catalog";
 import { ModelPicker } from "@/components/canvas/model-picker";
@@ -90,9 +90,13 @@ export function NodeShell({
       // --accent drives the accent icon, selection ring, and handles.
       style={{ "--accent": def.accent } as React.CSSProperties}
     >
-      {/* Label — sits above the card, quiet identity. `nodrag` so the node is
-          only draggable from its visible card, never the label/empty strip. */}
-      <div className="nodrag mb-2 flex items-center gap-1.5 px-1">
+      {/* Label — sits above the card, quiet identity, and is the node's ONLY
+          drag handle. The card body is `nodrag`, so the node never moves when
+          you grab its surface or empty padding — only this title strip. */}
+      <div className="node-drag-handle mb-2 flex cursor-grab items-center gap-1.5 px-1 active:cursor-grabbing">
+        <span className="text-grey-300 transition-colors group-hover/node:text-grey-400">
+          <DotsSixVertical className="size-[13px]" weight="bold" />
+        </span>
         <span style={{ color: def.accent }}>
           <Icon className="size-[14px]" />
         </span>
@@ -164,8 +168,9 @@ export function NodeShell({
           </div>
         )}
 
-        {/* Body */}
-        <div className="p-4">{children}</div>
+        {/* Body — `nodrag` so the surface (and any empty space) never starts a
+            node drag; the header strip above is the sole drag handle. */}
+        <div className="nodrag p-4">{children}</div>
 
         {!hideSource && (
           <Handle

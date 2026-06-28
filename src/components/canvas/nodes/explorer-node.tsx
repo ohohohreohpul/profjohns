@@ -349,7 +349,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
 
       {/* Working state — morphs into a two-pane workspace */}
       {wide && (
-        <div className="mt-3 grid animate-float-in grid-cols-[290px_1fr] gap-3">
+        <div className="mt-3 grid animate-float-in grid-cols-[290px_1fr] items-start gap-3">
           {/* Left — the plan */}
           <div className="flex min-w-0 flex-col border-r border-grey-100 pr-3">
             <div className="mb-1.5 flex items-center gap-1.5">
