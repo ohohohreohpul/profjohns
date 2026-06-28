@@ -90,8 +90,9 @@ export function NodeShell({
       // --accent drives the accent icon, selection ring, and handles.
       style={{ "--accent": def.accent } as React.CSSProperties}
     >
-      {/* Label — sits above the card, quiet identity. */}
-      <div className="mb-2 flex items-center gap-1.5 px-1">
+      {/* Label — sits above the card, quiet identity. `nodrag` so the node is
+          only draggable from its visible card, never the label/empty strip. */}
+      <div className="nodrag mb-2 flex items-center gap-1.5 px-1">
         <span style={{ color: def.accent }}>
           <Icon className="size-[14px]" />
         </span>
@@ -103,7 +104,7 @@ export function NodeShell({
 
       {/* Floating contextual toolbar — above the whole node, active only. */}
       {showToolbar && (
-        <div className="absolute bottom-full left-0 z-20 mb-1.5 flex animate-float-in items-center gap-1 rounded-[13px] border border-grey-200 bg-paper/95 p-1.5 shadow-[0_12px_30px_-12px_rgba(21,23,28,0.32)] backdrop-blur-md">
+        <div className="nodrag absolute bottom-full left-0 z-20 mb-1.5 flex animate-float-in items-center gap-1 rounded-[13px] border border-grey-200 bg-paper/95 p-1.5 shadow-[0_12px_30px_-12px_rgba(21,23,28,0.32)] backdrop-blur-md">
           {toolbar}
           {toolbar && !hideModel && (
             <span className="mx-0.5 h-5 w-px bg-grey-200" />
@@ -135,7 +136,7 @@ export function NodeShell({
 
         {/* Action rail — floats left of the card, active only. */}
         {selected && (
-          <div className="absolute right-full top-3 z-20 mr-2 flex animate-float-in flex-col gap-1.5">
+          <div className="nodrag absolute right-full top-3 z-20 mr-2 flex animate-float-in flex-col gap-1.5">
             {onOpen && (
               <RailButton label={`Open ${def.label}`} onClick={onOpen}>
                 <Maximize2 className="size-4" />
