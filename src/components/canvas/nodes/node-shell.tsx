@@ -168,9 +168,9 @@ export function NodeShell({
           </div>
         )}
 
-        {/* Body — `nodrag` so the surface (and any empty space) never starts a
-            node drag; the header strip above is the sole drag handle. */}
-        <div className="nodrag p-4">{children}</div>
+        {/* Body — clicking it still selects the node; it just can't START a
+            drag (React Flow's `dragHandle` confines dragging to the header). */}
+        <div className="p-4">{children}</div>
 
         {!hideSource && (
           <Handle

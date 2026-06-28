@@ -69,6 +69,20 @@ function CanvasInner() {
     reparentNode,
   } = useCanvasStore();
 
+  // Confine dragging to each node's header handle (`.node-drag-handle` in
+  // NodeShell) without disabling selection: `dragHandle` restricts only the
+  // drag start, so clicking anywhere on the card still selects. Shell + block
+  // nodes don't use NodeShell, so they stay draggable from their whole frame.
+  const flowNodes = React.useMemo(
+    () =>
+      nodes.map((n) =>
+        n.data?.kind === "shell" || n.data?.kind === "block"
+          ? n
+          : { ...n, dragHandle: ".node-drag-handle" },
+      ),
+    [nodes],
+  );
+
   const { screenToFlowPosition, zoomIn, zoomOut, fitView, getNodes } = useReactFlow();
   const dragOrigin = React.useRef<string | null>(null);
   const [spawn, setSpawn] = React.useState<SpawnRequest | null>(null);
@@ -458,7 +472,7 @@ function CanvasInner() {
         className={`size-full ${isPanning ? "canvas-grab" : ""}`}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        nodes={nodes}
+        nodes={flowNodes}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
