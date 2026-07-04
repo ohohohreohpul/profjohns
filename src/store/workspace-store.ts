@@ -64,8 +64,19 @@ interface WorkspaceState {
   pruneOrphans: () => void;
 }
 
-let nextProjectId = Date.now();
-let nextCanvasId = Date.now() + 1;
+/**
+ * Collision-proof entity ids. The previous scheme (`Date.now()` module
+ * counters) reset on every reload and could collide across tabs/sessions —
+ * and a recycled canvas id would hydrate an orphaned old board as if it were
+ * the new canvas. UUIDs make that class of bug impossible.
+ */
+function newId(prefix: string): string {
+  const uuid =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${uuid}`;
+}
 
 const DEFAULT_INTERESTS: HomeInterest[] = [
   { label: "AI & CS", q: "artificial intelligence" },
@@ -89,7 +100,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       hasHydrated: false,
 
       addProject: (name, direction) => {
-        const id = `proj-${nextProjectId++}`;
+        const id = newId("proj");
         const now = Date.now();
         set((s) => ({
           projects: [
@@ -124,7 +135,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         })),
 
       addCanvas: (projectId, name) => {
-        const id = `cv-${nextCanvasId++}`;
+        const id = newId("cv");
         const now = Date.now();
         const count = get().canvases.filter((c) => c.projectId === projectId).length;
         set((s) => ({
@@ -216,9 +227,15 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
       pruneOrphans: () =>
         set((s) => {
+          // HARD GATE: never prune before this store has hydrated. With
+          // `skipHydration`, a cold page load starts with EMPTY projects/
+          // canvases — pruning then would treat every stored board as
+          // dangling and delete ALL of them. (Child effects run before the
+          // parent shell's rehydrate effect, so this gate must live here,
+          // not at call sites.)
+          if (!s.hasHydrated) return s;
           const projectIds = new Set(s.projects.map((p) => p.id));
           const kept = s.canvases.filter((c) => projectIds.has(c.projectId));
-          const keptIds = new Set(kept.map((c) => c.id));
           // Clean up pinned sources for deleted projects.
           const pinnedSources: Record<string, PaperSource[]> = {};
           for (const [pid, list] of Object.entries(s.pinnedSources)) {
@@ -227,13 +244,13 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           if (typeof localStorage !== "undefined") {
             // Legacy non-namespaced board (pre per-canvas storage).
             localStorage.removeItem("lattice-canvas-v1");
-            // Dangling per-canvas boards with no surviving canvas entry.
-            for (const k of Object.keys(localStorage)) {
-              if (!k.startsWith("lattice-canvas-v1::")) continue;
-              const id = k.slice("lattice-canvas-v1::".length);
-              if (!keptIds.has(id)) localStorage.removeItem(k);
-            }
           }
+          // NOTE deliberately NOT deleting `lattice-canvas-v1::<id>` board
+          // blobs here. Boards are the user's WORK; this list is derived
+          // metadata — if the two ever disagree (a sync glitch, a wiped
+          // list), deleting the blob destroys the work irrecoverably.
+          // Board blobs are only removed by explicit deletes
+          // (removeCanvas / removeProject / Reset board).
           const changed =
             kept.length !== s.canvases.length ||
             Object.keys(pinnedSources).length !== Object.keys(s.pinnedSources).length;

@@ -10,6 +10,7 @@ import {
   reconcilePinned,
   saveSettings,
 } from "@/lib/db/repo";
+import { mergeById, mergePinned } from "@/lib/sync/merge-workspace";
 
 const WRITE_DEBOUNCE_MS = 1200;
 
@@ -45,18 +46,36 @@ export function useWorkspaceSync(): void {
           homeInterests: local.homeInterests,
         });
       } else {
-        // DB is source of truth → apply to the store.
+        // MERGE the DB snapshot with local state — never blind-replace.
+        // A canvas created while this load was in flight (writes are gated on
+        // `ready`) or whose debounced upload was killed by a reload exists
+        // only locally; replacing the arrays erased it, which surfaced as
+        // "my new canvas disappeared / opens an old board". Local-only and
+        // locally-newer entries are kept and pushed up. See merge-workspace.ts.
+        const projects = mergeById(snap.projects, local.projects);
+        const canvases = mergeById(snap.canvases, local.canvases);
+        const pinned = mergePinned(snap.pinnedSources, local.pinnedSources);
+
         suppress.current = true;
         useWorkspaceStore.setState({
-          projects: snap.projects,
-          canvases: snap.canvases,
-          pinnedSources: snap.pinnedSources,
+          projects: projects.merged,
+          canvases: canvases.merged,
+          pinnedSources: pinned.merged,
           ...(snap.styleProfile !== null ? { styleProfile: snap.styleProfile } : {}),
           ...(snap.homeInterests && snap.homeInterests.length
             ? { homeInterests: snap.homeInterests }
             : {}),
         });
         suppress.current = false;
+
+        // Anything the DB didn't know about goes up NOW — not on the next
+        // debounced change (which a quick reload would kill). Projects before
+        // canvases (FK order).
+        if (projects.dirty || canvases.dirty || pinned.dirty) {
+          if (projects.dirty) await reconcileProjects(projects.merged);
+          if (canvases.dirty) await reconcileCanvases(canvases.merged);
+          if (pinned.dirty) await reconcilePinned(pinned.merged);
+        }
       }
       if (!cancelled) ready.current = true;
     })();

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { WorkspaceSidebar, type SurfaceKey } from "./workspace-sidebar";
-import { useCanvasStore, setActiveCanvasId } from "@/store/canvas-store";
+import { loadBoard } from "@/lib/board-lifecycle";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useProfileStore } from "@/store/profile-store";
 import { PageLoader } from "@/components/brand/page-loader";
@@ -37,13 +37,16 @@ export function WorkspaceShell({
     useProfileStore.persist.rehydrate();
   }, []);
 
+  // Load the project's most-recent board through the single lifecycle
+  // function (set-active + rehydrate + mark). Rehydrating without the mark
+  // (the old code here) left the persistence gate closed — a silent-write-drop
+  // trap for any surface that edits the canvas store.
   React.useEffect(() => {
     const latest = useWorkspaceStore
       .getState()
       .canvases.filter((c) => c.projectId === projectId)
       .sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    setActiveCanvasId(latest?.id ?? "");
-    useCanvasStore.persist.rehydrate();
+    void loadBoard(latest?.id ?? "");
   }, [projectId, projectCanvasCount]);
 
   return (

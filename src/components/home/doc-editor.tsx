@@ -4,10 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Graph as Network } from "@phosphor-icons/react";
-import {
-  useCanvasStore,
-  setActiveCanvasId,
-} from "@/store/canvas-store";
+import { useCanvasStore } from "@/store/canvas-store";
+import { loadBoard } from "@/lib/board-lifecycle";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { WritingDocument } from "@/components/canvas/surfaces/writing-document";
 
@@ -41,9 +39,12 @@ export function DocEditor() {
     useWorkspaceStore.persist.rehydrate();
   }, []);
 
+  // Load the board through the single lifecycle function. The previous
+  // hand-rolled version set the active id and rehydrated but never MARKED the
+  // board as loaded — so the persistence gate silently dropped every edit
+  // made on this page. loadBoard owns the full sequence.
   React.useEffect(() => {
-    setActiveCanvasId(canvasId);
-    useCanvasStore.persist.rehydrate();
+    void loadBoard(canvasId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasId]);
 

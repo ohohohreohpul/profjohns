@@ -23,8 +23,13 @@ export function LibrarySurface() {
   const pinnedSources = useWorkspaceStore((s) => s.pinnedSources);
   const pinSource = useWorkspaceStore((s) => s.pinSource);
   const pruneOrphans = useWorkspaceStore((s) => s.pruneOrphans);
+  const wsHydrated = useWorkspaceStore((s) => s.hasHydrated);
 
-  React.useEffect(() => { pruneOrphans(); }, [pruneOrphans]);
+  // Tidy once hydrated — the store hard-gates pre-hydration prunes, so the
+  // hydration dep is what makes this actually run.
+  React.useEffect(() => {
+    if (wsHydrated) pruneOrphans();
+  }, [wsHydrated, pruneOrphans]);
 
   const [uploading, setUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);

@@ -49,9 +49,13 @@ export function AccountLibrarySurface() {
   const canvases = useWorkspaceStore((s) => s.canvases);
   const pinnedSources = useWorkspaceStore((s) => s.pinnedSources);
   const pruneOrphans = useWorkspaceStore((s) => s.pruneOrphans);
+  const wsHydrated = useWorkspaceStore((s) => s.hasHydrated);
 
-  // Clean up orphaned data (deleted projects' canvases + pinned sources) on mount.
-  React.useEffect(() => { pruneOrphans(); }, [pruneOrphans]);
+  // Clean up orphaned data once hydrated — the store hard-gates pre-hydration
+  // prunes, so the hydration dep is what makes this actually run.
+  React.useEffect(() => {
+    if (wsHydrated) pruneOrphans();
+  }, [wsHydrated, pruneOrphans]);
 
   const [query, setQuery] = React.useState("");
   const [kind, setKind] = React.useState<KindFilter>("all");

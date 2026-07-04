@@ -9,11 +9,8 @@ import { SurfaceOverlay } from "@/components/canvas/surfaces/surface-overlay";
 import { ReaderSurface } from "@/components/canvas/surfaces/reader-surface";
 import { CinematicPreloader } from "@/components/onboarding/cinematic-preloader";
 import { ProfJohnsLogo } from "@/components/brand/profjohns-logo";
-import {
-  useCanvasStore,
-  setActiveCanvasId,
-  hasStoredCanvas,
-} from "@/store/canvas-store";
+import { useCanvasStore } from "@/store/canvas-store";
+import { loadBoard } from "@/lib/board-lifecycle";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useProfileSync } from "@/store/use-profile-sync";
 import { useCanvasDbSync } from "@/lib/sync/use-canvas-db-sync";
@@ -109,25 +106,15 @@ function CanvasWorkspace() {
     }
   }, [wsHydrated, projectId, canvasId, nodes.length, updateProject, updateCanvas]);
 
-  // Load the active canvas's own board. A new canvas (no stored board yet)
-  // gets a fresh seed; an existing one is rehydrated from its namespaced key.
+  // Load this canvas's board via the ONE lifecycle function — it owns
+  // set-active → rehydrate/seed → mark-loaded → clear-undo, so no page can
+  // half-perform the sequence (the class of bug behind boards leaking across
+  // canvases and the doc editor dropping writes).
   React.useEffect(() => {
-    setActiveCanvasId(canvasId);
-    // Mark which canvas the board represents only AFTER it finishes hydrating,
-    // so DB sync never saves a board to the wrong canvas during navigation.
-    // (We do NOT reset boardCanvasId up-front: that would trigger a persisted
-    // write of the still-stale board under the new canvas's key. The save-gate
-    // already blocks saves while boardCanvasId still holds the previous id.)
-    const markLoaded = () => useCanvasStore.setState({ boardCanvasId: canvasId });
-
-    if (!canvasId || hasStoredCanvas(canvasId)) {
-      Promise.resolve(useCanvasStore.persist.rehydrate()).then(markLoaded);
-    } else {
-      useCanvasStore.getState().reset(direction);
-      useCanvasStore.setState({ hasHydrated: true });
+    void loadBoard(canvasId, { direction }).then((result) => {
       // Launched from the Discover hero — seed the Sources scout's topic
       // and constrain it to the user's selected source providers.
-      if (launchTopic) {
+      if (result === "fresh" && launchTopic) {
         const st = useCanvasStore.getState();
         const explorer = st.nodes.find((n) => n.data.kind === "explorer");
         if (explorer) {
@@ -137,9 +124,7 @@ function CanvasWorkspace() {
           });
         }
       }
-      markLoaded();
-    }
-    useCanvasStore.temporal.getState().clear();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasId]);
 

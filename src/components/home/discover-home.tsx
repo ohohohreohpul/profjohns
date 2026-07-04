@@ -129,10 +129,14 @@ export function DiscoverHome() {
     "wikipedia",
   ]);
 
-  // One-time tidy: drop canvases whose project is gone + legacy/dangling boards.
+  // Tidy once hydrated: drop canvases whose project is gone + dangling boards.
+  // The store hard-gates pre-hydration prunes (an empty, not-yet-hydrated
+  // store would treat EVERY board as dangling); the hydration dep makes the
+  // prune actually run once the real workspace is in memory.
+  const wsHydrated = useWorkspaceStore((s) => s.hasHydrated);
   React.useEffect(() => {
-    pruneOrphans();
-  }, [pruneOrphans]);
+    if (wsHydrated) pruneOrphans();
+  }, [wsHydrated, pruneOrphans]);
 
   // If "For You" is selected but the profile is empty, fall back to the first
   // interest tab so a new user always sees a feed.
