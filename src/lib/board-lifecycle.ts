@@ -22,6 +22,8 @@ import {
   setActiveCanvasId,
   hasStoredCanvas,
 } from "@/store/canvas-store";
+import { loadCanvasState } from "@/lib/db/repo";
+import { sanitizeBoardState } from "@/lib/board-state";
 
 export type BoardLoadResult = "restored" | "fresh";
 
@@ -32,7 +34,9 @@ export async function loadBoard(
   setActiveCanvasId(canvasId);
 
   if (!canvasId || hasStoredCanvas(canvasId)) {
-    // Existing board — rehydrate from its namespaced key. Writes stay blocked
+    // Existing local board — rehydrate from its namespaced key. Local ALWAYS
+    // wins when present; the DB is never consulted here (that override race
+    // was the original canvases-share-a-board bug). Writes stay blocked
     // (boardCanvasId still names the previous canvas) until the mark below.
     await useCanvasStore.persist.rehydrate();
     useCanvasStore.setState({ boardCanvasId: canvasId });
@@ -40,8 +44,26 @@ export async function loadBoard(
     return "restored";
   }
 
-  // New canvas — seed a fresh board. The single setState marks the board as
-  // this canvas's in the same update, so the seed itself is persisted.
+  // Local miss — cross-device read: this canvas may have a board saved from
+  // another device/browser. No-op (null) when signed out or unconfigured.
+  try {
+    const dbState = sanitizeBoardState(await loadCanvasState(canvasId));
+    if (dbState) {
+      // Apply, then mark in a second update: the mark's setState triggers the
+      // (now-open) persistence gate, which writes the whole board to this
+      // canvas's localStorage key — the DB copy becomes the local copy.
+      useCanvasStore.setState(dbState);
+      useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
+      useCanvasStore.temporal.getState().clear();
+      return "restored";
+    }
+  } catch {
+    // DB unreachable — fall through to a fresh seed; the board will sync up
+    // once the connection returns.
+  }
+
+  // Genuinely new canvas — seed a fresh board. The single setState marks the
+  // board as this canvas's in the same update, so the seed itself persists.
   useCanvasStore.getState().reset(opts.direction ?? "");
   useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
   useCanvasStore.temporal.getState().clear();
