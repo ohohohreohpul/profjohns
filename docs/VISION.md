@@ -197,13 +197,19 @@ Each phase ends in something usable; later phases depend on earlier infra.
 - Plus shipped: hand tool + connection management, account-wide Readroom, Link
   node, full-page doc editor. Auth (Supabase) is wired (login/proxy/RLS-ready).
 
-**Phase 1 — Backend foundation (the unlock) — NEXT**
-- Supabase: Auth (DONE) + Postgres + Storage. Move Project/CanvasDoc/Source/
-  Media + **Lily's styleProfile** + home interests server-side; localStorage
-  becomes a cache. `supabase/schema.sql` drafts most tables (needs a
-  `style_profile` + `home_interests` delta and to be *wired* to the client).
-- Exit: multi-device, per-user persistence; no visible "feature" but everything
-  below becomes possible. **Execution plan: `docs/BACKEND-PHASE1.md`.**
+**Phase 1 — Backend foundation (the unlock) — CODE-COMPLETE (2026-07-04)**
+- Supabase: Auth + Postgres wired. Workspace metadata (projects/canvases/
+  pinned/styleProfile/interests) syncs via MERGE (local-only kept + pushed up,
+  newer `updatedAt` wins — never blind-replace; `src/lib/sync/merge-workspace.ts`).
+  Boards: localStorage authoritative, write-through to DB, **read-on-miss**
+  for cross-device (`src/lib/board-lifecycle.ts` — local always wins when
+  present; DB fills a local miss only; blob validated at the boundary).
+- Board loading is ONE function: `loadBoard()` — used by /canvas, /doc, shell.
+- Regression suite: `pnpm test` (Playwright — canvas isolation, doc
+  persistence, node select/drag, merge + blob-validation unit tests).
+- Remaining operational step: apply `supabase/schema.sql` to the project
+  (drop old uuid-PK tables first if present), then a two-device smoke test.
+- Exit: multi-device, per-user persistence. **Plan: `docs/BACKEND-PHASE1.md`.**
 
 **Phase 2 — Agent abstraction + Agents surface**
 - `Agent` model + a management page (the "other page"). Generalize Sources /
