@@ -187,7 +187,7 @@ export function TopBar({
   );
 
   return (
-    <header className="absolute inset-x-0 top-0 z-20 flex h-12 items-center gap-2 border-b border-grey-200 bg-paper/80 px-3 backdrop-blur-md">
+    <header className="absolute inset-x-0 top-0 z-20 flex h-12 items-center gap-2 border-b border-grey-200 bg-paper px-3">
       <SurfacesMenu projectId={projectId} />
       <Link href="/" className="flex shrink-0 items-center gap-0">
         <ProfJohnsLogo size={48} className="shrink-0 -mr-1" />

@@ -42,7 +42,7 @@ export function SpaceLayout({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-5 border-b border-grey-200 bg-paper/80 px-6 backdrop-blur">
+      <header className="flex h-14 shrink-0 items-center gap-5 border-b border-grey-200 bg-paper px-6">
         <InlineEdit
           value={project?.name ?? ""}
           onCommit={(name) => updateProject(projectId, { name })}

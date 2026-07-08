@@ -52,7 +52,7 @@ export function DocEditor() {
 
   return (
     <div className="min-h-dvh bg-grey-50">
-      <header className="sticky top-0 z-10 flex h-12 items-center gap-3 border-b border-grey-200 bg-paper/80 px-4 backdrop-blur">
+      <header className="sticky top-0 z-10 flex h-12 items-center gap-3 border-b border-grey-200 bg-paper px-4">
         <Link
           href={`/library?project=${projectId}`}
           className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"

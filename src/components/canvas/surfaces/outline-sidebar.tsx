@@ -171,7 +171,7 @@ export function OutlineSidebar() {
         onClick={() => setOpen(true)}
         aria-label="Show outline"
         title="Outline"
-        className="absolute left-4 top-20 z-20 grid size-9 place-items-center rounded-xl border border-grey-200 bg-paper/90 shadow-lift backdrop-blur transition-colors hover:bg-grey-50"
+        className="absolute left-4 top-20 z-20 grid size-9 place-items-center rounded-lg border border-grey-200 bg-paper shadow-sm transition-colors hover:bg-grey-50"
       >
         <ListTree className="size-4 text-grey-500" />
       </button>
@@ -179,7 +179,7 @@ export function OutlineSidebar() {
   }
 
   return (
-    <aside className="absolute left-4 top-20 z-20 flex max-h-[calc(100%-6rem)] w-60 flex-col overflow-hidden rounded-2xl border border-grey-200 bg-paper/90 shadow-lift backdrop-blur">
+    <aside className="absolute left-4 top-20 z-20 flex max-h-[calc(100%-6rem)] w-60 flex-col overflow-hidden rounded-xl border border-grey-200 bg-paper shadow-sm">
       <div className="flex shrink-0 items-center gap-2 px-3 py-2.5">
         <ListTree className="size-4 text-grey-500" />
         <span className="text-xs font-semibold text-ink">Outline</span>

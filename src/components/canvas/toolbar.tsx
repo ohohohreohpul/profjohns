@@ -34,7 +34,7 @@ export function Toolbar({ onAdd, tool, onToolChange }: ToolbarProps) {
 
   return (
     <aside className="absolute left-4 top-1/2 z-20 -translate-y-1/2">
-      <div className="flex flex-col items-center gap-1 rounded-2xl border border-grey-200 bg-paper/85 p-1.5 shadow-[0_1px_2px_rgba(21,23,28,0.04),0_18px_44px_-26px_rgba(21,23,28,0.38)] backdrop-blur-md">
+      <div className="flex flex-col items-center gap-1 rounded-xl border border-grey-200 bg-paper p-1.5 shadow-sm">
         {/* Pointer tools — Select (box-select) and Hand (drag to pan) */}
         <Tooltip>
           <TooltipTrigger asChild>

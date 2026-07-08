@@ -51,9 +51,11 @@ test("boards survive a hard reload and a cold home-page visit", async ({ page })
   await expect(page.locator(NODE)).toHaveCount(3);
 
   // Cold-load the home page (Discover) — pruneOrphans runs there. Before the
-  // hydration gate, this wiped EVERY stored board.
-  await page.goto("/");
-  await page.waitForLoadState("networkidle");
+  // hydration gate, this wiped EVERY stored board. (Wait on a concrete DOM
+  // signal, not networkidle — external font <link>s keep the network busy.)
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator("main, body").first()).toBeVisible();
+  await page.waitForTimeout(1500);
 
   const boardKey = await page.evaluate(() =>
     Object.keys(localStorage).find((k) => k.includes("cv-e2e-keep")),

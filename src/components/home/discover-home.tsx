@@ -354,14 +354,6 @@ export function DiscoverHome() {
 
   return (
     <div className="h-full overflow-auto">
-      {/* faint atmosphere behind the hero */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "radial-gradient(700px 360px at 50% -4%, rgba(1,154,153,0.10), transparent 65%)",
-        }}
-      />
       <motion.div
         variants={staggerContainer}
         initial="initial"
@@ -387,7 +379,7 @@ export function DiscoverHome() {
             e.preventDefault();
             launch(query);
           }}
-          className="mt-7 rounded-2xl border border-grey-200 bg-paper p-3 shadow-[0_1px_2px_rgba(21,23,28,0.05),0_20px_50px_-30px_rgba(21,23,28,0.35)] transition-shadow focus-within:shadow-[0_1px_2px_rgba(21,23,28,0.05),0_24px_56px_-26px_rgba(21,23,28,0.4)]"
+          className="mt-7 rounded-xl border border-grey-200 bg-paper p-3 shadow-sm transition-colors focus-within:border-grey-400"
         >
           <input
             value={query}
@@ -717,7 +709,7 @@ function FeedCard({
   }
 
   return (
-    <article className="group flex flex-col rounded-2xl border border-grey-200 bg-paper p-4 shadow-[0_1px_2px_rgba(21,23,28,0.04)] transition-shadow hover:shadow-[0_14px_30px_-20px_rgba(21,23,28,0.3)]">
+    <article className="group flex flex-col rounded-xl border border-grey-200 bg-paper p-4 shadow-sm transition-colors hover:border-grey-300">
       <div className="flex items-start gap-2">
         <p className="line-clamp-2 flex-1 text-[14px] font-semibold leading-snug tracking-tight text-ink">
           {paper.title}

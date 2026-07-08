@@ -45,7 +45,7 @@ export function FocusOverlay() {
   if (!focusedShellId || !shell) return null;
 
   return (
-    <div className="animate-surface-in fixed inset-0 z-30 flex flex-col bg-ink/30 backdrop-blur-[2px]">
+    <div className="animate-surface-in fixed inset-0 z-30 flex flex-col bg-ink/40">
       {/* Breadcrumb bar */}
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-grey-200 bg-paper px-4">
         <button

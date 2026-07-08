@@ -46,7 +46,7 @@ function RailButton({
       aria-label={label}
       title={label}
       className={cn(
-        "nodrag grid size-[34px] place-items-center rounded-[11px] border border-grey-200 bg-paper/95 text-grey-500 shadow-[0_6px_16px_-8px_rgba(21,23,28,0.3)] backdrop-blur transition-all hover:-translate-x-0.5",
+        "nodrag grid size-[34px] place-items-center rounded-lg border border-grey-200 bg-paper text-grey-500 shadow-sm transition-colors",
         danger
           ? "hover:border-red-200 hover:bg-red-50 hover:text-red-500"
           : "hover:border-grey-300 hover:text-ink",
@@ -100,7 +100,7 @@ export function NodeShell({
         <span style={{ color: def.accent }}>
           <Icon className="size-[14px]" />
         </span>
-        <span className="truncate text-[12.5px] font-medium tracking-tight text-grey-600">
+        <span className="font-display truncate text-[12.5px] font-medium tracking-tight text-grey-700">
           {def.label}
         </span>
         {badge}
@@ -108,7 +108,7 @@ export function NodeShell({
 
       {/* Floating contextual toolbar — above the whole node, active only. */}
       {showToolbar && (
-        <div className="nodrag absolute bottom-full left-0 z-20 mb-1.5 flex animate-float-in items-center gap-1 rounded-[13px] border border-grey-200 bg-paper/95 p-1.5 shadow-[0_12px_30px_-12px_rgba(21,23,28,0.32)] backdrop-blur-md">
+        <div className="nodrag absolute bottom-full left-0 z-20 mb-1.5 flex animate-float-in items-center gap-1 rounded-lg border border-grey-200 bg-paper p-1.5 shadow-sm">
           {toolbar}
           {toolbar && !hideModel && (
             <span className="mx-0.5 h-5 w-px bg-grey-200" />
@@ -125,7 +125,7 @@ export function NodeShell({
       {/* The card — one clean surface. */}
       <div
         className={cn(
-          "node-surface animate-node-in relative w-full min-w-[240px] rounded-2xl border border-grey-200 transition-shadow duration-200",
+          "node-surface animate-node-in relative w-full min-w-[240px] rounded-xl border border-grey-200 transition-shadow duration-200",
           selected && "is-selected",
         )}
       >

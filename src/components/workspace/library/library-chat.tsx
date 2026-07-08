@@ -59,7 +59,7 @@ export function LibraryChat({
   }
 
   return (
-    <aside className="flex h-full w-[360px] shrink-0 flex-col border-l border-grey-200 bg-paper/95 backdrop-blur">
+    <aside className="flex h-full w-[360px] shrink-0 flex-col border-l border-grey-200 bg-grey-50">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-grey-200 px-4">
         <Sparkles className="size-4 text-[var(--color-node-processor)]" />
         <span className="text-[13px] font-semibold tracking-tight text-ink">

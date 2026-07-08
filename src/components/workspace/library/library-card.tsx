@@ -45,7 +45,7 @@ export function LibraryCard({ item }: { item: AccountLibraryItem }) {
   return (
     <article
       style={{ "--accent": meta.accent } as React.CSSProperties}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-grey-200 bg-paper shadow-[0_1px_2px_rgba(21,23,28,0.04)] transition-shadow duration-200 hover:shadow-[0_16px_36px_-22px_rgba(21,23,28,0.34)]"
+      className="group flex flex-col overflow-hidden rounded-xl border border-grey-200 bg-paper shadow-sm transition-colors duration-200 hover:border-grey-300"
     >
       {hasThumb && (
         <div className="relative h-32 w-full overflow-hidden bg-grey-100">
@@ -56,7 +56,7 @@ export function LibraryCard({ item }: { item: AccountLibraryItem }) {
             loading="lazy"
             className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
-          <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-md bg-paper/90 px-1.5 py-0.5 text-[10px] font-medium text-grey-600 shadow-sm backdrop-blur">
+          <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-md border border-grey-200 bg-paper px-1.5 py-0.5 text-[10px] font-medium text-grey-600 shadow-sm">
             <Icon className="size-3" style={{ color: meta.accent }} />
             {meta.label}
           </span>

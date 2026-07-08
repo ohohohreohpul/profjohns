@@ -141,7 +141,7 @@ export function AccountLibrarySurface() {
           variants={fadeUp}
           initial="initial"
           animate="animate"
-          className="shrink-0 border-b border-grey-200 bg-paper/80 px-6 pb-4 pt-5 backdrop-blur"
+          className="shrink-0 border-b border-grey-200 bg-paper px-6 pb-4 pt-5"
         >
           <div className="flex items-center gap-2.5">
             <span className="grid size-8 place-items-center rounded-xl bg-ink text-paper">

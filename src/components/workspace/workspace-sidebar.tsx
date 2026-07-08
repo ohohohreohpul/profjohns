@@ -50,7 +50,7 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
   const initial = user?.email?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-r border-grey-200 bg-grey-50/70 backdrop-blur">
+    <aside className="flex w-[260px] shrink-0 flex-col border-r border-grey-200 bg-grey-50">
       <div className="flex h-16 shrink-0 items-center gap-0 px-4">
         <ProfJohnsLogo size={64} className="shrink-0 -mr-1" />
         <object
@@ -70,7 +70,7 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
       <div className="px-3 pb-2 pt-1">
         <Link
           href="/"
-          className="flex items-center gap-2.5 rounded-xl bg-paper px-3 py-2.5 text-[13.5px] font-semibold text-ink shadow-[0_1px_2px_rgba(21,23,28,0.06),0_1px_0_rgba(255,255,255,0.6)_inset] ring-1 ring-grey-200 transition-shadow hover:shadow-[0_4px_14px_-6px_rgba(21,23,28,0.25)]"
+          className="flex items-center gap-2.5 rounded-lg border border-grey-200 bg-paper px-3 py-2.5 text-[13.5px] font-semibold text-ink shadow-sm transition-colors hover:bg-grey-50"
         >
           <Plus className="size-[18px]" />
           New research

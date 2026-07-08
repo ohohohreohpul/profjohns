@@ -1,32 +1,43 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+/* Type system — Swiss / high-contrast: General Sans (display, Fontshare),
+   Inter (body/UI) + JetBrains Mono (credits/citations/models, Google). The
+   font stylesheets are loaded via <link> in layout.tsx — NOT a CSS @import,
+   which Tailwind v4 would hoist after its own output and invalidate. */
+
 /*
-  ProfJohns — design system.
-  Monochrome base with a teal brand accent drawn from the logo (#019A99).
-  Layered greys, paper-white surfaces. Hierarchy comes from scale and weight.
+  ProfJohns — design system. Swiss & high-contrast (light).
+  Solid surfaces, crisp 1px borders, flat depth. NO gradients, NO glassmorphism.
+  Hierarchy comes from scale, weight, and a stark neutral ramp. A single ink
+  accent (#171717); blue (#2563EB) for links/highlights, green (#059669) for AI.
 */
 
 @theme {
-  --color-ink: oklch(16% 0 0);
-  --color-paper: oklch(99% 0 0);
+  --color-ink: #171717;
+  --color-paper: #ffffff;
 
-  --color-grey-50: oklch(98% 0 0);
-  --color-grey-100: oklch(96% 0 0);
-  --color-grey-200: oklch(92% 0 0);
-  --color-grey-300: oklch(86% 0 0);
-  --color-grey-400: oklch(72% 0 0);
-  --color-grey-500: oklch(58% 0 0);
-  --color-grey-600: oklch(46% 0 0);
-  --color-grey-700: oklch(34% 0 0);
-  --color-grey-800: oklch(24% 0 0);
-  --color-grey-900: oklch(16% 0 0);
+  --color-grey-50: #fafafa;
+  --color-grey-100: #f4f4f5;
+  --color-grey-200: #e5e5e5;
+  --color-grey-300: #d4d4d4;
+  --color-grey-400: #a3a3a3;
+  --color-grey-500: #737373;
+  --color-grey-600: #525252;
+  --color-grey-700: #404040;
+  --color-grey-800: #262626;
+  --color-grey-900: #171717;
 
-  /* Brand accent — teal from the ProfJohns logo (#019A99). */
-  --color-accent: oklch(60% 0.12 195);
-  --color-accent-fg: oklch(99% 0 0);
-  --color-accent-dark: oklch(52% 0.10 200);
-  --color-accent-deep: oklch(38% 0.06 230);
+  /* Canvas field — solid, faintly cool neutral (no atmospheric gradients). */
+  --color-canvas: #f5f5f5;
+
+  /* Accent — ink-first Swiss. Blue = links/highlight, green = AI indicator. */
+  --color-accent: #171717;
+  --color-accent-fg: #ffffff;
+  --color-accent-dark: #262626;
+  --color-accent-deep: #000000;
+  --color-highlight: #2563eb;
+  --color-ai: #059669;
 
   /* Per-node semantic identity — one restrained accent per node type. */
   --color-node-explorer: oklch(58% 0.13 248); /* blue — search/gather */
@@ -40,14 +51,17 @@
   --color-node-media: oklch(58% 0.12 200); /* cyan — visual media */
   --color-node-link: oklch(60% 0.14 25); /* coral — external web link */
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "General Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-card: 0.5rem;
+  --radius-card: 0.625rem;
 
-  --shadow-flat: 0 1px 0 0 oklch(16% 0 0 / 0.04);
-  --shadow-lift: 0 8px 28px -12px oklch(16% 0 0 / 0.22);
+  /* Flat depth only — a hairline lift, never a glow. */
+  --shadow-flat: 0 1px 0 0 rgb(23 23 23 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(23 23 23 / 0.06);
+  --shadow-lift: 0 4px 16px -6px rgb(23 23 23 / 0.12);
 }
 
 :root {
@@ -86,6 +100,16 @@ body {
 #__next,
 #root {
   height: 100%;
+}
+
+/* Display / heading face — General Sans, tight tracking (Swiss headings). */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /* Tighten the default tracking on display type for an editorial feel. */
@@ -377,13 +401,10 @@ body {
 }
 
 /* ---- React Flow overrides ---- */
-/* Atmospheric light canvas — faint color pools + warm paper, so the board
-   reads as a space rather than a blank grid. Depth lives on the nodes. */
+/* Solid Swiss canvas — a single flat neutral field. No gradients, no pools;
+   the dotted grid + crisp white nodes carry the structure. */
 .react-flow__background {
-  background:
-    radial-gradient(1100px 720px at 16% -8%, color-mix(in oklab, var(--color-node-processor) 9%, transparent), transparent 60%),
-    radial-gradient(900px 600px at 96% 108%, color-mix(in oklab, var(--color-node-writing) 8%, transparent), transparent 55%),
-    oklch(97.5% 0.004 95);
+  background: var(--color-canvas);
 }
 
 /* Palette buttons (left toolbar) — echo each node's accent on hover so the
@@ -396,32 +417,22 @@ body {
   background: color-mix(in oklab, var(--a) 12%, transparent);
 }
 
-/* Glass node surface — translucent paper, soft float shadow, top light-catch.
-   This is the core of the light-immersive look. */
+/* Node surface — Swiss: solid white, crisp 1px border, hairline lift.
+   No translucency, no backdrop blur, no float glow. */
 .node-surface {
-  background: color-mix(in oklab, var(--color-paper) 86%, transparent);
-  -webkit-backdrop-filter: blur(12px) saturate(1.1);
-  backdrop-filter: blur(12px) saturate(1.1);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
-    0 1px 2px rgba(21, 23, 28, 0.04),
-    0 22px 50px -28px rgba(21, 23, 28, 0.38);
+  background: var(--color-paper);
+  border-color: var(--color-grey-200);
+  box-shadow: var(--shadow-sm);
 }
 .node-surface:hover {
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
-    0 2px 6px rgba(21, 23, 28, 0.05),
-    0 26px 56px -26px rgba(21, 23, 28, 0.45);
+  border-color: var(--color-grey-300);
+  box-shadow: var(--shadow-lift);
 }
-/* Selected — a single crisp accent hairline ring hugging the border, with the
-   same neutral float depth. No soft colored glow (reads as amateur). */
+/* Selected — a single crisp ink ring (border.focus = ink), flat. */
 .node-surface.is-selected,
 .node-surface.is-selected:hover {
-  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
-    0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent),
-    0 18px 44px -22px rgba(21, 23, 28, 0.42);
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 1px var(--color-ink), var(--shadow-sm);
 }
 
 /* Hand (pan) tool cursor. */
@@ -465,18 +476,19 @@ body {
   cursor: auto;
 }
 
+/* Solid Swiss connectors — a crisp neutral hairline, ink on hover/selected.
+   (No gradient stroke — honors the zero-gradient rule.) */
 .react-flow__edge-path {
-  stroke: url(#lattice-edge);
-  stroke-width: 2;
-  transition: stroke-width 200ms, opacity 200ms;
+  stroke: var(--color-grey-400);
+  stroke-width: 1.5;
+  transition: stroke-width 200ms, stroke 200ms;
   stroke-linecap: round;
-  opacity: 0.85;
 }
 
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke-width: 2.5;
-  opacity: 1;
+  stroke: var(--color-ink);
+  stroke-width: 2;
 }
 
 .react-flow__handle {

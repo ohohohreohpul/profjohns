@@ -55,10 +55,7 @@ export function CinematicPreloader({
         opacity: phase === "dissolving" ? 0 : 1,
       }}
       transition={{ duration: 0.5, ease: EASE }}
-      style={{
-        background:
-          "radial-gradient(ellipse 80% 60% at 50% 40%, oklch(97% 0.01 195), oklch(99% 0 0))",
-      }}
+      style={{ background: "#ffffff" }}
     >
       <div className="flex flex-col items-center">
         {/* Logo assembly */}
