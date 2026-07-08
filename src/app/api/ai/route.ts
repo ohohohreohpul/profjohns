@@ -67,6 +67,9 @@ interface AiRequest {
   directions?: string[];
   /** Lily's voice profile — injected into the `write` mode when present. */
   style?: string;
+  /** An Agent's system prompt — when a node runs FROM an agent, its persona is
+   *  prepended to the mode's instructions (VISION Phase 2). */
+  persona?: string;
 }
 
 interface ApiResponse<T> {
@@ -140,7 +143,7 @@ export async function POST(
     );
   }
 
-  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style } = body;
+  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona } = body;
   const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth"];
   if (!validModes.includes(mode)) {
     return NextResponse.json(
@@ -392,7 +395,10 @@ export async function POST(
     mode === "write" && style?.trim()
       ? `\n\nAUTHOR VOICE PROFILE — write in this voice (it governs tone/rhythm/diction; never let it override factual accuracy or citations):\n${style.trim()}`
       : "";
-  const systemPrompt = `${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}${voiceBlock}`;
+  // A bound agent's persona leads the system prompt so it colours behavior
+  // without discarding the mode's task-specific instructions.
+  const personaBlock = persona?.trim() ? `${persona.trim()}\n\n` : "";
+  const systemPrompt = `${personaBlock}${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}${voiceBlock}`;
 
   try {
     const res = await fetch(OR_BASE, {

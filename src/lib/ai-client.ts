@@ -51,6 +51,8 @@ interface AiRequestBody {
   directions?: string[];
   /** Lily's voice profile — conditions the `write` mode. */
   style?: string;
+  /** A bound Agent's system prompt — prepended to the mode instructions. */
+  persona?: string;
 }
 
 /** A proposed search angle — the AI also routes it to the best database. */
@@ -227,8 +229,12 @@ export function batchSummarizeSources(sources: PaperSource[]): Promise<string> {
   return callAi({ mode: "batch", sources: compact });
 }
 
-export function editText(text: string, instruction: string): Promise<string> {
-  return callAi({ mode: "edit", text, instruction });
+export function editText(
+  text: string,
+  instruction: string,
+  persona?: string,
+): Promise<string> {
+  return callAi({ mode: "edit", text, instruction, persona });
 }
 
 export function generateDiagram(text: string): Promise<string> {

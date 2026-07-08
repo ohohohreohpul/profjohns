@@ -5,15 +5,22 @@ import {
   Robot as Bot,
   PaperPlaneTilt as Send,
   CircleNotch as Loader2,
-  WarningCircle as AlertCircle,
   Sparkle as Sparkles,
   Plus,
-  ArrowRight,
-  X,
+  CaretDown,
+  Check,
 } from "@phosphor-icons/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
 import { useCanvasStore } from "@/store/canvas-store";
+import { useAgentStore, defaultAgentIdFor } from "@/store/agent-store";
+import { agentSystemPrompt } from "@/lib/agents";
 import { editText } from "@/lib/ai-client";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -37,7 +44,18 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [thread, setThread] = React.useState<Message[]>([]);
-  const [error, setError] = React.useState<string | null>(null);
+  const [, setError] = React.useState<string | null>(null);
+
+  // The agent this node runs from — its persona + model drive the replies.
+  const agents = useAgentStore((s) => s.agents);
+  React.useEffect(() => {
+    void useAgentStore.persist.rehydrate();
+  }, []);
+  const agentId = (data.agentId as string) ?? defaultAgentIdFor("assistant");
+  const agent =
+    agents.find((a) => a.id === agentId) ??
+    agents.find((a) => a.id === defaultAgentIdFor("assistant")) ??
+    agents[0];
 
   function canvasSummary(): string {
     const kinds = nodes.map((n) => {
@@ -59,9 +77,13 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
 
     try {
       const ctx = canvasSummary();
+      // The bound agent's system prompt (persona) leads the call; the
+      // instruction below just frames the task + canvas context.
+      const persona = agent ? agentSystemPrompt(agent) : undefined;
       const answer = await editText(
         ctx,
-        `You are a helpful AI assistant on a canvas called ProfJohns. The user asks: "${q}". ${ctx}. Respond conversationally. If the user asks you to create something, suggest specific nodes they could add. Keep it concise and actionable.`,
+        `The user asks: "${q}". ${ctx} Respond conversationally. If the user asks you to create something, suggest specific nodes they could add. Keep it concise and actionable.`,
+        persona,
       );
 
       // Look for actionable suggestions in the response
@@ -131,6 +153,42 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
       hideModel
       className="w-[420px]"
     >
+      {/* Agent selector — which agent this node runs from. */}
+      <div className="nodrag mb-2.5 flex items-center gap-1.5">
+        <span className="text-[10.5px] font-medium uppercase tracking-wider text-grey-400">
+          Agent
+        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              data-testid="assistant-agent-trigger"
+              className="flex items-center gap-1.5 rounded-md border border-grey-200 bg-paper px-2 py-1 text-[11.5px] font-medium text-ink outline-none transition-colors hover:border-grey-300"
+            >
+              <Bot className="size-3.5 text-grey-400" />
+              {agent?.name ?? "Assistant"}
+              <CaretDown className="size-3 text-grey-400" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-[280px] overflow-y-auto">
+            {agents.map((a) => (
+              <DropdownMenuItem
+                key={a.id}
+                data-testid={`assistant-agent-option-${a.id}`}
+                onSelect={() => updateNodeData(id, { agentId: a.id })}
+              >
+                <Check
+                  className={cn(
+                    "size-3.5",
+                    a.id === agent?.id ? "text-ink" : "text-transparent",
+                  )}
+                />
+                <span className="flex-1">{a.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Suggestions — shown before first message */}
       {thread.length === 0 && (
         <div className="mb-3 flex flex-wrap gap-1">
