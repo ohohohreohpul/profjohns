@@ -175,64 +175,89 @@ create trigger touch_profiles before update on public.profiles
 -- Every table enforces: a user can only see/modify their own rows.
 -- ----------------------------------------------------------------------------
 
+-- NOTE: every policy is dropped-then-created so this whole file is safely
+-- RE-RUNNABLE. Postgres has no `create policy if not exists`; a bare
+-- `create policy` errors ("policy ... already exists") on a second run.
+
 -- Profiles: a user can see and update their own profile only.
 alter table public.profiles enable row level security;
+drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
   for update using (auth.uid() = id);
 -- Insert is handled by the trigger (security definer), so no insert policy needed.
 
 -- Projects: full CRUD on own rows.
 alter table public.projects enable row level security;
+drop policy if exists "projects_select_own" on public.projects;
 create policy "projects_select_own" on public.projects
   for select using (auth.uid() = user_id);
+drop policy if exists "projects_insert_own" on public.projects;
 create policy "projects_insert_own" on public.projects
   for insert with check (auth.uid() = user_id);
+drop policy if exists "projects_update_own" on public.projects;
 create policy "projects_update_own" on public.projects
   for update using (auth.uid() = user_id);
+drop policy if exists "projects_delete_own" on public.projects;
 create policy "projects_delete_own" on public.projects
   for delete using (auth.uid() = user_id);
 
 -- Canvases: full CRUD on own rows.
 alter table public.canvases enable row level security;
+drop policy if exists "canvases_select_own" on public.canvases;
 create policy "canvases_select_own" on public.canvases
   for select using (auth.uid() = user_id);
+drop policy if exists "canvases_insert_own" on public.canvases;
 create policy "canvases_insert_own" on public.canvases
   for insert with check (auth.uid() = user_id);
+drop policy if exists "canvases_update_own" on public.canvases;
 create policy "canvases_update_own" on public.canvases
   for update using (auth.uid() = user_id);
+drop policy if exists "canvases_delete_own" on public.canvases;
 create policy "canvases_delete_own" on public.canvases
   for delete using (auth.uid() = user_id);
 
 -- Sources: full CRUD on own rows.
 alter table public.sources enable row level security;
+drop policy if exists "sources_select_own" on public.sources;
 create policy "sources_select_own" on public.sources
   for select using (auth.uid() = user_id);
+drop policy if exists "sources_insert_own" on public.sources;
 create policy "sources_insert_own" on public.sources
   for insert with check (auth.uid() = user_id);
+drop policy if exists "sources_update_own" on public.sources;
 create policy "sources_update_own" on public.sources
   for update using (auth.uid() = user_id);
+drop policy if exists "sources_delete_own" on public.sources;
 create policy "sources_delete_own" on public.sources
   for delete using (auth.uid() = user_id);
 
 -- Pinned sources: full CRUD on own rows.
 alter table public.pinned_sources enable row level security;
+drop policy if exists "pinned_select_own" on public.pinned_sources;
 create policy "pinned_select_own" on public.pinned_sources
   for select using (auth.uid() = user_id);
+drop policy if exists "pinned_insert_own" on public.pinned_sources;
 create policy "pinned_insert_own" on public.pinned_sources
   for insert with check (auth.uid() = user_id);
+drop policy if exists "pinned_delete_own" on public.pinned_sources;
 create policy "pinned_delete_own" on public.pinned_sources
   for delete using (auth.uid() = user_id);
 
 -- Media: full CRUD on own rows.
 alter table public.media enable row level security;
+drop policy if exists "media_select_own" on public.media;
 create policy "media_select_own" on public.media
   for select using (auth.uid() = user_id);
+drop policy if exists "media_insert_own" on public.media;
 create policy "media_insert_own" on public.media
   for insert with check (auth.uid() = user_id);
+drop policy if exists "media_update_own" on public.media;
 create policy "media_update_own" on public.media
   for update using (auth.uid() = user_id);
+drop policy if exists "media_delete_own" on public.media;
 create policy "media_delete_own" on public.media
   for delete using (auth.uid() = user_id);
 
@@ -244,6 +269,7 @@ values ('media', 'media', false)
 on conflict (id) do nothing;
 
 -- Storage RLS: users can manage files under their own user-id prefix.
+drop policy if exists "media_storage_own" on storage.objects;
 create policy "media_storage_own" on storage.objects
   for all
   using (
