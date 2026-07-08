@@ -211,11 +211,22 @@ Each phase ends in something usable; later phases depend on earlier infra.
   (drop old uuid-PK tables first if present), then a two-device smoke test.
 - Exit: multi-device, per-user persistence. **Plan: `docs/BACKEND-PHASE1.md`.**
 
-**Phase 2 — Agent abstraction + Agents surface**
-- `Agent` model + a management page (the "other page"). Generalize Sources /
-  Synthesize / Draft to run from an `Agent` config. Built-in archetypes,
-  prompt-configured (no training yet).
-- Exit: you pick which agent a node uses; agents are first-class.
+**Phase 2 — Agent abstraction + Agents surface — FOUNDATION DONE (2026-07-08, commit 09479c7)**
+- [x] `Agent` model (`src/lib/agents.ts`) + persisted agent library
+  (`src/store/agent-store.ts`) seeded with 5 built-in archetypes (Scout,
+  Synthesizer, Stylist, Citationist, Research Assistant); custom-agent CRUD;
+  built-ins editable + resettable, not deletable.
+- [x] Real `/agents` management surface (configure name/model/system prompt/
+  citation style; create/edit/delete/reset).
+- [x] First node binding: the Assistant node runs FROM a selected agent — its
+  persona (systemPrompt) + model drive the call, threaded through
+  `ai-client` → `/api/ai` (prepended to the mode instructions).
+- [ ] Bind the remaining archetype nodes: Sources→Scout, Draft→Stylist,
+  audit→Citationist, Synthesize→Synthesizer.
+- [ ] Sync agents to Supabase (localStorage-only today; mirror
+  `use-workspace-sync`).
+- Exit (met for the Assistant path): you pick which agent a node uses; agents
+  are first-class.
 
 **Phase 3 — Personalization**
 - Corpus upload → embeddings → StyleProfile pipeline. Stylist agent writes in
