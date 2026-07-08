@@ -45,5 +45,37 @@ export function useAuthActions() {
     window.location.href = "/";
   }, []);
 
-  return { signInWithEmail, signUpWithEmail, signInWithGoogle, signOut };
+  /** Update the display name — writes auth user_metadata (drives the session
+   *  immediately) AND the profiles row (best effort). */
+  const updateDisplayName = React.useCallback(async (name: string) => {
+    const supabase = createClient();
+    if (!supabase) return { error: { message: "Auth is not configured." } as unknown };
+    const clean = name.trim();
+    const { error } = await supabase.auth.updateUser({ data: { full_name: clean } });
+    if (!error) {
+      // Keep the profiles table in sync (used by server-side reads).
+      void supabase.auth.getUser().then(({ data }) => {
+        const id = data.user?.id;
+        if (id) void supabase.from("profiles").update({ display_name: clean }).eq("id", id);
+      });
+    }
+    return { error };
+  }, []);
+
+  /** Set a new password (email-auth users). OAuth-only accounts can use this to
+   *  add a password too. */
+  const updatePassword = React.useCallback(async (password: string) => {
+    const supabase = createClient();
+    if (!supabase) return { error: { message: "Auth is not configured." } as unknown };
+    return supabase.auth.updateUser({ password });
+  }, []);
+
+  return {
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
+    signOut,
+    updateDisplayName,
+    updatePassword,
+  };
 }

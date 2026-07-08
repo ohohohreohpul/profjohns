@@ -16,6 +16,13 @@ import { cn } from "@/lib/utils";
 import { ProfJohnsLogo } from "@/components/brand/profjohns-logo";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useAuthActions } from "@/lib/auth/auth-actions";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Gear, SignOut } from "@phosphor-icons/react";
 import Image from "next/image";
 
 export type SurfaceKey =
@@ -26,7 +33,8 @@ export type SurfaceKey =
   | "media"
   | "links"
   | "agents"
-  | "mcp";
+  | "mcp"
+  | "account";
 
 interface NavItem {
   key: SurfaceKey;
@@ -105,25 +113,45 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
           History
         </button>
         {authEnabled && user ? (
-          <button
-            onClick={() => signOut()}
-            className="mt-1 flex items-center gap-2.5 rounded-xl border border-grey-200 bg-paper px-3 py-2 text-[13px] font-medium text-grey-700 transition-colors hover:bg-grey-50"
-          >
-            {user.user_metadata?.avatar_url ? (
-              <Image
-                src={user.user_metadata.avatar_url}
-                alt=""
-                width={24}
-                height={24}
-                className="size-6 rounded-full"
-              />
-            ) : (
-              <span className="grid size-6 place-items-center rounded-full bg-grey-200 text-[11px] font-semibold text-grey-600">
-                {initial}
-              </span>
-            )}
-            <span className="min-w-0 truncate">{user.email}</span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                data-testid="sidebar-account-trigger"
+                className="mt-1 flex w-full items-center gap-2.5 rounded-xl border border-grey-200 bg-paper px-3 py-2 text-[13px] font-medium text-grey-700 outline-none transition-colors hover:bg-grey-50 focus-visible:border-grey-400"
+              >
+                {user.user_metadata?.avatar_url ? (
+                  <Image
+                    src={user.user_metadata.avatar_url}
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="size-6 rounded-full"
+                  />
+                ) : (
+                  <span className="grid size-6 place-items-center rounded-full bg-grey-200 text-[11px] font-semibold text-grey-600">
+                    {initial}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate text-left">{user.email}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[228px]">
+              <DropdownMenuItem asChild>
+                <Link href="/account" data-testid="menu-account-settings">
+                  <Gear className="size-4 text-grey-500" />
+                  Account settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => signOut()}
+                data-testid="menu-sign-out"
+                className="text-red-600 data-[highlighted]:bg-red-50"
+              >
+                <SignOut className="size-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : authEnabled ? (
           <Link
             href="/login"
