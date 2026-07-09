@@ -219,11 +219,12 @@ Each phase ends in something usable; later phases depend on earlier infra.
 - [x] Real `/agents` management surface (configure name/model/system prompt/
   citation style; create/edit/delete/reset).
 - [x] Node binding via a reusable `AgentPicker` + `useNodeAgent` (node
-  `data.agentId`, defaults to archetype). Bound so far: **Assistant**,
-  **Sources→Scout** (angles/triage/gaps), **Synthesize→Synthesizer**. Persona
-  threaded through `ai-client` → `/api/ai` (prepended to mode instructions).
-- [ ] Bind the last two: **Draft→Stylist** + **audit→Citationist** (both live
-  in the writing surface).
+  `data.agentId`, defaults to archetype; optional `dataKey` for nodes with two
+  roles). Persona threaded through `ai-client` → `/api/ai` (prepended to mode
+  instructions). **ALL AI nodes bound**: Assistant, Sources→Scout
+  (angles/triage/gaps), Synthesize→Synthesizer, Draft→Stylist,
+  audit→Citationist (`auditAgentId`).
+- [ ] Sync agents to Supabase (multi-device) — the one remaining Phase-2 item.
 - [ ] Sync agents to Supabase (localStorage-only today; mirror
   `use-workspace-sync`).
 - Exit (met for the Assistant path): you pick which agent a node uses; agents
