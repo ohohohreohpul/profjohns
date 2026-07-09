@@ -149,6 +149,7 @@ export function writeFromSources(
   sources: PaperSource[],
   draft?: string,
   style?: string,
+  persona?: string,
 ): Promise<string> {
   const compact: SourceContext[] = sources.map((s) => ({
     title: s.title,
@@ -156,7 +157,7 @@ export function writeFromSources(
     year: s.year,
     abstract: s.abstract,
   }));
-  return callAi({ mode: "write", instruction, sources: compact, draft, style });
+  return callAi({ mode: "write", instruction, sources: compact, draft, style, persona });
 }
 
 /** Lily — derive a reusable writing-voice profile from the author's sample. */
@@ -370,11 +371,13 @@ const AUDIT_STATUSES = new Set(["supported", "weak", "unsupported"]);
 export async function auditDraft(
   draft: string,
   sources: PaperSource[],
+  persona?: string,
 ): Promise<AuditFinding[]> {
   const raw = await callAi({
     mode: "audit",
     draft,
     sources: toContext(sources),
+    persona,
   });
   return parseJsonArray<AuditFinding>(raw)
     .filter((f) => f && typeof f.claim === "string" && AUDIT_STATUSES.has(f.status))

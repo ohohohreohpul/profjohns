@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 export function useNodeAgent(
   nodeId: string,
   archetype: AgentArchetype,
+  dataKey: string = "agentId",
 ): Agent | undefined {
   const agents = useAgentStore((s) => s.agents);
   React.useEffect(() => {
@@ -28,7 +29,7 @@ export function useNodeAgent(
   }, []);
   const nodes = useCanvasStore((s) => s.nodes);
   const selectedId =
-    (nodes.find((n) => n.id === nodeId)?.data.agentId as string | undefined) ??
+    (nodes.find((n) => n.id === nodeId)?.data[dataKey] as string | undefined) ??
     defaultAgentIdFor(archetype);
   return (
     agents.find((a) => a.id === selectedId) ??
@@ -40,15 +41,19 @@ export function useNodeAgent(
 export function AgentPicker({
   nodeId,
   archetype,
+  dataKey = "agentId",
   showLabel = true,
 }: {
   nodeId: string;
   archetype: AgentArchetype;
+  /** Node-data field the selection persists to. Lets one node bind more than
+   *  one agent role (e.g. writer=agentId, auditor=auditAgentId). */
+  dataKey?: string;
   showLabel?: boolean;
 }) {
   const agents = useAgentStore((s) => s.agents);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
-  const agent = useNodeAgent(nodeId, archetype);
+  const agent = useNodeAgent(nodeId, archetype, dataKey);
 
   return (
     <div className="nodrag flex items-center gap-1.5">
@@ -73,7 +78,7 @@ export function AgentPicker({
             <DropdownMenuItem
               key={a.id}
               data-testid={`node-agent-option-${a.id}`}
-              onSelect={() => updateNodeData(nodeId, { agentId: a.id })}
+              onSelect={() => updateNodeData(nodeId, { [dataKey]: a.id })}
             >
               <Check
                 className={cn(

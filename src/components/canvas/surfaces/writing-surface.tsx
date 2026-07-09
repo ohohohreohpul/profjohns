@@ -37,6 +37,8 @@ import {
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
 import { getDocEditor } from "@/components/editor/doc-editor";
 import { LilyVoice } from "./lily-voice";
+import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
+import { agentSystemPrompt } from "@/lib/agents";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import {
   extractText,
@@ -64,6 +66,10 @@ export function WritingSurface({
   const styleProfile = useWorkspaceStore((s) => s.styleProfile);
   const [useVoice, setUseVoice] = React.useState(true);
 
+  // The writer runs from the Stylist agent (overridable) — its persona shapes
+  // drafting, layered under Lily's voice profile.
+  const writerAgent = useNodeAgent(nodeId, "stylist");
+
   const [instruction, setInstruction] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [busyLabel, setBusyLabel] = React.useState("");
@@ -89,6 +95,7 @@ export function WritingSurface({
         sources,
         draftText,
         useVoice && styleProfile ? styleProfile : undefined,
+        writerAgent ? agentSystemPrompt(writerAgent) : undefined,
       );
       const nodes = paragraphsToContent(answer);
       const editor = getDocEditor(nodeId);
@@ -178,6 +185,7 @@ export function WritingSurface({
 
           {tab === "ai" && (
             <AiPanel
+              nodeId={nodeId}
               model={model}
               sources={sources}
               draftEmpty={!draftText.trim()}
@@ -201,6 +209,7 @@ export function WritingSurface({
           )}
           {tab === "audit" && (
             <AuditPanel
+              nodeId={nodeId}
               draftText={draftText}
               sources={sources}
               creditsPerRun={model.creditsPerRun}
@@ -396,6 +405,7 @@ const PRESETS = [
 ];
 
 function AiPanel({
+  nodeId,
   model,
   sources,
   draftEmpty,
@@ -409,6 +419,7 @@ function AiPanel({
   useVoice,
   onToggleVoice,
 }: {
+  nodeId: string;
   model: ReturnType<typeof getModel>;
   sources: ReturnType<typeof useNodeInputSources>;
   draftEmpty: boolean;
@@ -425,6 +436,11 @@ function AiPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto p-3">
+        {/* The writer agent (overridable) — its persona shapes drafting. */}
+        <div className="mb-3">
+          <AgentPicker nodeId={nodeId} archetype="stylist" />
+        </div>
+
         {/* Lily — write in the author's learned voice. */}
         <LilyVoice useVoice={useVoice} onToggleVoice={onToggleVoice} />
 
@@ -609,11 +625,13 @@ const STATUS_META: Record<
  * unsupported, so every claim can be traced back to evidence.
  */
 function AuditPanel({
+  nodeId,
   draftText,
   sources,
   creditsPerRun,
   onSpend,
 }: {
+  nodeId: string;
   draftText: string;
   sources: ReturnType<typeof useNodeInputSources>;
   creditsPerRun: number;
@@ -623,6 +641,10 @@ function AuditPanel({
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // The auditor runs from the Citationist agent — bound on its own node-data
+  // key so it's independent of the writer's Stylist selection.
+  const auditAgent = useNodeAgent(nodeId, "citationist", "auditAgentId");
+
   const canRun = draftText.trim().length >= 20 && sources.length > 0;
 
   async function runAudit() {
@@ -630,7 +652,11 @@ function AuditPanel({
     setBusy(true);
     setError(null);
     try {
-      const result = await auditDraft(draftText, sources);
+      const result = await auditDraft(
+        draftText,
+        sources,
+        auditAgent ? agentSystemPrompt(auditAgent) : undefined,
+      );
       setFindings(result);
       onSpend(creditsPerRun);
     } catch (e: unknown) {
@@ -649,6 +675,16 @@ function AuditPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {/* The auditor agent (overridable) — its persona/citation style
+            governs the audit. */}
+        <div className="mb-3">
+          <AgentPicker
+            nodeId={nodeId}
+            archetype="citationist"
+            dataKey="auditAgentId"
+          />
+        </div>
+
         <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-grey-500">
           <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[var(--color-node-reader)]" />
           Johns checks each claim in your draft against the connected sources —
