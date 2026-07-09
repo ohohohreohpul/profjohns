@@ -243,9 +243,17 @@ Each phase ends in something usable; later phases depend on earlier infra.
   parsing (PDF + paste today). Optional later: LoRA/fine-tune.
 - Exit MET (pragmatic): Draft sounds meaningfully more like the author.
 
-**Phase 4 — Background autonomous runs**
-- Job runtime + StandingTask + Findings digest + notifications.
-- Exit: define a standing search; wake up to new, deduped finds.
+**Phase 4 — Background autonomous runs — v1 DONE (2026-07-09, commit 3c46152)**
+- [x] `standing_tasks` + `findings` schema (RLS, unique task+source dedup).
+- [x] Watch surface (`/watch`): create standing searches, Run now (in-browser
+  Scout pipeline), findings inbox (keep/dismiss). Pure dedup + schedule helpers
+  in `lib/watch.ts` (unit-tested).
+- [x] Vercel Cron sweep (`/api/jobs/run`, service-role + `CRON_SECRET`) +
+  `vercel.json` (daily). Server-side search via the app's own provider routes.
+  DEPLOY-READY — needs `SUPABASE_SERVICE_ROLE_KEY` + `CRON_SECRET` + schema.
+- [ ] Refinements: AI scoring inside the cron sweep (Run-now already scores);
+  notifications (email/web-push) — inbox digest only today; per-user budgets.
+- Exit MET (v1): define a standing search; new deduped finds accumulate.
 
 **Phase 5 — Semantic + figure/reverse index**
 - pgvector text index; CLIP figure index; ingestion pipeline.
