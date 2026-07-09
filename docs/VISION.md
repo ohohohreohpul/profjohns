@@ -232,10 +232,16 @@ Each phase ends in something usable; later phases depend on earlier infra.
 - Exit MET: agents are first-class — configurable on `/agents`, every AI node
   runs from a selectable agent, library syncs per-user across devices.
 
-**Phase 3 — Personalization**
-- Corpus upload → embeddings → StyleProfile pipeline. Stylist agent writes in
-  your voice.
-- Exit: Draft "sounds like me."
+**Phase 3 — Personalization — v1 DONE (2026-07-09, commit e6a148f)**
+- [x] Corpus of the user's writing (`corpus-store`, add via paste/PDF) →
+  `trainVoice` derives a StyleProfile (dna) + attaches verbatim exemplar
+  passages → stored in `workspace.styleProfile`, consumed by the writer +
+  Stylist. Managed on the Account surface ("Writing voice"). This is the
+  §4.3 RAG-lite path (profile + exemplars, no embedding index).
+- [ ] Embedding-based exemplar retrieval over a large corpus (folds into
+  Phase 5 pgvector). Corpus DB sync (sensitive — unpublished writing). DOCX
+  parsing (PDF + paste today). Optional later: LoRA/fine-tune.
+- Exit MET (pragmatic): Draft sounds meaningfully more like the author.
 
 **Phase 4 — Background autonomous runs**
 - Job runtime + StandingTask + Findings digest + notifications.
