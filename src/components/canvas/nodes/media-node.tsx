@@ -8,9 +8,12 @@ import {
   Sparkle as Sparkles,
   WarningCircle as AlertCircle,
 } from "@phosphor-icons/react";
+import { MagnifyingGlassPlus as SearchPlus } from "@phosphor-icons/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
 import { useCanvasStore } from "@/store/canvas-store";
 import { describeImage } from "@/lib/ai-client";
+import { clipEmbedImage } from "@/lib/clip";
+import { saveFigure } from "@/lib/db/repo";
 import { processImageFile } from "@/lib/image";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +31,7 @@ interface MediaData {
 
 export function MediaNode({ id, data, selected }: CanvasNodeProps) {
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
+  const projectId = useCanvasStore((s) => s.projectId);
   const media = data.media as MediaData | undefined;
 
   const [busy, setBusy] = React.useState(false);
@@ -35,7 +39,30 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
   const [dragOver, setDragOver] = React.useState(false);
   const [describing, setDescribing] = React.useState(false);
   const [describeError, setDescribeError] = React.useState<string | null>(null);
+  const [indexState, setIndexState] = React.useState<"idle" | "busy" | "done" | "off" | "error">("idle");
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  async function indexForSearch() {
+    if (!media?.src || indexState === "busy") return;
+    setIndexState("busy");
+    try {
+      const embedding = await clipEmbedImage(media.src);
+      if (!embedding) {
+        setIndexState("off"); // CLIP not configured
+        return;
+      }
+      await saveFigure({
+        id,
+        projectId: projectId || undefined,
+        src: media.src,
+        caption: media.caption || media.description || "",
+        embedding,
+      });
+      setIndexState("done");
+    } catch {
+      setIndexState("error");
+    }
+  }
 
   async function runDescribe() {
     if (!media?.src || describing) return;
@@ -170,6 +197,35 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
                 {media.description}
               </p>
             </div>
+          )}
+
+          {/* CLIP index — make this figure findable by text/image search. */}
+          <button
+            onClick={indexForSearch}
+            disabled={indexState === "busy"}
+            className="nodrag mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-grey-200 py-1.5 text-[11px] font-medium text-grey-700 transition-colors hover:border-grey-300 hover:bg-grey-50 disabled:opacity-40"
+          >
+            {indexState === "busy" ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <SearchPlus className="size-3.5 text-node-media" />
+            )}
+            {indexState === "busy"
+              ? "Indexing…"
+              : indexState === "done"
+                ? "Indexed for search"
+                : "Index for figure search"}
+          </button>
+          {indexState === "off" && (
+            <p className="mt-1 text-[10px] text-grey-400">
+              Figure search isn&apos;t set up (needs the Replicate CLIP key).
+            </p>
+          )}
+          {indexState === "error" && (
+            <p className="mt-1 flex items-center gap-1.5 text-[10px] text-red-600">
+              <AlertCircle className="size-3 shrink-0" />
+              Could not index this figure.
+            </p>
           )}
         </>
       ) : (

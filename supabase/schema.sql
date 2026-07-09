@@ -432,6 +432,58 @@ as $$
 $$;
 
 -- ----------------------------------------------------------------------------
+-- Figures (VISION Phase 5b — reverse / text-to-image figure search via CLIP)
+-- CLIP embeddings (768-d) are produced by the /api/clip route (Replicate).
+-- match_figures ranks by cosine similarity, user-scoped. A text query and an
+-- image query land in the SAME CLIP space, so both text->figure and
+-- figure->figure (reverse) search use this one table + RPC.
+-- ----------------------------------------------------------------------------
+create table if not exists public.figures (
+  id text primary key,                 -- client id (the media node / figure id)
+  user_id uuid not null references auth.users (id) on delete cascade,
+  project_id text references public.projects (id) on delete set null,
+  src text not null default '',        -- image data-URL or hosted URL (thumbnail)
+  caption text default '',
+  embedding vector(768),               -- CLIP ViT-L/14
+  created_at timestamptz not null default now()
+);
+create index if not exists figures_user_idx on public.figures (user_id);
+create index if not exists figures_embedding_idx
+  on public.figures using hnsw (embedding vector_cosine_ops);
+
+alter table public.figures enable row level security;
+drop policy if exists "figures_select_own" on public.figures;
+create policy "figures_select_own" on public.figures
+  for select using (auth.uid() = user_id);
+drop policy if exists "figures_insert_own" on public.figures;
+create policy "figures_insert_own" on public.figures
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "figures_update_own" on public.figures;
+create policy "figures_update_own" on public.figures
+  for update using (auth.uid() = user_id);
+drop policy if exists "figures_delete_own" on public.figures;
+create policy "figures_delete_own" on public.figures
+  for delete using (auth.uid() = user_id);
+
+create or replace function public.match_figures(
+  query_embedding vector(768),
+  match_count int default 12,
+  uid uuid default auth.uid()
+)
+returns table (id text, src text, caption text, similarity float)
+language sql
+stable
+as $$
+  select
+    f.id, f.src, f.caption,
+    1 - (f.embedding <=> query_embedding) as similarity
+  from public.figures f
+  where f.user_id = uid and f.embedding is not null
+  order by f.embedding <=> query_embedding
+  limit greatest(match_count, 1);
+$$;
+
+-- ----------------------------------------------------------------------------
 -- Done. Verify with:
 -- select tablename, rowsecurity from pg_tables where schemaname = 'public';
 -- ----------------------------------------------------------------------------

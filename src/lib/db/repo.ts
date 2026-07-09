@@ -292,6 +292,55 @@ export async function semanticSearchSources(
   }));
 }
 
+export interface FigureHit {
+  id: string;
+  src: string;
+  caption: string;
+  similarity: number;
+}
+
+/** Store (or update) a figure + its CLIP embedding for search. */
+export async function saveFigure(fig: {
+  id: string;
+  projectId?: string;
+  src: string;
+  caption?: string;
+  embedding: number[];
+}): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return;
+  await sb.from("figures").upsert({
+    id: fig.id,
+    user_id: uid,
+    project_id: fig.projectId ?? null,
+    src: fig.src,
+    caption: fig.caption ?? "",
+    embedding: fig.embedding,
+  });
+}
+
+/** Text-to-figure / figure-to-figure search via the CLIP pgvector RPC. */
+export async function matchFigures(
+  queryEmbedding: number[],
+  matchCount = 12,
+): Promise<FigureHit[]> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return [];
+  const { data, error } = await sb.rpc("match_figures", {
+    query_embedding: queryEmbedding,
+    match_count: matchCount,
+  });
+  if (error) return [];
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    src: String(r.src ?? ""),
+    caption: String(r.caption ?? ""),
+    similarity: typeof r.similarity === "number" ? r.similarity : 0,
+  }));
+}
+
 /** Pull the whole workspace for the signed-in user. Returns null when signed out. */
 export async function loadWorkspace(): Promise<WorkspaceSnapshot | null> {
   const sb = createClient();
