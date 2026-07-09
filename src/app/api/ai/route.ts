@@ -43,7 +43,8 @@ type AiMode =
   | "libcat"
   | "audit"
   | "dna"
-  | "synth";
+  | "synth"
+  | "vision";
 
 interface SourceContext {
   title: string;
@@ -70,6 +71,8 @@ interface AiRequest {
   /** An Agent's system prompt — when a node runs FROM an agent, its persona is
    *  prepended to the mode's instructions (VISION Phase 2). */
   persona?: string;
+  /** A data-URL or https image — sent to a multimodal model in `vision` mode. */
+  image?: string;
 }
 
 interface ApiResponse<T> {
@@ -110,6 +113,8 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are a research synthesist working over a numbered list of SOURCES. Produce a STRUCTURED synthesis. Return ONLY a JSON object (no prose, no code fences): {\"claims\": [{\"claim\": string, \"sources\": [number], \"evidence\": string}], \"contradictions\": [{\"claim\": string, \"sources\": [number], \"note\": string}], \"themes\": [{\"theme\": string, \"sources\": [number]}]}. claim = a substantive finding stated plainly (<=140 chars); evidence = at most 18 words on what backs it; sources = the 1-based numbers of the sources that support each item; contradictions = genuine disagreements between sources (cite the conflicting source numbers, note what differs); themes = 2-4 short cross-cutting topic labels. Ground everything in the provided sources — never invent claims, numbers, or sources. Aim for up to ~8 claims.",
   dna:
     "You are a writing-voice analyst. From the author's writing sample(s), infer a concise, reusable VOICE PROFILE another writer could follow to sound like this author. Cover: overall tone/register; sentence length & rhythm; preferred structure (how they open, build, and conclude an argument); diction & favored/avoided words; use of hedging vs. assertion; how they handle citations and evidence; and any signature habits. Return PLAIN PROSE (no JSON), ~120-180 words, written as direct guidance ('Write in...', 'Prefer...', 'Avoid...'). Describe only what the sample evidences — do not invent.",
+  vision:
+    "You are a vision analyst for academic figures. Describe the image precisely and usefully for a researcher: what it depicts, the figure/chart type, axes/labels/legend, the key values or trends it shows, and any visible caption or text. Be strictly factual — describe only what is visible, never speculate beyond the image. Return clear prose (no preamble).",
   audit:
     "You are a meticulous citation auditor. You are given a draft and a numbered list of the SOURCES available to the author. Identify the draft's distinct factual/empirical CLAIMS (skip the author's own framing, transitions, and opinions) and judge whether each is backed by the provided sources. Return ONLY a JSON array, no prose or code fences: [{\"claim\": string, \"status\": \"supported\" | \"weak\" | \"unsupported\", \"source\": number | null, \"note\": string}]. claim = the claim quoted or closely paraphrased (<=160 chars); status = 'supported' if a source clearly backs it, 'weak' if a source is only tangentially related or partially supports it, 'unsupported' if no provided source backs it; source = the 1-based number of the best supporting source, or null when unsupported; note = at most 16 words on why. Be strict — never credit a source that does not actually contain the claim. Cover the most important claims (up to ~12).",
 };
@@ -143,8 +148,14 @@ export async function POST(
     );
   }
 
-  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth"];
+  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona, image } = body;
+  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth", "vision"];
+  if (mode === "vision" && !image?.trim()) {
+    return NextResponse.json(
+      { success: false, data: null, error: "No image provided.", configured: true },
+      { status: 400 },
+    );
+  }
   if (!validModes.includes(mode)) {
     return NextResponse.json(
       { success: false, data: null, error: `Unknown mode: ${mode}`, configured: true },
@@ -384,6 +395,12 @@ export async function POST(
     contextLabel = "SOURCES";
     contextBody = buildSourcesBlock(sources as SourceContext[]);
     userContent = "Synthesize these sources into claims, contradictions, and themes.";
+  } else if (mode === "vision") {
+    // The image carries the content; caption/alt (if any) arrives via `text`.
+    contextLabel = "FIGURE CAPTION";
+    contextBody = (text ?? "").slice(0, 2000) || "(none provided)";
+    userContent = (question?.trim() ||
+      "Describe this figure in detail for a researcher.") as string;
   } else {
     contextLabel = "PAPER";
     contextBody = `${title ? `TITLE: ${title}\n\n` : ""}${(text as string).slice(0, MAX_CONTEXT_CHARS)}`;
@@ -414,7 +431,15 @@ export async function POST(
         max_tokens: maxTokens,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
+          mode === "vision" && image
+            ? {
+                role: "user",
+                content: [
+                  { type: "text", text: userContent },
+                  { type: "image_url", image_url: { url: image } },
+                ],
+              }
+            : { role: "user", content: userContent },
         ],
       }),
     });

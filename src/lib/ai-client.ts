@@ -38,7 +38,8 @@ interface AiRequestBody {
     | "libcat"
     | "audit"
     | "dna"
-    | "synth";
+    | "synth"
+    | "vision";
   text?: string;
   title?: string;
   question?: string;
@@ -53,6 +54,8 @@ interface AiRequestBody {
   style?: string;
   /** A bound Agent's system prompt — prepended to the mode instructions. */
   persona?: string;
+  /** Image (data-URL or https) for `vision` mode. */
+  image?: string;
 }
 
 /** A proposed search angle — the AI also routes it to the best database. */
@@ -241,6 +244,16 @@ export function editText(
 
 export function generateDiagram(text: string): Promise<string> {
   return callAi({ mode: "diagram", text });
+}
+
+/** Vision — describe/analyze a figure with a multimodal model.
+ *  `caption` (optional) gives the model any existing caption/alt as context. */
+export function describeImage(
+  image: string,
+  caption?: string,
+  persona?: string,
+): Promise<string> {
+  return callAi({ mode: "vision", image, text: caption, persona });
 }
 
 export function exploreQuery(

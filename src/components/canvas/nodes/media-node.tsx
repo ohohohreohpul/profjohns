@@ -1,9 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Upload, CircleNotch as Loader2, ImageBroken as ImageOff } from "@phosphor-icons/react";
+import {
+  Upload,
+  CircleNotch as Loader2,
+  ImageBroken as ImageOff,
+  Sparkle as Sparkles,
+  WarningCircle as AlertCircle,
+} from "@phosphor-icons/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
 import { useCanvasStore } from "@/store/canvas-store";
+import { describeImage } from "@/lib/ai-client";
 import { processImageFile } from "@/lib/image";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +22,8 @@ interface MediaData {
   alt?: string;
   credit?: string;
   name?: string;
+  /** AI vision description of the figure (feeds downstream nodes). */
+  description?: string;
 }
 
 export function MediaNode({ id, data, selected }: CanvasNodeProps) {
@@ -24,7 +33,28 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
+  const [describing, setDescribing] = React.useState(false);
+  const [describeError, setDescribeError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  async function runDescribe() {
+    if (!media?.src || describing) return;
+    setDescribing(true);
+    setDescribeError(null);
+    try {
+      const desc = await describeImage(
+        media.src,
+        media.caption || media.alt || undefined,
+      );
+      patchMedia({ description: desc });
+    } catch (err: unknown) {
+      setDescribeError(
+        err instanceof Error ? err.message : "Could not analyze the image.",
+      );
+    } finally {
+      setDescribing(false);
+    }
+  }
 
   async function ingest(file: File | undefined) {
     if (!file) return;
@@ -103,6 +133,44 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
               Replace
             </button>
           </div>
+
+          {/* Vision — analyze the figure into a description that downstream
+              nodes (Assistant, etc.) can read. */}
+          <button
+            onClick={runDescribe}
+            disabled={describing}
+            className="nodrag mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-grey-200 py-1.5 text-[11px] font-medium text-grey-700 transition-colors hover:border-grey-300 hover:bg-grey-50 disabled:opacity-40"
+          >
+            {describing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5 text-node-media" />
+            )}
+            {describing
+              ? "Analyzing…"
+              : media.description
+                ? "Re-analyze figure"
+                : "Describe with AI"}
+          </button>
+
+          {describeError && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-[10px] text-red-600">
+              <AlertCircle className="size-3 shrink-0" />
+              {describeError}
+            </p>
+          )}
+
+          {media.description && (
+            <div className="nodrag nowheel mt-2 max-h-[160px] overflow-y-auto rounded-lg border border-grey-100 bg-grey-50/60 p-2.5">
+              <p className="mb-1 flex items-center gap-1 text-[9.5px] font-medium uppercase tracking-wider text-grey-400">
+                <Sparkles className="size-2.5" />
+                AI description
+              </p>
+              <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-grey-600">
+                {media.description}
+              </p>
+            </div>
+          )}
         </>
       ) : (
         <button

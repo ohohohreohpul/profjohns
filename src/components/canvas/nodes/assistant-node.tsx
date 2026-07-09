@@ -43,6 +43,13 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
   function canvasSummary(): string {
     const kinds = nodes.map((n) => {
       const d = n.data as Record<string, unknown>;
+      // A described figure contributes its AI vision description so the
+      // assistant can reason about images connected to the canvas.
+      if (d.kind === "media") {
+        const m = d.media as { caption?: string; description?: string } | undefined;
+        const figure = m?.description || m?.caption;
+        return figure ? `media (figure): "${figure.slice(0, 400)}"` : "media (figure, not described)";
+      }
       const label = d.label ?? d.text?.toString().slice(0, 60) ?? "";
       return `${d.kind}${label ? `: "${label}"` : ""}`;
     });
