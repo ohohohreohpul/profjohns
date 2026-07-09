@@ -211,7 +211,7 @@ Each phase ends in something usable; later phases depend on earlier infra.
   (drop old uuid-PK tables first if present), then a two-device smoke test.
 - Exit: multi-device, per-user persistence. **Plan: `docs/BACKEND-PHASE1.md`.**
 
-**Phase 2 — Agent abstraction + Agents surface — FOUNDATION DONE (2026-07-08, commit 09479c7)**
+**Phase 2 — Agent abstraction + Agents surface — COMPLETE (2026-07-09, commit c0dfda3)**
 - [x] `Agent` model (`src/lib/agents.ts`) + persisted agent library
   (`src/store/agent-store.ts`) seeded with 5 built-in archetypes (Scout,
   Synthesizer, Stylist, Citationist, Research Assistant); custom-agent CRUD;
@@ -224,11 +224,11 @@ Each phase ends in something usable; later phases depend on earlier infra.
   instructions). **ALL AI nodes bound**: Assistant, Sources→Scout
   (angles/triage/gaps), Synthesize→Synthesizer, Draft→Stylist,
   audit→Citationist (`auditAgentId`).
-- [ ] Sync agents to Supabase (multi-device) — the one remaining Phase-2 item.
-- [ ] Sync agents to Supabase (localStorage-only today; mirror
-  `use-workspace-sync`).
-- Exit (met for the Assistant path): you pick which agent a node uses; agents
-  are first-class.
+- [x] Agents sync to Supabase (multi-device) — `agents` table + `loadAgents`/
+  `reconcileAgents` + `use-agent-sync` (merge, local-wins-then-push; built-ins
+  seed at epoch 0 so cross-device edits win). Mounted in `PersistenceSync`.
+- Exit MET: agents are first-class — configurable on `/agents`, every AI node
+  runs from a selectable agent, library syncs per-user across devices.
 
 **Phase 3 — Personalization**
 - Corpus upload → embeddings → StyleProfile pipeline. Stylist agent writes in
