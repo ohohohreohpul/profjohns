@@ -192,8 +192,10 @@ Each phase ends in something usable; later phases depend on earlier infra.
 - [x] **Lily (Stylist) — write in your voice** — `dna` mode derives an
   account-level style profile (pasted text or uploaded paper) that conditions
   the writer. Pulled forward from Phase 3; RAG/exemplars + fine-tune still later.
-- [ ] **Vision on Media** — connect a figure to Synthesize/Assistant. The one
-  Phase-0 item still open.
+- [x] **Vision on Media** (2026-07-09, commit 6250994) — Media node "Describe
+  with AI" (`vision` mode → multimodal model) produces a figure description
+  that flows to the Assistant's context. (Follow-up: also feed it into
+  Synthesize's source block.)
 - Plus shipped: hand tool + connection management, account-wide Readroom, Link
   node, full-page doc editor. Auth (Supabase) is wired (login/proxy/RLS-ready).
 
