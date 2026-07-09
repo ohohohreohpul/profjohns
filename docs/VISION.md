@@ -218,11 +218,12 @@ Each phase ends in something usable; later phases depend on earlier infra.
   built-ins editable + resettable, not deletable.
 - [x] Real `/agents` management surface (configure name/model/system prompt/
   citation style; create/edit/delete/reset).
-- [x] First node binding: the Assistant node runs FROM a selected agent — its
-  persona (systemPrompt) + model drive the call, threaded through
-  `ai-client` → `/api/ai` (prepended to the mode instructions).
-- [ ] Bind the remaining archetype nodes: Sources→Scout, Draft→Stylist,
-  audit→Citationist, Synthesize→Synthesizer.
+- [x] Node binding via a reusable `AgentPicker` + `useNodeAgent` (node
+  `data.agentId`, defaults to archetype). Bound so far: **Assistant**,
+  **Sources→Scout** (angles/triage/gaps), **Synthesize→Synthesizer**. Persona
+  threaded through `ai-client` → `/api/ai` (prepended to mode instructions).
+- [ ] Bind the last two: **Draft→Stylist** + **audit→Citationist** (both live
+  in the writing surface).
 - [ ] Sync agents to Supabase (localStorage-only today; mirror
   `use-workspace-sync`).
 - Exit (met for the Assistant path): you pick which agent a node uses; agents
