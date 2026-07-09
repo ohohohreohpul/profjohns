@@ -261,10 +261,14 @@ Each phase ends in something usable; later phases depend on earlier infra.
   vendor). `lib/semantic.ts` (tested cosine) + Readroom Semantic Search panel
   (Build index + query). DEPLOY: re-run `schema.sql`, `supabase functions
   deploy embed`.
-- [ ] Figure / reverse-image (CLIP): needs an external runner (fal/Replicate +
-  key) — the one piece outside the no-vendor stack. Separate follow-up.
+- [x] Figure / reverse-image (CLIP) via **Replicate** (2026-07-09, commit
+  f4dadf6): `figures` table + `match_figures` RPC (768-d); `/api/clip`
+  (Replicate, text or image → same CLIP space); Media node "Index for figure
+  search"; Readroom FigureSearch (text → thumbnails). DEPLOY: re-run
+  `schema.sql` + set `REPLICATE_API_TOKEN`.
 - [ ] Web-scale ingested index (v1 searches the user's SAVED sources; "papers
-  AI missed" at web scale = a larger ingestion pipeline later).
+  AI missed" at web scale = a larger ingestion pipeline later). Figure `src`
+  is a data-URL for now (Storage upload + path is a refinement).
 - Exit MET (text, own corpus): semantic recall over saved sources.
 
 ## Roadmap status (2026-07-09)
