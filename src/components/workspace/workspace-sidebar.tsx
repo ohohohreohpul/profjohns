@@ -10,6 +10,7 @@ import {
   Robot as Bot,
   Plug,
   Clock,
+  Binoculars as Telescope,
   SidebarSimple as PanelLeftClose,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ export type SurfaceKey =
   | "links"
   | "agents"
   | "mcp"
+  | "watch"
   | "account";
 
 interface NavItem {
@@ -47,6 +49,7 @@ const NAV: readonly NavItem[] = [
   { key: "discover", label: "Discover", href: "/", icon: Compass },
   { key: "spaces", label: "Spaces", href: "/spaces", icon: Layers },
   { key: "library", label: "Readroom", href: "/library", icon: Library },
+  { key: "watch", label: "Watch", href: "/watch", icon: Telescope },
   { key: "agents", label: "Agents", href: "/agents", icon: Bot },
   { key: "mcp", label: "Connectors", href: "/mcp", icon: Plug },
 ];

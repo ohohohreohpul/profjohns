@@ -11,6 +11,8 @@ import type { Project, Canvas } from "@/store/workspace-store";
 import type { HomeInterest } from "@/store/workspace-store";
 import type { PaperSource } from "@/lib/mock";
 import type { Agent, AgentArchetype } from "@/lib/agents";
+import type { StandingTask, Finding, Schedule, FindingStatus } from "@/lib/watch";
+import type { SourceProvider } from "@/lib/sources-client";
 
 export interface WorkspaceSnapshot {
   projects: Project[];
@@ -96,6 +98,131 @@ export async function reconcileAgents(agents: Agent[]): Promise<void> {
   const keep = agents.map((a) => a.id);
   const del = sb.from("agents").delete().eq("user_id", uid);
   await (keep.length ? del.not("id", "in", `(${keep.join(",")})`) : del);
+}
+
+function taskFromRow(r: Record<string, unknown>): StandingTask {
+  return {
+    id: String(r.id),
+    projectId: r.project_id ? String(r.project_id) : undefined,
+    topic: String(r.topic ?? ""),
+    sources: Array.isArray(r.sources) ? (r.sources as SourceProvider[]) : [],
+    agentId: r.agent_id ? String(r.agent_id) : undefined,
+    schedule: (String(r.schedule ?? "daily") as Schedule),
+    enabled: Boolean(r.enabled),
+    lastRunAt: r.last_run_at ? Date.parse(String(r.last_run_at)) || undefined : undefined,
+    createdAt: Date.parse(String(r.created_at)) || 0,
+    updatedAt: Date.parse(String(r.updated_at)) || 0,
+  };
+}
+
+export async function loadStandingTasks(): Promise<StandingTask[] | null> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return null;
+  const { data } = await sb
+    .from("standing_tasks")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data ?? []).map(taskFromRow);
+}
+
+export async function saveStandingTask(task: StandingTask): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return;
+  await sb.from("standing_tasks").upsert({
+    id: task.id,
+    user_id: uid,
+    project_id: task.projectId ?? null,
+    topic: task.topic,
+    sources: task.sources,
+    agent_id: task.agentId ?? null,
+    schedule: task.schedule,
+    enabled: task.enabled,
+    last_run_at: task.lastRunAt ? new Date(task.lastRunAt).toISOString() : null,
+  });
+}
+
+export async function deleteStandingTask(id: string): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return;
+  await sb.from("standing_tasks").delete().eq("id", id).eq("user_id", uid);
+}
+
+/** Findings already recorded for a task — used to dedup a fresh run. */
+export async function knownFindingSourceIds(taskId: string): Promise<string[]> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return [];
+  const { data } = await sb
+    .from("findings")
+    .select("source_id")
+    .eq("task_id", taskId);
+  return (data ?? []).map((r) => String((r as Record<string, unknown>).source_id));
+}
+
+export async function loadFindings(): Promise<Finding[] | null> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return null;
+  const { data } = await sb
+    .from("findings")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      taskId: String(row.task_id),
+      sourceId: String(row.source_id),
+      title: String(row.title ?? ""),
+      authors: row.authors ? String(row.authors) : undefined,
+      year: typeof row.year === "number" ? row.year : undefined,
+      url: row.url ? String(row.url) : undefined,
+      score: typeof row.score === "number" ? row.score : undefined,
+      why: row.why ? String(row.why) : undefined,
+      status: (String(row.status ?? "new") as FindingStatus),
+      source: (row.data as PaperSource) ?? ({ id: String(row.source_id), title: String(row.title ?? "") } as PaperSource),
+      createdAt: Date.parse(String(row.created_at)) || 0,
+    };
+  });
+}
+
+/** Insert findings, ignoring any already recorded for the task (unique
+ *  task_id+source_id). Returns the number newly inserted. */
+export async function insertFindings(
+  taskId: string,
+  findings: Array<{ source: PaperSource; score?: number; why?: string }>,
+): Promise<number> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid || findings.length === 0) return 0;
+  const rows = findings.map((f) => ({
+    user_id: uid,
+    task_id: taskId,
+    source_id: f.source.id,
+    title: f.source.title,
+    authors: f.source.authors ?? "",
+    year: f.source.year ?? null,
+    url: f.source.url ?? "",
+    score: f.score ?? null,
+    why: f.why ?? "",
+    status: "new",
+    data: f.source,
+  }));
+  const { data } = await sb
+    .from("findings")
+    .upsert(rows, { onConflict: "task_id,source_id", ignoreDuplicates: true })
+    .select("id");
+  return data?.length ?? 0;
+}
+
+export async function setFindingStatus(id: string, status: FindingStatus): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return;
+  await sb.from("findings").update({ status }).eq("id", id).eq("user_id", uid);
 }
 
 /** Pull the whole workspace for the signed-in user. Returns null when signed out. */

@@ -320,6 +320,78 @@ create policy "media_storage_own" on storage.objects
   );
 
 -- ----------------------------------------------------------------------------
+-- Standing tasks + findings (VISION Phase 4 — "work while you sleep")
+-- A standing task is a saved search the agent re-runs on a schedule; findings
+-- are its deduped results, surfaced as a digest.
+-- ----------------------------------------------------------------------------
+create table if not exists public.standing_tasks (
+  id text primary key,                 -- client-generated id (task-<uuid>)
+  user_id uuid not null references auth.users (id) on delete cascade,
+  project_id text references public.projects (id) on delete set null,
+  topic text not null default '',
+  sources jsonb not null default '[]'::jsonb,   -- SourceProvider[]
+  agent_id text,                       -- the Scout agent it runs from
+  schedule text not null default 'daily',       -- 'manual' | 'daily' | 'weekly'
+  enabled boolean not null default true,
+  last_run_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists standing_tasks_user_idx on public.standing_tasks (user_id);
+create index if not exists standing_tasks_due_idx on public.standing_tasks (enabled, last_run_at);
+
+create table if not exists public.findings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  task_id text not null references public.standing_tasks (id) on delete cascade,
+  source_id text not null,             -- the discovered source's id (dedup key)
+  title text not null default '',
+  authors text default '',
+  year integer,
+  url text default '',
+  score integer,
+  why text default '',
+  status text not null default 'new',  -- 'new' | 'kept' | 'dismissed'
+  data jsonb not null default '{}'::jsonb,   -- the full PaperSource
+  created_at timestamptz not null default now(),
+  unique (task_id, source_id)          -- a source is found once per task
+);
+create index if not exists findings_user_idx on public.findings (user_id);
+create index if not exists findings_task_idx on public.findings (task_id);
+
+drop trigger if exists touch_standing_tasks on public.standing_tasks;
+create trigger touch_standing_tasks before update on public.standing_tasks
+  for each row execute function public.touch_updated_at();
+
+alter table public.standing_tasks enable row level security;
+drop policy if exists "tasks_select_own" on public.standing_tasks;
+create policy "tasks_select_own" on public.standing_tasks
+  for select using (auth.uid() = user_id);
+drop policy if exists "tasks_insert_own" on public.standing_tasks;
+create policy "tasks_insert_own" on public.standing_tasks
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "tasks_update_own" on public.standing_tasks;
+create policy "tasks_update_own" on public.standing_tasks
+  for update using (auth.uid() = user_id);
+drop policy if exists "tasks_delete_own" on public.standing_tasks;
+create policy "tasks_delete_own" on public.standing_tasks
+  for delete using (auth.uid() = user_id);
+
+alter table public.findings enable row level security;
+drop policy if exists "findings_select_own" on public.findings;
+create policy "findings_select_own" on public.findings
+  for select using (auth.uid() = user_id);
+drop policy if exists "findings_insert_own" on public.findings;
+create policy "findings_insert_own" on public.findings
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "findings_update_own" on public.findings;
+create policy "findings_update_own" on public.findings
+  for update using (auth.uid() = user_id);
+drop policy if exists "findings_delete_own" on public.findings;
+create policy "findings_delete_own" on public.findings
+  for delete using (auth.uid() = user_id);
+
+-- ----------------------------------------------------------------------------
 -- Done. Verify with:
 -- select tablename, rowsecurity from pg_tables where schemaname = 'public';
 -- ----------------------------------------------------------------------------
