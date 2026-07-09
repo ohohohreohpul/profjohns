@@ -7,6 +7,7 @@ import { SignOut, GoogleLogo, Check, WarningCircle } from "@phosphor-icons/react
 import { SurfaceScaffold } from "@/components/workspace/workspace-shell";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useAuthActions } from "@/lib/auth/auth-actions";
+import { VoiceTraining } from "./voice-training";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -22,63 +23,58 @@ export function AccountSurface() {
   const { user, enabled, loading } = useAuth();
   const { updateDisplayName, updatePassword, signOut } = useAuthActions();
 
-  if (loading) {
-    return (
-      <SurfaceScaffold title="Account">
-        <p className="text-[13px] text-grey-400">Loading…</p>
-      </SurfaceScaffold>
-    );
-  }
-
-  // Local mode (no Supabase) or signed out — nothing to manage.
-  if (!enabled || !user) {
-    return (
-      <SurfaceScaffold title="Account">
-        <div className="mx-auto max-w-md rounded-xl border border-grey-200 bg-paper p-6 text-center shadow-sm">
-          <p className="text-[14px] font-medium text-ink">
-            {enabled ? "You're signed out" : "Running in local mode"}
-          </p>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-grey-500">
-            {enabled
-              ? "Sign in to manage your profile, security, and sync your work across devices."
-              : "Accounts are disabled because Supabase isn't configured. Your work is saved locally in this browser only."}
-          </p>
-          {enabled && (
-            <Link
-              href="/login"
-              data-testid="account-signin-link"
-              className="mt-4 inline-flex rounded-md bg-ink px-4 py-2 text-[13px] font-medium text-paper transition-colors hover:bg-grey-800"
-            >
-              Sign in
-            </Link>
-          )}
-        </div>
-      </SurfaceScaffold>
-    );
-  }
-
-  const provider = (user.app_metadata?.provider as string | undefined) ?? "email";
-  const avatarUrl = user.user_metadata?.avatar_url as string | undefined;
+  const signedIn = enabled && !!user;
+  const provider = (user?.app_metadata?.provider as string | undefined) ?? "email";
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const currentName =
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
+    (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.name as string | undefined) ??
     "";
-  const initial = (currentName || user.email || "?")[0]?.toUpperCase() ?? "?";
+  const initial = (currentName || user?.email || "?")[0]?.toUpperCase() ?? "?";
 
   return (
-    <SurfaceScaffold title="Account" description={user.email ?? undefined}>
+    <SurfaceScaffold title="Account" description={user?.email ?? undefined}>
       <div className="mx-auto flex max-w-2xl flex-col gap-5">
-        <ProfileCard
-          key={currentName}
-          avatarUrl={avatarUrl}
-          initial={initial}
-          email={user.email ?? ""}
-          provider={provider}
-          currentName={currentName}
-          onSave={updateDisplayName}
-        />
-        <SecurityCard provider={provider} onSave={updatePassword} />
-        <SessionCard onSignOut={signOut} />
+        {loading ? (
+          <p className="text-[13px] text-grey-400">Loading…</p>
+        ) : signedIn ? (
+          <>
+            <ProfileCard
+              key={currentName}
+              avatarUrl={avatarUrl}
+              initial={initial}
+              email={user!.email ?? ""}
+              provider={provider}
+              currentName={currentName}
+              onSave={updateDisplayName}
+            />
+            <SecurityCard provider={provider} onSave={updatePassword} />
+            <SessionCard onSignOut={signOut} />
+          </>
+        ) : (
+          <div className="rounded-xl border border-grey-200 bg-paper p-6 text-center shadow-sm">
+            <p className="text-[14px] font-medium text-ink">
+              {enabled ? "You're signed out" : "Running in local mode"}
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-grey-500">
+              {enabled
+                ? "Sign in to manage your profile, security, and sync your work across devices."
+                : "Accounts are disabled because Supabase isn't configured. Your work is saved locally in this browser only."}
+            </p>
+            {enabled && (
+              <Link
+                href="/login"
+                data-testid="account-signin-link"
+                className="mt-4 inline-flex rounded-md bg-ink px-4 py-2 text-[13px] font-medium text-paper transition-colors hover:bg-grey-800"
+              >
+                Sign in
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Writing voice works locally too — always available. */}
+        {!loading && <VoiceTraining />}
       </div>
     </SurfaceScaffold>
   );
