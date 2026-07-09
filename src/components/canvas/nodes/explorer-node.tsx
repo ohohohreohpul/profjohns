@@ -16,6 +16,8 @@ import {
 } from "@phosphor-icons/react";
 import { useUpdateNodeInternals } from "@xyflow/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
+import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
+import { agentSystemPrompt } from "@/lib/agents";
 import { useCanvasStore } from "@/store/canvas-store";
 import {
   searchProvider,
@@ -63,6 +65,11 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const addNode = useCanvasStore((s) => s.addNode);
   const nodes = useCanvasStore((s) => s.nodes);
+
+  // This node runs from the Scout agent (overridable) — its persona shapes
+  // angle-planning, triage, and gap-finding.
+  const agent = useNodeAgent(id, "scout");
+  const persona = agent ? agentSystemPrompt(agent) : undefined;
 
   const [topic, setTopic] = React.useState<string>((data.topic as string) ?? "");
   const [draftTopic, setDraftTopic] = React.useState<string>(topic);
@@ -122,7 +129,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
     setGaps([]);
     setBusy("Planning search…");
     try {
-      const proposed = await proposeSearchAngles(t, allowedSources);
+      const proposed = await proposeSearchAngles(t, allowedSources, persona);
       setAngles(proposed.map((a) => ({ ...a, selected: true })));
       setAiOff(false);
     } catch (err: unknown) {
@@ -178,7 +185,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
       setBusy("Screening for relevance…");
       let scored: ScoredSource[];
       try {
-        const verdicts = await triageSources(topic, batch);
+        const verdicts = await triageSources(topic, batch, persona);
         const byN = new Map(verdicts.map((v) => [v.n, v]));
         scored = batch.map((p, i) => {
           const v = byN.get(i + 1);
@@ -208,7 +215,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
     setBusy("Looking for gaps…");
     setError(null);
     try {
-      setGaps(await findGaps(topic, kept));
+      setGaps(await findGaps(topic, kept, persona));
     } catch (err: unknown) {
       setAiOff(isNotConfigured(err));
       setError(aiOff ? null : "Could not analyze gaps.");
@@ -287,6 +294,11 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
         wide ? "w-[840px]" : "w-[320px]",
       )}
     >
+      {/* Agent — this scout's persona (overridable). */}
+      <div className="mb-2">
+        <AgentPicker nodeId={id} archetype="scout" />
+      </div>
+
       {/* Topic bar */}
       <div className="nodrag flex items-center gap-1.5 rounded-xl border border-grey-200 bg-grey-50/80 px-2.5 py-1.5 transition-colors focus-within:border-grey-300 focus-within:bg-paper focus-within:ring-4 focus-within:ring-ink/5">
         <Telescope className="size-4 shrink-0 text-grey-400" />

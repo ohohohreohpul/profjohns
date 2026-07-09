@@ -10,6 +10,8 @@ import {
   Tag,
 } from "@phosphor-icons/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
+import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
+import { agentSystemPrompt } from "@/lib/agents";
 import { useCanvasStore } from "@/store/canvas-store";
 import { useNodeInputSources } from "@/store/use-sources";
 import { synthesizeSources, type Synthesis } from "@/lib/ai-client";
@@ -20,6 +22,9 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
   const spendCredits = useCanvasStore((s) => s.spendCredits);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const synthesis = data.synthesis as Synthesis | undefined;
+
+  // Runs from the Synthesizer agent (overridable).
+  const agent = useNodeAgent(id, "synthesizer");
 
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -33,7 +38,10 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
     setBusy(true);
     setError(null);
     try {
-      const result = await synthesizeSources(sources);
+      const result = await synthesizeSources(
+        sources,
+        agent ? agentSystemPrompt(agent) : undefined,
+      );
       updateNodeData(id, { synthesis: result });
       spendCredits(getModel((data.modelId as string) ?? "").creditsPerRun);
     } catch (err: unknown) {
@@ -61,6 +69,10 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
       }
       className="w-80"
     >
+      <div className="mb-2">
+        <AgentPicker nodeId={id} archetype="synthesizer" />
+      </div>
+
       <div className="flex items-center gap-2 rounded-lg border border-grey-200 bg-grey-50/50 px-3 py-2">
         <span className="text-[11px] text-grey-500">
           {sources.length > 0

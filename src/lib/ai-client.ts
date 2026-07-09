@@ -189,8 +189,9 @@ export interface Synthesis {
 /** Synthesize connected sources into structured claims, contradictions, themes. */
 export async function synthesizeSources(
   sources: PaperSource[],
+  persona?: string,
 ): Promise<Synthesis> {
-  const raw = await callAi({ mode: "synth", sources: toContext(sources) });
+  const raw = await callAi({ mode: "synth", sources: toContext(sources), persona });
   const obj = parseJsonObject<Partial<Synthesis>>(raw);
   const claims = Array.isArray(obj.claims) ? obj.claims : [];
   const contradictions = Array.isArray(obj.contradictions) ? obj.contradictions : [];
@@ -254,11 +255,13 @@ export function exploreQuery(
 export async function proposeSearchAngles(
   topic: string,
   allowedSources?: readonly SourceProvider[],
+  persona?: string,
 ): Promise<SearchAngle[]> {
   const res = await callAi({
     mode: "angles",
     text: topic,
     allowedSources: allowedSources ? [...allowedSources] : undefined,
+    persona,
   });
   const pool = allowedSources ?? ALLOWED_SOURCES;
   const fallback: SourceProvider = pool[0] ?? "openalex";
@@ -275,11 +278,13 @@ export async function proposeSearchAngles(
 export async function triageSources(
   topic: string,
   sources: PaperSource[],
+  persona?: string,
 ): Promise<SourceVerdict[]> {
   const raw = await callAi({
     mode: "triage",
     question: topic,
     sources: toContext(sources),
+    persona,
   });
   return parseJsonArray<SourceVerdict>(raw).filter(
     (v) => v && typeof v.n === "number",
@@ -290,11 +295,13 @@ export async function triageSources(
 export async function findGaps(
   topic: string,
   sources: PaperSource[],
+  persona?: string,
 ): Promise<CoverageGap[]> {
   const raw = await callAi({
     mode: "gaps",
     question: topic,
     sources: toContext(sources),
+    persona,
   });
   return parseJsonArray<CoverageGap>(raw).filter(
     (g) => g && typeof g.query === "string" && g.query.trim().length > 0,
