@@ -255,9 +255,21 @@ Each phase ends in something usable; later phases depend on earlier infra.
   notifications (email/web-push) — inbox digest only today; per-user budgets.
 - Exit MET (v1): define a standing search; new deduped finds accumulate.
 
-**Phase 5 — Semantic + figure/reverse index**
-- pgvector text index; CLIP figure index; ingestion pipeline.
-- Exit: "find papers AI missed" and reverse-image figure search.
+**Phase 5 — Semantic + figure/reverse index — TEXT v1 DONE (2026-07-09, commit f16fbd4)**
+- [x] pgvector over `sources` (embedding vector(384) + hnsw + `match_sources`
+  RPC). Embeddings via the `embed` Supabase Edge Function (gte-small, no new
+  vendor). `lib/semantic.ts` (tested cosine) + Readroom Semantic Search panel
+  (Build index + query). DEPLOY: re-run `schema.sql`, `supabase functions
+  deploy embed`.
+- [ ] Figure / reverse-image (CLIP): needs an external runner (fal/Replicate +
+  key) — the one piece outside the no-vendor stack. Separate follow-up.
+- [ ] Web-scale ingested index (v1 searches the user's SAVED sources; "papers
+  AI missed" at web scale = a larger ingestion pipeline later).
+- Exit MET (text, own corpus): semantic recall over saved sources.
+
+## Roadmap status (2026-07-09)
+Phases 0–4 done; Phase 5 text-semantic done. Remaining: CLIP/figure search +
+web-scale ingestion (Phase 5 v2), and the operational deploy steps below.
 
 **Phase 6 — Full paper composition**
 - Orchestrate Stylist + curated sources + synthesis + Citationist → a complete
