@@ -146,6 +146,25 @@ create index if not exists media_user_id_idx on public.media (user_id);
 create index if not exists media_project_id_idx on public.media (project_id);
 
 -- ----------------------------------------------------------------------------
+-- Agents — the user's configurable research agents (VISION Phase 2)
+-- ----------------------------------------------------------------------------
+create table if not exists public.agents (
+  id text primary key,                 -- client agent id (builtin-* or agent-<uuid>)
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null default 'Untitled agent',
+  archetype text not null default 'custom',
+  description text not null default '',
+  system_prompt text not null default '',
+  model_id text not null default '',
+  built_in boolean not null default false,
+  citation_style text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists agents_user_id_idx on public.agents (user_id);
+
+-- ----------------------------------------------------------------------------
 -- updated_at triggers — keep timestamps fresh
 -- ----------------------------------------------------------------------------
 create or replace function public.touch_updated_at()
@@ -168,6 +187,10 @@ create trigger touch_canvases before update on public.canvases
 
 drop trigger if exists touch_profiles on public.profiles;
 create trigger touch_profiles before update on public.profiles
+  for each row execute function public.touch_updated_at();
+
+drop trigger if exists touch_agents on public.agents;
+create trigger touch_agents before update on public.agents
   for each row execute function public.touch_updated_at();
 
 -- ----------------------------------------------------------------------------
@@ -259,6 +282,21 @@ create policy "media_update_own" on public.media
   for update using (auth.uid() = user_id);
 drop policy if exists "media_delete_own" on public.media;
 create policy "media_delete_own" on public.media
+  for delete using (auth.uid() = user_id);
+
+-- Agents: full CRUD on own rows.
+alter table public.agents enable row level security;
+drop policy if exists "agents_select_own" on public.agents;
+create policy "agents_select_own" on public.agents
+  for select using (auth.uid() = user_id);
+drop policy if exists "agents_insert_own" on public.agents;
+create policy "agents_insert_own" on public.agents
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "agents_update_own" on public.agents;
+create policy "agents_update_own" on public.agents
+  for update using (auth.uid() = user_id);
+drop policy if exists "agents_delete_own" on public.agents;
+create policy "agents_delete_own" on public.agents
   for delete using (auth.uid() = user_id);
 
 -- ----------------------------------------------------------------------------

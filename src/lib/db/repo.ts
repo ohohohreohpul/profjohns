@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Project, Canvas } from "@/store/workspace-store";
 import type { HomeInterest } from "@/store/workspace-store";
 import type { PaperSource } from "@/lib/mock";
+import type { Agent, AgentArchetype } from "@/lib/agents";
 
 export interface WorkspaceSnapshot {
   projects: Project[];
@@ -46,6 +47,55 @@ function canvasFromRow(r: Record<string, unknown>): Canvas {
     updatedAt: Date.parse(String(r.updated_at)) || Date.now(),
     itemCount: typeof r.item_count === "number" ? r.item_count : 0,
   };
+}
+
+function agentFromRow(r: Record<string, unknown>): Agent {
+  return {
+    id: String(r.id),
+    name: String(r.name ?? "Untitled agent"),
+    archetype: (String(r.archetype ?? "custom") as AgentArchetype),
+    description: String(r.description ?? ""),
+    systemPrompt: String(r.system_prompt ?? ""),
+    modelId: String(r.model_id ?? ""),
+    builtIn: Boolean(r.built_in),
+    citationStyle: r.citation_style ? String(r.citation_style) : undefined,
+    createdAt: Date.parse(String(r.created_at)) || 0,
+    updatedAt: Date.parse(String(r.updated_at)) || 0,
+  };
+}
+
+/** Load the signed-in user's agents. Returns null when signed out/unconfigured. */
+export async function loadAgents(): Promise<Agent[] | null> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return null;
+  const { data } = await sb.from("agents").select("*");
+  return (data ?? []).map(agentFromRow);
+}
+
+/** Upsert all local agents and delete any DB rows the user removed. */
+export async function reconcileAgents(agents: Agent[]): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return;
+  if (agents.length) {
+    await sb.from("agents").upsert(
+      agents.map((a) => ({
+        id: a.id,
+        user_id: uid,
+        name: a.name,
+        archetype: a.archetype,
+        description: a.description,
+        system_prompt: a.systemPrompt,
+        model_id: a.modelId,
+        built_in: a.builtIn,
+        citation_style: a.citationStyle ?? null,
+      })),
+    );
+  }
+  const keep = agents.map((a) => a.id);
+  const del = sb.from("agents").delete().eq("user_id", uid);
+  await (keep.length ? del.not("id", "in", `(${keep.join(",")})`) : del);
 }
 
 /** Pull the whole workspace for the signed-in user. Returns null when signed out. */

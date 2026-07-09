@@ -29,10 +29,18 @@ function newAgentId(): string {
   return `agent-${uuid}`;
 }
 
-/** Seed list = the built-ins stamped with timestamps. */
+/** Built-ins seed at a FIXED epoch (not now()) so an UNEDITED default is
+ *  always "older" than any real edit. This makes the merge deterministic
+ *  cross-device: a built-in you edited on another device (real updatedAt)
+ *  wins over the freshly-seeded default on a new device, instead of the
+ *  just-stamped seed clobbering your edit. */
+const BUILTIN_EPOCH = 0;
 function seededBuiltins(): Agent[] {
-  const t = now();
-  return BUILTIN_AGENTS.map((a) => ({ ...a, createdAt: t, updatedAt: t }));
+  return BUILTIN_AGENTS.map((a) => ({
+    ...a,
+    createdAt: BUILTIN_EPOCH,
+    updatedAt: BUILTIN_EPOCH,
+  }));
 }
 
 export type NewAgentInput = {
