@@ -225,6 +225,73 @@ export async function setFindingStatus(id: string, status: FindingStatus): Promi
   await sb.from("findings").update({ status }).eq("id", id).eq("user_id", uid);
 }
 
+export interface SemanticHit {
+  id: string;
+  title: string;
+  authors: string;
+  year: number | null;
+  url: string;
+  abstract: string;
+  similarity: number;
+}
+
+/** Sources for this user that still need an embedding (title + abstract to
+ *  embed, so the caller can index them). */
+export async function sourcesNeedingIndex(): Promise<
+  Array<{ id: string; text: string }>
+> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return [];
+  const { data } = await sb
+    .from("sources")
+    .select("id, title, abstract")
+    .is("embedding", null)
+    .limit(200);
+  return (data ?? []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      text: `${String(row.title ?? "")}\n\n${String(row.abstract ?? "")}`.trim(),
+    };
+  });
+}
+
+/** Store a source's embedding vector. */
+export async function setSourceEmbedding(
+  id: string,
+  embedding: number[],
+): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return;
+  await sb.from("sources").update({ embedding }).eq("id", id).eq("user_id", uid);
+}
+
+/** Semantic search over the user's indexed sources via the pgvector RPC. */
+export async function semanticSearchSources(
+  queryEmbedding: number[],
+  matchCount = 10,
+): Promise<SemanticHit[]> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid) return [];
+  const { data, error } = await sb.rpc("match_sources", {
+    query_embedding: queryEmbedding,
+    match_count: matchCount,
+  });
+  if (error) return [];
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    title: String(r.title ?? ""),
+    authors: String(r.authors ?? ""),
+    year: typeof r.year === "number" ? r.year : null,
+    url: String(r.url ?? ""),
+    abstract: String(r.abstract ?? ""),
+    similarity: typeof r.similarity === "number" ? r.similarity : 0,
+  }));
+}
+
 /** Pull the whole workspace for the signed-in user. Returns null when signed out. */
 export async function loadWorkspace(): Promise<WorkspaceSnapshot | null> {
   const sb = createClient();

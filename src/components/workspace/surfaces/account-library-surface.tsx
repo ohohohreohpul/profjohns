@@ -26,6 +26,7 @@ import { categorizeLibrary } from "@/lib/ai-client";
 import { cn } from "@/lib/utils";
 import { LibraryCard } from "../library/library-card";
 import { LibraryChat } from "../library/library-chat";
+import { SemanticSearch } from "./semantic-search";
 import { motion } from "motion/react";
 import { staggerContainer, fadeUp } from "@/lib/motion-variants";
 
@@ -279,6 +280,7 @@ export function AccountLibrarySurface() {
           animate="animate"
           className="min-h-0 flex-1 overflow-auto p-6"
         >
+          <SemanticSearch />
           {items.length === 0 ? (
             <EmptyState />
           ) : filtered.length === 0 ? (

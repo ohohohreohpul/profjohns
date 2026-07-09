@@ -392,6 +392,46 @@ create policy "findings_delete_own" on public.findings
   for delete using (auth.uid() = user_id);
 
 -- ----------------------------------------------------------------------------
+-- Semantic retrieval (VISION Phase 5 — "find papers keyword search missed")
+-- pgvector index over the user's sources. Embeddings (384-d, gte-small) are
+-- produced by the `embed` Edge Function and stored per source. match_sources
+-- ranks by cosine similarity, scoped to the caller (RLS on sources also
+-- applies). Enable + deploy: run this, then `supabase functions deploy embed`.
+-- ----------------------------------------------------------------------------
+create extension if not exists vector;
+
+alter table public.sources add column if not exists embedding vector(384);
+
+create index if not exists sources_embedding_idx
+  on public.sources using hnsw (embedding vector_cosine_ops);
+
+create or replace function public.match_sources(
+  query_embedding vector(384),
+  match_count int default 10,
+  uid uuid default auth.uid()
+)
+returns table (
+  id text,
+  title text,
+  authors text,
+  year int,
+  url text,
+  abstract text,
+  similarity float
+)
+language sql
+stable
+as $$
+  select
+    s.id, s.title, s.authors, s.year, s.url, s.abstract,
+    1 - (s.embedding <=> query_embedding) as similarity
+  from public.sources s
+  where s.user_id = uid and s.embedding is not null
+  order by s.embedding <=> query_embedding
+  limit greatest(match_count, 1);
+$$;
+
+-- ----------------------------------------------------------------------------
 -- Done. Verify with:
 -- select tablename, rowsecurity from pg_tables where schemaname = 'public';
 -- ----------------------------------------------------------------------------
