@@ -32,6 +32,7 @@ import {
   writeFromSources,
   editText,
   auditDraft,
+  suggestTitles,
   type AuditFinding,
 } from "@/lib/ai-client";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
@@ -62,6 +63,7 @@ export function WritingSurface({
   const setDocContent = useCanvasStore((s) => s.setDocContent);
   const doc = useCanvasStore((s) => s.docs[nodeId]);
   const setDocOutline = useCanvasStore((s) => s.setDocOutline);
+  const updateDocTitle = useCanvasStore((s) => s.updateDocTitle);
   const sources = useNodeInputSources(nodeId);
   const styleProfile = useWorkspaceStore((s) => s.styleProfile);
   const [useVoice, setUseVoice] = React.useState(true);
@@ -188,6 +190,8 @@ export function WritingSurface({
               nodeId={nodeId}
               model={model}
               sources={sources}
+              draftText={draftText}
+              onPickTitle={(t) => updateDocTitle(nodeId, t)}
               draftEmpty={!draftText.trim()}
               busy={busy}
               busyLabel={busyLabel}
@@ -404,10 +408,77 @@ const PRESETS = [
   "Tighten and clarify the current draft",
 ];
 
+/** AI title suggestions — proposes paper titles from the draft; click to apply. */
+function TitleSuggestions({
+  draftText,
+  disabled,
+  onPick,
+}: {
+  draftText: string;
+  disabled: boolean;
+  onPick: (title: string) => void;
+}) {
+  const [titles, setTitles] = React.useState<string[] | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function run() {
+    if (busy || disabled) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setTitles(await suggestTitles(draftText));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Could not suggest titles.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mb-3 rounded-lg border border-grey-200 p-2.5">
+      <button
+        onClick={run}
+        disabled={busy || disabled}
+        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-grey-200 py-1.5 text-[11px] font-medium text-grey-700 transition-colors hover:border-grey-300 hover:bg-grey-50 disabled:opacity-40"
+      >
+        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5 text-node-writing" />}
+        {busy ? "Thinking…" : titles ? "Suggest more titles" : "Suggest a title"}
+      </button>
+      {disabled && (
+        <p className="mt-1.5 text-[10px] text-grey-400">Write a little first, then get title ideas.</p>
+      )}
+      {error && (
+        <p className="mt-1.5 flex items-center gap-1 text-[10.5px] text-red-600">
+          <AlertCircle className="size-3 shrink-0" />
+          {error}
+        </p>
+      )}
+      {titles && titles.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {titles.map((t, i) => (
+            <li key={i}>
+              <button
+                onClick={() => onPick(t)}
+                className="w-full rounded-md px-2 py-1.5 text-left text-[11.5px] leading-snug text-grey-700 transition-colors hover:bg-grey-100 hover:text-ink"
+                title="Use this title"
+              >
+                {t}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function AiPanel({
   nodeId,
   model,
   sources,
+  draftText,
+  onPickTitle,
   draftEmpty,
   busy,
   busyLabel,
@@ -422,6 +493,8 @@ function AiPanel({
   nodeId: string;
   model: ReturnType<typeof getModel>;
   sources: ReturnType<typeof useNodeInputSources>;
+  draftText: string;
+  onPickTitle: (title: string) => void;
   draftEmpty: boolean;
   busy: boolean;
   busyLabel: string;
@@ -440,6 +513,12 @@ function AiPanel({
         <div className="mb-3">
           <AgentPicker nodeId={nodeId} archetype="stylist" />
         </div>
+
+        <TitleSuggestions
+          draftText={draftText}
+          disabled={draftEmpty}
+          onPick={onPickTitle}
+        />
 
         {/* Lily — write in the author's learned voice. */}
         <LilyVoice useVoice={useVoice} onToggleVoice={onToggleVoice} />

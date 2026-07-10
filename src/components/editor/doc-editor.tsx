@@ -12,11 +12,16 @@ import {
   ListBullets as Bullets,
   ListNumbers as Numbers,
   Quotes as Quote,
+  Sparkle as Sparkles,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { useCanvasStore } from "@/store/canvas-store";
 import { emptyDocContent } from "@/lib/document";
 import { Citation } from "./citation-mark";
+import { Autocomplete } from "./autocomplete";
+import { completeText } from "@/lib/ai-client";
+
+const AUTOCOMPLETE_PREF = "lattice-autocomplete";
 
 /**
  * Registry of live editors keyed by node id, so the Writing surface (cite,
@@ -57,6 +62,7 @@ export function DocEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2] } }),
       Citation,
+      Autocomplete.configure({ fetchSuggestion: completeText }),
       Placeholder.configure({
         placeholder: compact
           ? "Just start typing — ⌘B bold, ⌘I italic, Enter for a new paragraph"
@@ -92,6 +98,17 @@ export function DocEditor({
       if (editors.get(nodeId) === editor) editors.delete(nodeId);
     };
   }, [editor, nodeId]);
+
+  // Restore the autocomplete on/off preference.
+  React.useEffect(() => {
+    if (!editor) return;
+    try {
+      editor.storage.autocomplete.enabled =
+        localStorage.getItem(AUTOCOMPLETE_PREF) !== "off";
+    } catch {
+      /* storage unavailable — leave default (on) */
+    }
+  }, [editor]);
 
   // Resync from the store ONLY when this editor didn't cause the change and
   // isn't focused (i.e. the other editor instance or an AI action wrote it).
@@ -182,6 +199,48 @@ function Toolbar({ editor }: { editor: Editor }) {
       <ToolButton label="Quote" active={editor.isActive("blockquote")} onClick={() => c().toggleBlockquote().run()}>
         <Quote className="size-4" />
       </ToolButton>
+      <span className="mx-0.5 h-5 w-px bg-grey-200" />
+      <AutocompleteToggle editor={editor} />
     </div>
+  );
+}
+
+/** Ghost-text autocomplete on/off — persists the preference. */
+function AutocompleteToggle({ editor }: { editor: Editor }) {
+  const [on, setOn] = React.useState(true);
+  React.useEffect(() => {
+    setOn(editor.storage.autocomplete?.enabled ?? true);
+  }, [editor]);
+
+  function toggle() {
+    const next = !on;
+    setOn(next);
+    editor.commands.setAutocompleteEnabled(next);
+    try {
+      localStorage.setItem(AUTOCOMPLETE_PREF, next ? "on" : "off");
+    } catch {
+      /* ignore */
+    }
+    editor.commands.focus();
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label="Autocomplete"
+      aria-pressed={on}
+      title={on ? "Autocomplete on (Tab to accept)" : "Autocomplete off"}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={toggle}
+      className={cn(
+        "flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors",
+        on
+          ? "bg-node-writing/10 text-node-writing"
+          : "text-grey-400 hover:bg-grey-100 hover:text-ink",
+      )}
+    >
+      <Sparkles className="size-3.5" />
+      Autocomplete
+    </button>
   );
 }

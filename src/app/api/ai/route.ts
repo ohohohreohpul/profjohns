@@ -44,7 +44,9 @@ type AiMode =
   | "audit"
   | "dna"
   | "synth"
-  | "vision";
+  | "vision"
+  | "complete"
+  | "titles";
 
 interface SourceContext {
   title: string;
@@ -113,6 +115,10 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are a research synthesist working over a numbered list of SOURCES. Produce a STRUCTURED synthesis. Return ONLY a JSON object (no prose, no code fences): {\"claims\": [{\"claim\": string, \"sources\": [number], \"evidence\": string}], \"contradictions\": [{\"claim\": string, \"sources\": [number], \"note\": string}], \"themes\": [{\"theme\": string, \"sources\": [number]}]}. claim = a substantive finding stated plainly (<=140 chars); evidence = at most 18 words on what backs it; sources = the 1-based numbers of the sources that support each item; contradictions = genuine disagreements between sources (cite the conflicting source numbers, note what differs); themes = 2-4 short cross-cutting topic labels. Ground everything in the provided sources — never invent claims, numbers, or sources. Aim for up to ~8 claims.",
   dna:
     "You are a writing-voice analyst. From the author's writing sample(s), infer a concise, reusable VOICE PROFILE another writer could follow to sound like this author. Cover: overall tone/register; sentence length & rhythm; preferred structure (how they open, build, and conclude an argument); diction & favored/avoided words; use of hedging vs. assertion; how they handle citations and evidence; and any signature habits. Return PLAIN PROSE (no JSON), ~120-180 words, written as direct guidance ('Write in...', 'Prefer...', 'Avoid...'). Describe only what the sample evidences — do not invent.",
+  complete:
+    "You are an inline writing autocomplete inside an academic document editor. Continue the author's text naturally from exactly where it ends. Output ONLY the continuation — no preamble, no quotes, no explanation. At most one sentence (~16 words). If the text ends mid-word, finish that word first. Match the author's tone and topic; never repeat what is already written.",
+  titles:
+    "You are an academic titling assistant. From the draft, propose 5 concise, specific, publishable paper titles (each under ~15 words, no numbering). Return ONLY a JSON array of strings — no prose, no code fences.",
   vision:
     "You are a vision analyst for academic figures. Describe the image precisely and usefully for a researcher: what it depicts, the figure/chart type, axes/labels/legend, the key values or trends it shows, and any visible caption or text. Be strictly factual — describe only what is visible, never speculate beyond the image. Return clear prose (no preamble).",
   audit:
@@ -149,7 +155,7 @@ export async function POST(
   }
 
   const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona, image } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth", "vision"];
+  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth", "vision", "complete", "titles"];
   if (mode === "vision" && !image?.trim()) {
     return NextResponse.json(
       { success: false, data: null, error: "No image provided.", configured: true },
@@ -313,7 +319,7 @@ export async function POST(
   }
 
   const model =
-    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat"
+    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles"
       ? MODEL_FAST
       : MODEL_BALANCED;
 
@@ -322,7 +328,11 @@ export async function POST(
       ? MAX_OUTPUT_WRITE
       : mode === "triage" || mode === "audit" || mode === "synth"
         ? 2048
-        : MAX_OUTPUT_DEFAULT;
+        : mode === "complete"
+          ? 48
+          : mode === "titles"
+            ? 320
+            : MAX_OUTPUT_DEFAULT;
 
   let contextLabel: string;
   let contextBody: string;
@@ -395,6 +405,14 @@ export async function POST(
     contextLabel = "SOURCES";
     contextBody = buildSourcesBlock(sources as SourceContext[]);
     userContent = "Synthesize these sources into claims, contradictions, and themes.";
+  } else if (mode === "complete") {
+    contextLabel = "DOCUMENT SO FAR (continue from the very end)";
+    contextBody = ((text ?? "") as string).slice(-3000);
+    userContent = "Continue the document from exactly where it ends.";
+  } else if (mode === "titles") {
+    contextLabel = "DRAFT";
+    contextBody = ((draft ?? text ?? "") as string).slice(0, 8000);
+    userContent = "Suggest 5 title options for this paper.";
   } else if (mode === "vision") {
     // The image carries the content; caption/alt (if any) arrives via `text`.
     contextLabel = "FIGURE CAPTION";

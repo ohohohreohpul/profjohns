@@ -39,7 +39,9 @@ interface AiRequestBody {
     | "audit"
     | "dna"
     | "synth"
-    | "vision";
+    | "vision"
+    | "complete"
+    | "titles";
   text?: string;
   title?: string;
   question?: string;
@@ -244,6 +246,23 @@ export function editText(
 
 export function generateDiagram(text: string): Promise<string> {
   return callAi({ mode: "diagram", text });
+}
+
+/** Inline autocomplete — a short continuation of the text up to the cursor.
+ *  Cheap + fast; used for ghost-text suggestions while typing. */
+export async function completeText(precedingText: string): Promise<string> {
+  const raw = await callAi({ mode: "complete", text: precedingText });
+  // Strip stray wrapping quotes / leading whitespace the model may add.
+  return raw.replace(/^\s+/, "").replace(/^["'“]|["'”]$/g, "").slice(0, 200);
+}
+
+/** Suggest 5 paper-title options from the current draft. */
+export async function suggestTitles(draft: string): Promise<string[]> {
+  const raw = await callAi({ mode: "titles", draft });
+  return parseJsonArray<string>(raw)
+    .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+    .map((t) => t.trim().replace(/^["'“]|["'”]$/g, ""))
+    .slice(0, 5);
 }
 
 /** Vision — describe/analyze a figure with a multimodal model.

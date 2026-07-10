@@ -393,6 +393,14 @@ h1, h2, h3 {
   animation: hint-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Inline autocomplete ghost text — grey continuation at the caret. */
+.tiptap-ghost {
+  color: var(--color-grey-400);
+  pointer-events: none;
+  user-select: none;
+  white-space: pre-wrap;
+}
+
 /* ContentEditable placeholder — shows when block is empty. */
 [data-placeholder]:empty::before {
   content: attr(data-placeholder);
