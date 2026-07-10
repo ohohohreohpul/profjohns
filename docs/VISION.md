@@ -275,10 +275,20 @@ Each phase ends in something usable; later phases depend on earlier infra.
 Phases 0–4 done; Phase 5 text-semantic done. Remaining: CLIP/figure search +
 web-scale ingestion (Phase 5 v2), and the operational deploy steps below.
 
-**Phase 6 — Full paper composition**
-- Orchestrate Stylist + curated sources + synthesis + Citationist → a complete
-  drafted paper with verified citations and export.
-- Exit: the headline promise.
+**Phase 6 — Full paper composition — v1 DONE (2026-07-10, commit c5bd87a)**
+- [x] **Compose tab** in the writing surface: outline proposed from the
+  board's connected sources + wired Synthesize claims; section-by-section
+  drafting from per-section source selections; Stylist persona + Lily voice.
+- [x] **Traceability by construction** (`src/lib/compose.ts`, unit-tested):
+  the writer cites by source number and every [n] becomes a real citation
+  mark tied to a paper id; invalid markers stay visible as plain text (a
+  fabricated citation is never laundered). References derive from the marks;
+  Johns audits the result.
+- [ ] Refinements: one-click "draft all sections"; existence-verification of
+  references vs OpenAlex/Crossref (Citationist deep-check); DOCX export
+  polish for full papers.
+- Exit MET (v1): a complete drafted paper, assembled from the canvas, with
+  citations that trace to the board.
 
 ---
 
