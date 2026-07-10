@@ -46,7 +46,9 @@ type AiMode =
   | "synth"
   | "vision"
   | "complete"
-  | "titles";
+  | "titles"
+  | "outline"
+  | "section";
 
 interface SourceContext {
   title: string;
@@ -115,6 +117,10 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are a research synthesist working over a numbered list of SOURCES. Produce a STRUCTURED synthesis. Return ONLY a JSON object (no prose, no code fences): {\"claims\": [{\"claim\": string, \"sources\": [number], \"evidence\": string}], \"contradictions\": [{\"claim\": string, \"sources\": [number], \"note\": string}], \"themes\": [{\"theme\": string, \"sources\": [number]}]}. claim = a substantive finding stated plainly (<=140 chars); evidence = at most 18 words on what backs it; sources = the 1-based numbers of the sources that support each item; contradictions = genuine disagreements between sources (cite the conflicting source numbers, note what differs); themes = 2-4 short cross-cutting topic labels. Ground everything in the provided sources — never invent claims, numbers, or sources. Aim for up to ~8 claims.",
   dna:
     "You are a writing-voice analyst. From the author's writing sample(s), infer a concise, reusable VOICE PROFILE another writer could follow to sound like this author. Cover: overall tone/register; sentence length & rhythm; preferred structure (how they open, build, and conclude an argument); diction & favored/avoided words; use of hedging vs. assertion; how they handle citations and evidence; and any signature habits. Return PLAIN PROSE (no JSON), ~120-180 words, written as direct guidance ('Write in...', 'Prefer...', 'Avoid...'). Describe only what the sample evidences — do not invent.",
+  outline:
+    "You are a paper-structure planner. From the numbered SOURCES (and CLAIMS when given), propose a logical section outline for an academic paper on this material — typically 4 to 7 sections from introduction through conclusion, specific to THIS body of evidence (not generic boilerplate). Return ONLY a JSON array of section-title strings, no numbering, no prose, no code fences.",
+  section:
+    "You are an academic section writer. Write ONE section of a paper using ONLY the numbered SOURCES provided (and the CLAIMS, which are grounded in them). Cite every factual statement inline with its source number in square brackets, e.g. [1] or [2], matching the SOURCES numbering exactly — never invent a citation or cite a number that is not in the list. 2-4 paragraphs of clear academic prose. Output ONLY the section body (no heading, no preamble).",
   complete:
     "You are an inline writing autocomplete inside an academic document editor. Continue the author's text naturally from exactly where it ends. Output ONLY the continuation — no preamble, no quotes, no explanation. At most one sentence (~16 words). If the text ends mid-word, finish that word first. Match the author's tone and topic; never repeat what is already written.",
   titles:
@@ -155,7 +161,7 @@ export async function POST(
   }
 
   const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona, image } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth", "vision", "complete", "titles"];
+  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth", "vision", "complete", "titles", "outline", "section"];
   if (mode === "vision" && !image?.trim()) {
     return NextResponse.json(
       { success: false, data: null, error: "No image provided.", configured: true },
@@ -319,12 +325,12 @@ export async function POST(
   }
 
   const model =
-    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles"
+    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
       ? MODEL_FAST
       : MODEL_BALANCED;
 
   const maxTokens =
-    mode === "write" || mode === "edit"
+    mode === "write" || mode === "edit" || mode === "section"
       ? MAX_OUTPUT_WRITE
       : mode === "triage" || mode === "audit" || mode === "synth"
         ? 2048
@@ -405,6 +411,25 @@ export async function POST(
     contextLabel = "SOURCES";
     contextBody = buildSourcesBlock(sources as SourceContext[]);
     userContent = "Synthesize these sources into claims, contradictions, and themes.";
+  } else if (mode === "outline") {
+    contextLabel = "SOURCES";
+    contextBody = buildSourcesBlock(sources ?? []);
+    const claims = (text ?? "").trim();
+    userContent = claims
+      ? `CLAIMS from the author's synthesis:\n${claims.slice(0, 4000)}\n\nPropose the section outline.`
+      : "Propose the section outline.";
+  } else if (mode === "section") {
+    contextLabel = "SOURCES";
+    contextBody = buildSourcesBlock(sources ?? []);
+    const claims = (text ?? "").trim();
+    const outlineList = (directions ?? []).filter(Boolean).join(" | ");
+    userContent = [
+      `Write the section titled: "${(question ?? "").trim()}"`,
+      outlineList ? `Full paper outline (for flow/context): ${outlineList}` : "",
+      claims ? `CLAIMS from the author's synthesis (grounded in the sources):\n${claims.slice(0, 4000)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
   } else if (mode === "complete") {
     contextLabel = "DOCUMENT SO FAR (continue from the very end)";
     contextBody = ((text ?? "") as string).slice(-3000);
@@ -427,7 +452,7 @@ export async function POST(
 
   // Lily: condition the writer on the author's learned voice profile.
   const voiceBlock =
-    mode === "write" && style?.trim()
+    (mode === "write" || mode === "section") && style?.trim()
       ? `\n\nAUTHOR VOICE PROFILE — write in this voice (it governs tone/rhythm/diction; never let it override factual accuracy or citations):\n${style.trim()}`
       : "";
   // A bound agent's persona leads the system prompt so it colours behavior

@@ -33,8 +33,12 @@ import {
   editText,
   auditDraft,
   suggestTitles,
+  proposeOutline,
+  writeSection,
   type AuditFinding,
 } from "@/lib/ai-client";
+import { sectionToContent } from "@/lib/compose";
+import type { Synthesis } from "@/lib/ai-client";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
 import { getDocEditor } from "@/components/editor/doc-editor";
 import { LilyVoice } from "./lily-voice";
@@ -76,7 +80,7 @@ export function WritingSurface({
   const [busy, setBusy] = React.useState(false);
   const [busyLabel, setBusyLabel] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<"ai" | "sources" | "outline" | "audit">("ai");
+  const [tab, setTab] = React.useState<"ai" | "compose" | "sources" | "outline" | "audit">("ai");
 
   const outline = doc?.outline ?? [];
   const draftText = React.useMemo(() => extractText(doc?.content), [doc?.content]);
@@ -164,6 +168,12 @@ export function WritingSurface({
               label="Write"
             />
             <TabButton
+              active={tab === "compose"}
+              onClick={() => setTab("compose")}
+              icon={Wand2}
+              label="Compose"
+            />
+            <TabButton
               active={tab === "sources"}
               onClick={() => setTab("sources")}
               icon={Quote}
@@ -202,6 +212,16 @@ export function WritingSurface({
               onApplyEdit={applyEdit}
               useVoice={useVoice}
               onToggleVoice={setUseVoice}
+            />
+          )}
+          {tab === "compose" && (
+            <ComposePanel
+              nodeId={nodeId}
+              sources={sources}
+              creditsPerRun={model.creditsPerRun}
+              onSpend={spendCredits}
+              persona={writerAgent ? agentSystemPrompt(writerAgent) : undefined}
+              voice={useVoice && styleProfile ? styleProfile : undefined}
             />
           )}
           {tab === "sources" && <SourcesPanel nodeId={nodeId} />}
@@ -407,6 +427,210 @@ const PRESETS = [
   "Add counter-arguments with citations",
   "Tighten and clarify the current draft",
 ];
+
+/**
+ * Compose — canvas → paper (VISION Phase 6). Proposes a section outline from
+ * the board's sources + synthesis claims, then drafts section-by-section from
+ * the sources YOU select; every [n] the writer cites becomes a real citation
+ * mark, so each sentence stays traceable to a node on the board.
+ */
+function ComposePanel({
+  nodeId,
+  sources,
+  creditsPerRun,
+  onSpend,
+  persona,
+  voice,
+}: {
+  nodeId: string;
+  sources: ReturnType<typeof useNodeInputSources>;
+  creditsPerRun: number;
+  onSpend: (amount: number) => void;
+  persona?: string;
+  voice?: string;
+}) {
+  const doc = useCanvasStore((s) => s.docs[nodeId]);
+  const setDocOutline = useCanvasStore((s) => s.setDocOutline);
+  const setDocContent = useCanvasStore((s) => s.setDocContent);
+  const outline = React.useMemo(() => doc?.outline ?? [], [doc?.outline]);
+
+  // Synthesis claims from processor nodes wired directly into this draft.
+  const nodes = useCanvasStore((s) => s.nodes);
+  const edges = useCanvasStore((s) => s.edges);
+  const claimsText = React.useMemo(() => {
+    const incomerIds = edges.filter((e) => e.target === nodeId).map((e) => e.source);
+    const claims = nodes
+      .filter((n) => incomerIds.includes(n.id) && n.data.kind === "processor")
+      .flatMap((n) => (n.data.synthesis as Synthesis | undefined)?.claims ?? []);
+    if (claims.length === 0) return undefined;
+    return claims.map((c) => `- ${c.claim}`).join("\n").slice(0, 4000);
+  }, [nodes, edges, nodeId]);
+
+  const [busy, setBusy] = React.useState<string | null>(null); // "outline" | section title
+  const [error, setError] = React.useState<string | null>(null);
+  // Per-section deselected paper ids (default = every source selected).
+  const [deselected, setDeselected] = React.useState<Record<number, string[]>>({});
+
+  async function runOutline() {
+    if (busy || sources.length === 0) return;
+    setBusy("outline");
+    setError(null);
+    try {
+      const titles = await proposeOutline(sources, claimsText, persona);
+      if (titles.length > 0) setDocOutline(nodeId, titles);
+      else setError("Couldn't derive an outline — add or connect more sources.");
+      onSpend(creditsPerRun);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Outline failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function sectionPapers(i: number) {
+    const off = new Set(deselected[i] ?? []);
+    return sources.filter((p) => !off.has(p.id));
+  }
+
+  function togglePaper(i: number, id: string) {
+    setDeselected((d) => {
+      const cur = new Set(d[i] ?? []);
+      if (cur.has(id)) cur.delete(id);
+      else cur.add(id);
+      return { ...d, [i]: [...cur] };
+    });
+  }
+
+  async function draftSection(i: number) {
+    const title = outline[i];
+    const papers = sectionPapers(i);
+    if (!title || busy || papers.length === 0) return;
+    setBusy(title);
+    setError(null);
+    try {
+      const prose = await writeSection({
+        sectionTitle: title,
+        outline,
+        sources: papers,
+        claimsText,
+        style: voice,
+        persona,
+      });
+      const state = useCanvasStore.getState();
+      const current = state.docs[nodeId]?.content;
+      const cited = extractCitedPaperIds(current);
+      const style = state.docs[nodeId]?.style ?? DEFAULT_STYLE;
+      const content = sectionToContent(title, prose, papers, style, cited);
+      const editor = getDocEditor(nodeId);
+      if (editor) editor.chain().focus("end").insertContent(content).run();
+      else
+        setDocContent(nodeId, {
+          type: "doc",
+          content: [...(current?.content ?? []), ...content],
+        });
+      onSpend(creditsPerRun);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Section draft failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex-1 overflow-y-auto p-3">
+        <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-grey-500">
+          <Wand2 className="mt-0.5 size-3.5 shrink-0 text-[var(--color-node-writing)]" />
+          Build the paper from your board: outline from your sources
+          {claimsText ? " and synthesis claims" : ""}, then draft each section
+          from the sources you choose — every citation traces back.
+        </p>
+
+        <button
+          onClick={runOutline}
+          disabled={busy !== null || sources.length === 0}
+          data-testid="compose-outline"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md bg-ink py-2 text-[12px] font-semibold text-paper transition-colors hover:bg-grey-800 disabled:opacity-40"
+        >
+          {busy === "outline" ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Wand2 className="size-3.5" />
+          )}
+          {outline.length > 0 ? "Re-propose outline from board" : "Propose outline from board"}
+        </button>
+        {sources.length === 0 && (
+          <p className="mt-1.5 px-1 text-[10.5px] text-grey-400">
+            Connect a Sources node (or papers) to this draft first.
+          </p>
+        )}
+
+        {error && (
+          <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-2.5 py-2 text-[11px] text-red-600">
+            <AlertCircle className="size-3.5 shrink-0" />
+            {error}
+          </p>
+        )}
+
+        {outline.length > 0 && (
+          <ol className="mt-3 space-y-2">
+            {outline.map((title, i) => {
+              const papers = sectionPapers(i);
+              return (
+                <li key={`${i}-${title}`} className="rounded-lg border border-grey-200 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="grid size-5 shrink-0 place-items-center rounded bg-grey-100 text-[10px] font-semibold text-grey-600">
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">
+                      {title}
+                    </span>
+                    <button
+                      onClick={() => draftSection(i)}
+                      disabled={busy !== null || papers.length === 0}
+                      data-testid={`compose-draft-${i}`}
+                      className="flex shrink-0 items-center gap-1 rounded-md border border-grey-200 px-2 py-1 text-[11px] font-medium text-grey-700 transition-colors hover:border-grey-400 hover:text-ink disabled:opacity-40"
+                    >
+                      {busy === title ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <PenLine className="size-3" />
+                      )}
+                      Draft
+                    </button>
+                  </div>
+                  <details className="mt-1.5">
+                    <summary className="cursor-pointer text-[10.5px] font-medium text-grey-400 hover:text-grey-600">
+                      Sources for this section ({papers.length}/{sources.length})
+                    </summary>
+                    <ul className="mt-1 space-y-0.5">
+                      {sources.map((p) => {
+                        const on = !((deselected[i] ?? []).includes(p.id));
+                        return (
+                          <li key={p.id}>
+                            <label className="flex cursor-pointer items-start gap-1.5 rounded px-1 py-0.5 text-[10.5px] leading-snug text-grey-600 hover:bg-grey-50">
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                onChange={() => togglePaper(i, p.id)}
+                                className="mt-0.5 accent-[var(--color-ink)]"
+                              />
+                              <span className="min-w-0 flex-1 truncate">{p.title}</span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </details>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /** AI title suggestions — proposes paper titles from the draft; click to apply. */
 function TitleSuggestions({

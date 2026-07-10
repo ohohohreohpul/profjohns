@@ -41,7 +41,9 @@ interface AiRequestBody {
     | "synth"
     | "vision"
     | "complete"
-    | "titles";
+    | "titles"
+    | "outline"
+    | "section";
   text?: string;
   title?: string;
   question?: string;
@@ -254,6 +256,47 @@ export async function completeText(precedingText: string): Promise<string> {
   const raw = await callAi({ mode: "complete", text: precedingText });
   // Strip stray wrapping quotes / leading whitespace the model may add.
   return raw.replace(/^\s+/, "").replace(/^["'“]|["'”]$/g, "").slice(0, 200);
+}
+
+/** Compose — propose a paper outline from the connected sources (+ synthesis
+ *  claims when available). Returns section titles. */
+export async function proposeOutline(
+  sources: PaperSource[],
+  claimsText?: string,
+  persona?: string,
+): Promise<string[]> {
+  const raw = await callAi({
+    mode: "outline",
+    sources: toContext(sources),
+    text: claimsText,
+    persona,
+  });
+  return parseJsonArray<string>(raw)
+    .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+    .map((t) => t.trim())
+    .slice(0, 8);
+}
+
+/** Compose — draft ONE section from the selected sources. The result cites
+ *  with [n] markers that index into `sources` (1-based); convert via
+ *  lib/compose.sectionToContent so citations become real marks. */
+export function writeSection(args: {
+  sectionTitle: string;
+  outline?: string[];
+  sources: PaperSource[];
+  claimsText?: string;
+  style?: string;
+  persona?: string;
+}): Promise<string> {
+  return callAi({
+    mode: "section",
+    question: args.sectionTitle,
+    directions: args.outline,
+    sources: toContext(args.sources),
+    text: args.claimsText,
+    style: args.style,
+    persona: args.persona,
+  });
 }
 
 /** Suggest 5 paper-title options from the current draft. */
