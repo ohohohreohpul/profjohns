@@ -55,13 +55,9 @@ export function McpSurface() {
               <p className="mt-1 flex-1 text-[12px] leading-relaxed text-grey-500">
                 {c.role}
               </p>
-              <button
-                disabled
-                className="mt-4 flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-grey-200 px-3 py-1.5 text-[11px] font-medium text-grey-400"
-              >
-                <Plug className="size-3" />
-                Connect — coming soon
-              </button>
+              <p className="mt-4 text-[11px] font-medium text-grey-400">
+                Not available yet
+              </p>
             </div>
           );
         })}
