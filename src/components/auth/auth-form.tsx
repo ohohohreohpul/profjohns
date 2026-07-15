@@ -10,8 +10,13 @@ import Image from "next/image";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
-  const redirect = useSearchParams().get("redirect") ?? "/";
+  const rawRedirect = useSearchParams().get("redirect") ?? "/";
+  // Validate redirect to prevent open redirect attacks
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuthActions();
+
+  // Google OAuth is shown only when explicitly enabled via env var
+  const googleEnabled = process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED === "true";
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -103,22 +108,26 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             : "Start researching with AI-powered sources"}
         </p>
 
-        {/* Google OAuth */}
-        <button
-          onClick={handleGoogle}
-          disabled={busy}
-          className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-grey-200 bg-paper px-4 py-2.5 text-[13.5px] font-semibold text-ink transition-colors hover:bg-grey-50 disabled:opacity-50"
-        >
-          <GoogleLogo className="size-5" weight="fill" />
-          Continue with Google
-        </button>
+        {/* Google OAuth — shown only when enabled */}
+        {googleEnabled && (
+          <>
+            <button
+              onClick={handleGoogle}
+              disabled={busy}
+              className="mb-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-grey-200 bg-paper px-4 py-2.5 text-[13.5px] font-semibold text-ink transition-colors hover:bg-grey-50 disabled:opacity-50"
+            >
+              <GoogleLogo className="size-5" weight="fill" />
+              Continue with Google
+            </button>
 
-        {/* Divider */}
-        <div className="mb-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-grey-200" />
-          <span className="text-[11px] font-medium text-grey-400">or</span>
-          <div className="h-px flex-1 bg-grey-200" />
-        </div>
+            {/* Divider */}
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-grey-200" />
+              <span className="text-[11px] font-medium text-grey-400">or</span>
+              <div className="h-px flex-1 bg-grey-200" />
+            </div>
+          </>
+        )}
 
         {/* Email/password form */}
         <form onSubmit={handleSubmit} className="space-y-3">
