@@ -142,7 +142,7 @@ export function BlockNode({ id, data, selected }: CanvasNodeProps) {
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           ) : (
-            <p className="py-2 text-[12px] text-grey-400">Invalid diagram syntax</p>
+            <p className="py-2 text-[12px] text-grey-500">Invalid diagram syntax</p>
           )}
         </div>
       ) : (
@@ -162,7 +162,7 @@ export function BlockNode({ id, data, selected }: CanvasNodeProps) {
               : isHeading
                 ? "text-[17px] font-semibold tracking-tight text-ink"
                 : "text-grey-800",
-            !text.trim() && !isCode && "text-grey-400",
+            !text.trim() && !isCode && "text-grey-500",
           )}
           data-placeholder={isHeading ? "Heading" : isCode ? "// code" : "Type / for menu"}
         />
@@ -175,7 +175,7 @@ export function BlockNode({ id, data, selected }: CanvasNodeProps) {
           style={{ left: slashPos.x, top: slashPos.y - 140 }}
         >
           <div className="flex flex-col rounded-lg border border-grey-200 bg-paper p-1 shadow-lift">
-            <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-grey-400">Turn into</p>
+            <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-grey-500">Turn into</p>
             {VARIANT_ITEMS.map((item) => {
               const Icon = item.icon;
               return (

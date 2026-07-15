@@ -54,10 +54,10 @@ function isNotConfigured(err: unknown): boolean {
 }
 
 function scoreTone(score?: number): string {
-  if (score == null) return "bg-grey-100 text-grey-500";
+  if (score == null) return "bg-grey-100 text-grey-600";
   if (score >= 75) return "bg-emerald-50 text-emerald-700";
   if (score >= 50) return "bg-amber-50 text-amber-700";
-  return "bg-grey-100 text-grey-500";
+  return "bg-grey-100 text-grey-600";
 }
 
 export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
@@ -301,7 +301,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
 
       {/* Topic bar */}
       <div className="nodrag flex items-center gap-1.5 rounded-xl border border-grey-200 bg-grey-50/80 px-2.5 py-1.5 transition-colors focus-within:border-grey-300 focus-within:bg-paper focus-within:ring-4 focus-within:ring-ink/5">
-        <Telescope className="size-4 shrink-0 text-grey-400" />
+        <Telescope className="size-4 shrink-0 text-grey-500" />
         <input
           value={draftTopic}
           onChange={(e) => setDraftTopic(e.target.value)}
@@ -312,7 +312,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
             }
           }}
           placeholder="What are you researching?"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-400"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-500"
         />
         <button
           onClick={() => planAngles(draftTopic)}
@@ -353,7 +353,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
 
       {/* Idle hint — only before the first plan */}
       {!wide && !busy && (
-        <p className="mt-2.5 px-0.5 text-[11px] leading-relaxed text-grey-400">
+        <p className="mt-2.5 px-0.5 text-[11px] leading-relaxed text-grey-500">
           Describe a topic and I&apos;ll plan search angles, screen each source for
           relevance, and surface coverage gaps.
         </p>
@@ -399,7 +399,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[12px] font-medium text-ink">{a.query}</span>
                     {a.rationale && (
-                      <span className="block text-[10px] text-grey-400">{a.rationale}</span>
+                      <span className="block text-[10px] text-grey-500">{a.rationale}</span>
                     )}
                   </span>
                   <span className="mt-0.5 shrink-0 rounded-full bg-grey-100 px-1.5 py-0.5 text-[9px] font-medium text-grey-500">
@@ -472,7 +472,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
               {hasResults ? (
                 clusters.map((cluster) => (
                   <div key={cluster.name}>
-                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-grey-400">
+                    <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-grey-500">
                       {cluster.name}
                     </p>
                     <div className="space-y-1.5">
@@ -483,7 +483,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
                   </div>
                 ))
               ) : (
-                <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-grey-200 px-6 text-center text-[11px] leading-relaxed text-grey-400">
+                <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-grey-200 px-6 text-center text-[11px] leading-relaxed text-grey-500">
                   {busy ? busy : "Pick your angles and search — screened, scored sources appear here."}
                 </div>
               )}
@@ -532,7 +532,7 @@ function SourceRow({
         )}
         <div className="min-w-0 flex-1">
           <p className="line-clamp-2 text-[12px] font-medium text-ink">{source.title}</p>
-          <p className="mt-0.5 truncate text-[10px] text-grey-400">
+          <p className="mt-0.5 truncate text-[10px] text-grey-500">
             {[source.authors, source.year].filter(Boolean).join(" · ")}
           </p>
           {source.why && (
@@ -561,7 +561,7 @@ function SourceRow({
               className={cn(
                 "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                 kept
-                  ? "text-grey-400 hover:bg-grey-100 hover:text-grey-700"
+                  ? "text-grey-500 hover:bg-grey-100 hover:text-grey-700"
                   : "text-emerald-600 hover:bg-emerald-50",
               )}
             >

@@ -64,7 +64,7 @@ export function NodeMenu({
       style={{ left, top, maxHeight }}
       className="fixed z-50 flex w-60 flex-col rounded-lg border border-grey-200 bg-paper p-1.5 shadow-lift"
     >
-      <p className="shrink-0 px-2 py-1 text-[11px] uppercase tracking-wider text-grey-400">
+      <p className="shrink-0 px-2 py-1 text-[11px] uppercase tracking-wider text-grey-500">
         {title}
       </p>
       <div className="min-h-0 space-y-0.5 overflow-y-auto">
@@ -84,7 +84,7 @@ export function NodeMenu({
                 <span className="block text-sm font-medium text-ink">
                   {def.label}
                 </span>
-                <span className="block text-[11px] leading-snug text-grey-400">
+                <span className="block text-[11px] leading-snug text-grey-500">
                   {def.description}
                 </span>
               </span>

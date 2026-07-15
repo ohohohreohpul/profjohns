@@ -54,7 +54,7 @@ export function ExportMenu({
         >
           <Download className="size-3.5" />
           Export
-          <ChevronDown className="size-3 text-grey-400" />
+          <ChevronDown className="size-3 text-grey-500" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>

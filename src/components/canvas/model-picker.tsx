@@ -42,17 +42,17 @@ export function ModelPicker({
           aria-label="Choose model"
         >
           <span className="max-w-[7.5rem] truncate">{current.label}</span>
-          <span className="flex items-center gap-0.5 text-grey-400">
+          <span className="flex items-center gap-0.5 text-grey-500">
             <Coins className="size-3" />
             {current.creditsPerRun}
           </span>
-          <ChevronsUpDown className="size-3 text-grey-400" />
+          <ChevronsUpDown className="size-3 text-grey-500" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="nodrag w-80 p-1.5">
         <div className="px-2 pb-1.5 pt-1">
           <p className="text-xs font-medium text-ink">Route this action</p>
-          <p className="text-[11px] text-grey-400">
+          <p className="text-[11px] text-grey-500">
             Credit cost is estimated per run.
           </p>
         </div>
@@ -60,7 +60,7 @@ export function ModelPicker({
         <div className="max-h-72 space-y-2 overflow-y-auto p-1">
           {PROVIDER_ORDER.map((provider) => (
             <div key={provider}>
-              <p className="px-2 py-1 text-[11px] uppercase tracking-wider text-grey-400">
+              <p className="px-2 py-1 text-[11px] uppercase tracking-wider text-grey-500">
                 {PROVIDER_LABEL[provider]}
               </p>
               {MODELS.filter((m) => m.provider === provider).map((model) => {
@@ -91,7 +91,7 @@ export function ModelPicker({
                         <span className="rounded-sm bg-grey-100 px-1 text-[10px] uppercase tracking-wide text-grey-500">
                           {TIER_LABEL[model.tier]}
                         </span>
-                        <span className="truncate text-[11px] text-grey-400">
+                        <span className="truncate text-[11px] text-grey-500">
                           {model.blurb}
                         </span>
                       </span>

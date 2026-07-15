@@ -26,7 +26,7 @@ export function PaperNode({ id, data, selected }: CanvasNodeProps) {
       className="w-72"
     >
       <p className="text-[13px] font-semibold leading-snug text-ink">{paper.title}</p>
-      {meta && <p className="mt-1 text-[11px] text-grey-400">{meta}</p>}
+      {meta && <p className="mt-1 text-[11px] text-grey-500">{meta}</p>}
       {paper.abstract && (
         <p className="mt-2 line-clamp-4 text-[11.5px] leading-relaxed text-grey-600">
           {paper.abstract}

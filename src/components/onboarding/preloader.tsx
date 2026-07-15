@@ -43,7 +43,7 @@ export function Preloader({
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-6">
       <div className="w-full max-w-md">
-        <p className="mb-1 text-xs uppercase tracking-wider text-grey-400">
+        <p className="mb-1 text-xs uppercase tracking-wider text-grey-500">
           Setting up your space
         </p>
         <p className="mb-8 line-clamp-2 text-lg font-medium leading-snug tracking-tight text-ink">
@@ -84,7 +84,7 @@ export function Preloader({
                 <span
                   className={cn(
                     "transition-colors duration-300",
-                    isDone || isCurrent ? "text-ink" : "text-grey-400",
+                    isDone || isCurrent ? "text-ink" : "text-grey-500",
                   )}
                 >
                   {step}

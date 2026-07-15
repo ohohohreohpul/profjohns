@@ -59,7 +59,7 @@ function SurfacesMenu({ projectId }: { projectId: string }) {
         </button>
       </PopoverTrigger>
       <PopoverContent side="bottom" align="start" className="w-48 p-1">
-        <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-grey-400">
+        <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-grey-500">
           This project
         </p>
         {PROJECT_SURFACES.map((s) => {
@@ -72,7 +72,7 @@ function SurfacesMenu({ projectId }: { projectId: string }) {
           );
         })}
         <Separator className="my-1" />
-        <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-grey-400">
+        <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-grey-500">
           Workspace
         </p>
         {WORKSPACE_SURFACES.map((s) => {
@@ -138,7 +138,7 @@ function BoardMenu({
           <Eraser className="size-4 shrink-0" />
           Reset board
         </button>
-        <p className="px-2 pb-1 pt-0.5 text-[10.5px] leading-snug text-grey-400">
+        <p className="px-2 pb-1 pt-0.5 text-[10.5px] leading-snug text-grey-500">
           Clears this canvas and starts fresh — use if a board shows the wrong
           contents.
         </p>
@@ -235,7 +235,7 @@ export function TopBar({
             >
               {project.name || "Untitled project"}
             </Link>
-            <span className="shrink-0 text-grey-300">/</span>
+            <span className="shrink-0 text-grey-500">/</span>
           </>
         )}
         <p className="min-w-0 truncate text-sm text-grey-500">
@@ -248,7 +248,7 @@ export function TopBar({
           title="Illustrative estimate — not billed"
           className="flex items-center gap-1.5 rounded-md border border-grey-200 bg-grey-50 px-2.5 py-1 text-xs font-medium text-grey-700"
         >
-          <Coins className="size-3.5 text-grey-400" />
+          <Coins className="size-3.5 text-grey-500" />
           ~{creditsUsed} credits (est.)
         </span>
         <Button size="sm" variant="outline" onClick={exportCanvas}>

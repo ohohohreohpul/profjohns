@@ -55,14 +55,14 @@ export function FocusOverlay() {
           <ChevronLeft className="size-4" />
           Canvas
         </button>
-        <span className="text-xs text-grey-400">/</span>
+        <span className="text-xs text-grey-500">/</span>
         <span className="flex items-center gap-1 rounded-lg bg-amber-100/60 px-2.5 py-1 text-xs font-semibold text-amber-900">
           {label ?? "Untitled section"}
         </span>
         <div className="flex-1" />
         <button
           onClick={unfocusShell}
-          className="grid size-8 place-items-center rounded-lg text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+          className="grid size-8 place-items-center rounded-lg text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
         >
           <X className="size-4" />
         </button>

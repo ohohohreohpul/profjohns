@@ -68,12 +68,12 @@ export function LibrarySurface() {
 
       <motion.div variants={fadeUp}>
       <section>
-        <h2 className="mb-2.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-grey-400">
+        <h2 className="mb-2.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-grey-500">
           <FileText className="size-3" />
           Documents
         </h2>
         {documents.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-grey-200 px-4 py-8 text-center text-[12px] text-grey-400">
+          <p className="rounded-xl border border-dashed border-grey-200 px-4 py-8 text-center text-[12px] text-grey-500">
             Drafts from any canvas in this project appear here.
           </p>
         ) : (
@@ -90,11 +90,11 @@ export function LibrarySurface() {
                 <p className="mt-1 line-clamp-3 flex-1 text-[11.5px] leading-relaxed text-grey-500">
                   {d.snippet || "Empty draft"}
                 </p>
-                <div className="mt-3 flex items-center justify-between text-[10px] text-grey-400">
+                <div className="mt-3 flex items-center justify-between text-[10px] text-grey-500">
                   <span className="tabular-nums">
                     {d.words} word{d.words === 1 ? "" : "s"}
                   </span>
-                  <span className="truncate pl-2 text-grey-300">{d.canvasName}</span>
+                  <span className="truncate pl-2 text-grey-500">{d.canvasName}</span>
                 </div>
               </Link>
             ))}
@@ -106,7 +106,7 @@ export function LibrarySurface() {
       <motion.div variants={fadeUp}>
       <section className="mt-8">
         <div className="mb-2.5 flex items-center justify-between">
-          <h2 className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-grey-400">
+          <h2 className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-grey-500">
             <BookOpen className="size-3" />
             Sources
           </h2>
@@ -132,7 +132,7 @@ export function LibrarySurface() {
           </p>
         )}
         {sources.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-grey-200 px-4 py-8 text-center text-[12px] text-grey-400">
+          <p className="rounded-xl border border-dashed border-grey-200 px-4 py-8 text-center text-[12px] text-grey-500">
             Sources you keep on a canvas — or pin from Discover — appear here.
           </p>
         ) : (
@@ -165,16 +165,16 @@ function SourceRow({ source, first, canvasName }: { source: LibrarySource; first
     <div
       className={`flex items-start gap-3 bg-paper px-4 py-3 ${first ? "" : "border-t border-grey-100"}`}
     >
-      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-grey-100 text-grey-500">
+      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-grey-100 text-grey-600">
         <BookOpen className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="line-clamp-1 text-[12.5px] font-medium text-ink">{source.title}</p>
-        <p className="text-[10.5px] text-grey-400">
+        <p className="text-[10.5px] text-grey-500">
           {[source.authors, source.year, source.venue].filter(Boolean).join(" · ")}
         </p>
         {originLabel && (
-          <p className="mt-0.5 text-[9.5px] italic text-grey-300">{originLabel}</p>
+          <p className="mt-0.5 text-[9.5px] italic text-grey-500">{originLabel}</p>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">

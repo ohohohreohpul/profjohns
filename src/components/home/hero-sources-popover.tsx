@@ -114,7 +114,7 @@ export function HeroSourcesPopover({ selected, onChange }: Props) {
             );
           })}
         </div>
-        <p className="mt-1 border-t border-grey-100 px-2 py-1.5 text-[10px] text-grey-400">
+        <p className="mt-1 border-t border-grey-100 px-2 py-1.5 text-[10px] text-grey-500">
           The scout will only search the selected databases.
         </p>
       </PopoverContent>

@@ -36,7 +36,7 @@ export function AccountSurface() {
     <SurfaceScaffold title="Account" description={user?.email ?? undefined}>
       <div className="mx-auto flex max-w-2xl flex-col gap-5">
         {loading ? (
-          <p className="text-[13px] text-grey-400">Loading…</p>
+          <p className="text-[13px] text-grey-500">Loading…</p>
         ) : signedIn ? (
           <>
             <ProfileCard
@@ -216,12 +216,12 @@ function ProfileCard({
               {email}
             </span>
             {provider === "google" && (
-              <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-grey-400">
+              <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-grey-500">
                 <GoogleLogo className="size-3.5" weight="fill" /> Google
               </span>
             )}
           </div>
-          <p className="mt-1 text-[11px] text-grey-400">
+          <p className="mt-1 text-[11px] text-grey-500">
             Email changes aren&apos;t supported yet — contact support to update it.
           </p>
         </div>
@@ -591,7 +591,7 @@ function PrivacyCard() {
     <Card title="Privacy" description="How your data is stored and used.">
       <div className="space-y-3 text-[12.5px] leading-relaxed text-grey-600">
         <div className="flex items-start gap-2">
-          <ShieldCheck className="size-4 shrink-0 text-grey-400 mt-0.5" />
+          <ShieldCheck className="size-4 shrink-0 text-grey-500 mt-0.5" />
           <p>
             Your research data (projects, canvases, sources, documents) is stored
             in a Supabase database with row-level security. Only you can access
@@ -599,7 +599,7 @@ function PrivacyCard() {
           </p>
         </div>
         <div className="flex items-start gap-2">
-          <ShieldCheck className="size-4 shrink-0 text-grey-400 mt-0.5" />
+          <ShieldCheck className="size-4 shrink-0 text-grey-500 mt-0.5" />
           <p>
             AI features (writing, summarizing, auditing) send your text to
             OpenRouter, our AI provider. Your text is processed in real-time and
@@ -607,21 +607,21 @@ function PrivacyCard() {
           </p>
         </div>
         <div className="flex items-start gap-2">
-          <ShieldCheck className="size-4 shrink-0 text-grey-400 mt-0.5" />
+          <ShieldCheck className="size-4 shrink-0 text-grey-500 mt-0.5" />
           <p>
             Your Writing DNA (voice profile) is stored with your account and can
             be deleted at any time from this page.
           </p>
         </div>
         <div className="flex items-start gap-2">
-          <ShieldCheck className="size-4 shrink-0 text-grey-400 mt-0.5" />
+          <ShieldCheck className="size-4 shrink-0 text-grey-500 mt-0.5" />
           <p>
             Uploaded media (images, PDFs) are stored in a private Supabase
             Storage bucket scoped to your user ID.
           </p>
         </div>
         <div className="flex items-start gap-2">
-          <ShieldCheck className="size-4 shrink-0 text-grey-400 mt-0.5" />
+          <ShieldCheck className="size-4 shrink-0 text-grey-500 mt-0.5" />
           <p>
             We do not sell or share your data with third parties beyond what is
             required to provide the AI and research features.

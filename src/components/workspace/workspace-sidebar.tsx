@@ -91,7 +91,7 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
           onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto grid size-7 place-items-center rounded-md text-grey-400 transition-colors hover:bg-grey-200/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="ml-auto grid size-7 place-items-center rounded-md text-grey-500 transition-colors hover:bg-grey-200/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <PanelLeftClose className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
         </button>
@@ -256,7 +256,7 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
             <button
               aria-label="Close menu"
               onClick={() => setMobileOpen(false)}
-              className="absolute right-2 top-4 grid size-8 place-items-center rounded-md text-grey-400 hover:bg-grey-200/60 hover:text-ink"
+              className="absolute right-2 top-4 grid size-8 place-items-center rounded-md text-grey-500 hover:bg-grey-200/60 hover:text-ink"
             >
               <X className="size-5" />
             </button>

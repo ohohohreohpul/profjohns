@@ -107,7 +107,7 @@ export function SemanticSearch() {
       </p>
 
       <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-grey-200 bg-grey-50/70 px-3 py-2 transition-colors focus-within:border-grey-300 focus-within:bg-paper">
-        <Search className="size-4 shrink-0 text-grey-400" />
+        <Search className="size-4 shrink-0 text-grey-500" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -119,7 +119,7 @@ export function SemanticSearch() {
           }}
           data-testid="semantic-query"
           placeholder="Search your library by meaning…"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-400"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-500"
         />
         <button
           onClick={run}
@@ -163,11 +163,11 @@ export function SemanticSearch() {
                     h.title
                   )}
                 </p>
-                <p className="mt-0.5 truncate text-[10.5px] text-grey-400">
+                <p className="mt-0.5 truncate text-[10.5px] text-grey-500">
                   {[h.authors, h.year].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <BookOpen className="mt-0.5 size-3.5 shrink-0 text-grey-300" />
+              <BookOpen className="mt-0.5 size-3.5 shrink-0 text-grey-500" />
             </div>
           ))}
         </div>

@@ -104,7 +104,7 @@ export function VoiceTraining() {
       {/* Corpus list */}
       <div className="mt-4 flex flex-col gap-1.5">
         {hydrated && samples.length === 0 && (
-          <p className="rounded-lg border border-dashed border-grey-200 px-3 py-4 text-center text-[12px] text-grey-400">
+          <p className="rounded-lg border border-dashed border-grey-200 px-3 py-4 text-center text-[12px] text-grey-500">
             No samples yet. Add a few paragraphs or a paper below.
           </p>
         )}
@@ -114,17 +114,17 @@ export function VoiceTraining() {
             data-testid={`corpus-sample-${s.id}`}
             className="flex items-center gap-2 rounded-lg border border-grey-200 bg-grey-50/60 px-3 py-2"
           >
-            <PenLine className="size-3.5 shrink-0 text-grey-400" />
+            <PenLine className="size-3.5 shrink-0 text-grey-500" />
             <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">
               {s.name}
             </span>
-            <span className="shrink-0 font-mono text-[10.5px] text-grey-400">
+            <span className="shrink-0 font-mono text-[10.5px] text-grey-500">
               {s.text.length.toLocaleString()} chars
             </span>
             <button
               onClick={() => removeSample(s.id)}
               aria-label={`Remove ${s.name}`}
-              className="grid size-6 shrink-0 place-items-center rounded text-grey-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              className="grid size-6 shrink-0 place-items-center rounded text-grey-500 transition-colors hover:bg-red-50 hover:text-red-600"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -141,7 +141,7 @@ export function VoiceTraining() {
             placeholder="Paste a few paragraphs of your own writing…"
             rows={4}
             data-testid="corpus-paste"
-            className="w-full resize-y rounded-md border border-grey-200 bg-grey-50 px-2.5 py-2 text-[12px] leading-relaxed text-ink outline-none placeholder:text-grey-400 focus:border-grey-300"
+            className="w-full resize-y rounded-md border border-grey-200 bg-grey-50 px-2.5 py-2 text-[12px] leading-relaxed text-ink outline-none placeholder:text-grey-500 focus:border-grey-300"
           />
           <div className="mt-2 flex items-center justify-end gap-2">
             <button
@@ -219,14 +219,14 @@ export function VoiceTraining() {
             </button>
             <button
               onClick={() => setStyleProfile(null)}
-              className="text-[12px] font-medium text-grey-400 hover:text-red-500"
+              className="text-[12px] font-medium text-grey-500 hover:text-red-500"
             >
               Forget
             </button>
           </>
         )}
         {!canTrain && samples.length > 0 && (
-          <span className="text-[11px] text-grey-400">
+          <span className="text-[11px] text-grey-500">
             Add a little more text to train.
           </span>
         )}

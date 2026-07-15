@@ -69,7 +69,7 @@ export function ResearchPrompt({
             className="text-base"
           />
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-grey-400">⌘ + Enter to begin</span>
+            <span className="text-xs text-grey-500">⌘ + Enter to begin</span>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -87,7 +87,7 @@ export function ResearchPrompt({
         </div>
 
         <div className="mt-12">
-          <p className="mb-3 text-xs uppercase tracking-wider text-grey-400">
+          <p className="mb-3 text-xs uppercase tracking-wider text-grey-500">
             Or start from an example
           </p>
           <div className="flex flex-col gap-2">
@@ -98,7 +98,7 @@ export function ResearchPrompt({
                 className="group flex items-center justify-between rounded-md border border-grey-200 bg-paper px-4 py-3 text-left text-sm text-grey-700 transition-colors hover:border-grey-400 hover:bg-grey-50"
               >
                 <span>{example}</span>
-                <ArrowRight className="size-4 text-grey-300 transition-colors group-hover:text-ink" />
+                <ArrowRight className="size-4 text-grey-500 transition-colors group-hover:text-ink" />
               </button>
             ))}
           </div>

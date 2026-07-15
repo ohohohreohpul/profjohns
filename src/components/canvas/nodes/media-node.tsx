@@ -143,15 +143,15 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
             value={media.caption ?? ""}
             onChange={(e) => patchMedia({ caption: e.target.value })}
             placeholder="Add a caption…"
-            className="nodrag mt-2 w-full bg-transparent text-[12px] font-medium text-ink outline-none placeholder:text-grey-400"
+            className="nodrag mt-2 w-full bg-transparent text-[12px] font-medium text-ink outline-none placeholder:text-grey-500"
           />
           <input
             value={media.alt ?? ""}
             onChange={(e) => patchMedia({ alt: e.target.value })}
             placeholder="Alt text (describe the image for accessibility)"
-            className="nodrag mt-0.5 w-full bg-transparent text-[10.5px] text-grey-500 outline-none placeholder:text-grey-300"
+            className="nodrag mt-0.5 w-full bg-transparent text-[10.5px] text-grey-500 outline-none placeholder:text-grey-500"
           />
-          <div className="mt-1.5 flex items-center justify-between text-[10px] text-grey-400">
+          <div className="mt-1.5 flex items-center justify-between text-[10px] text-grey-500">
             <span className="truncate">{media.credit || media.name}</span>
             <button
               onClick={() => inputRef.current?.click()}
@@ -189,7 +189,7 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
 
           {media.description && (
             <div className="nodrag nowheel mt-2 max-h-[160px] overflow-y-auto rounded-lg border border-grey-100 bg-grey-50/60 p-2.5">
-              <p className="mb-1 flex items-center gap-1 text-[9.5px] font-medium uppercase tracking-wider text-grey-400">
+              <p className="mb-1 flex items-center gap-1 text-[9.5px] font-medium uppercase tracking-wider text-grey-500">
                 <Sparkles className="size-2.5" />
                 AI description
               </p>
@@ -217,7 +217,7 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
                 : "Index for figure search"}
           </button>
           {indexState === "off" && (
-            <p className="mt-1 text-[10px] text-grey-400">
+            <p className="mt-1 text-[10px] text-grey-500">
               Figure search isn&apos;t set up (needs the Replicate CLIP key).
             </p>
           )}
@@ -251,11 +251,11 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
           )}
         >
           {busy ? (
-            <Loader2 className="size-5 animate-spin text-grey-400" />
+            <Loader2 className="size-5 animate-spin text-grey-500" />
           ) : error ? (
             <ImageOff className="size-5 text-red-400" />
           ) : (
-            <Upload className="size-5 text-grey-400" />
+            <Upload className="size-5 text-grey-500" />
           )}
           <span className="px-6 text-[11px] leading-relaxed text-grey-500">
             {busy

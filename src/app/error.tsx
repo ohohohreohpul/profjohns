@@ -25,7 +25,7 @@ export default function Error({
         </p>
 
         {error.digest && (
-          <p className="mb-4 rounded-lg bg-grey-100 px-3 py-2 text-[11px] font-mono text-grey-400">
+          <p className="mb-4 rounded-lg bg-grey-100 px-3 py-2 text-[11px] font-mono text-grey-500">
             Reference: {error.digest}
           </p>
         )}

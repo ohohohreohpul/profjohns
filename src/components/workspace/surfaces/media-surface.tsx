@@ -56,7 +56,7 @@ export function MediaSurface() {
                   {m.caption || "Untitled figure"}
                 </p>
                 {m.credit && (
-                  <p className="mt-0.5 truncate text-[10px] text-grey-400">{m.credit}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-grey-500">{m.credit}</p>
                 )}
               </figcaption>
             </figure>
@@ -72,9 +72,9 @@ export function MediaSurface() {
 function EmptyState() {
   return (
     <div className="flex h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-grey-200 text-center">
-      <ImageOff className="size-6 text-grey-300" />
+      <ImageOff className="size-6 text-grey-500" />
       <p className="text-[13px] font-medium text-grey-500">No media yet</p>
-      <p className="max-w-[320px] text-[12px] text-grey-400">
+      <p className="max-w-[320px] text-[12px] text-grey-500">
         Drop an image onto the canvas, or pop a figure out of a source. It will
         appear here.
       </p>

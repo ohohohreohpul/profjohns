@@ -58,7 +58,7 @@ export function AgentPicker({
   return (
     <div className="nodrag flex items-center gap-1.5">
       {showLabel && (
-        <span className="text-[10.5px] font-medium uppercase tracking-wider text-grey-400">
+        <span className="text-[10.5px] font-medium uppercase tracking-wider text-grey-500">
           Agent
         </span>
       )}
@@ -68,9 +68,9 @@ export function AgentPicker({
             data-testid="node-agent-trigger"
             className="flex items-center gap-1.5 rounded-md border border-grey-200 bg-paper px-2 py-1 text-[11.5px] font-medium text-ink outline-none transition-colors hover:border-grey-300"
           >
-            <Bot className="size-3.5 text-grey-400" />
+            <Bot className="size-3.5 text-grey-500" />
             {agent?.name ?? "Agent"}
-            <CaretDown className="size-3 text-grey-400" />
+            <CaretDown className="size-3 text-grey-500" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="max-h-[280px] overflow-y-auto">

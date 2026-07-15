@@ -29,7 +29,7 @@ export function StyleSelector({ nodeId }: { nodeId: string }) {
         <button className="flex items-center gap-1.5 rounded-md border border-grey-200 px-2.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-grey-100">
           <BookMarked className="size-3.5" />
           {STYLE_LABEL[style]}
-          <ChevronDown className="size-3 text-grey-400" />
+          <ChevronDown className="size-3 text-grey-500" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -59,12 +59,12 @@ export function ReferencesPanel({ nodeId }: { nodeId: string }) {
     <section className="mx-auto mt-4 max-w-2xl rounded-lg border border-grey-200 bg-paper px-10 py-6 shadow-flat">
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-semibold text-ink">References</h2>
-        <span className="text-[11px] uppercase tracking-wider text-grey-400">
+        <span className="text-[11px] uppercase tracking-wider text-grey-500">
           {STYLE_LABEL[style]} · {cited.length}
         </span>
       </div>
       {cited.length === 0 ? (
-        <p className="mt-3 text-sm text-grey-400">
+        <p className="mt-3 text-sm text-grey-500">
           No citations yet. Use “Cite in draft” on a connected source to add one.
         </p>
       ) : (

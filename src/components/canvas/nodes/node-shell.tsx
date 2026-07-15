@@ -94,7 +94,7 @@ export function NodeShell({
           drag handle. The card body is `nodrag`, so the node never moves when
           you grab its surface or empty padding — only this title strip. */}
       <div className="node-drag-handle mb-2 flex cursor-grab items-center gap-1.5 px-1 active:cursor-grabbing">
-        <span className="text-grey-300 transition-colors group-hover/node:text-grey-400">
+        <span className="text-grey-500 transition-colors group-hover/node:text-grey-500">
           <DotsSixVertical className="size-[13px]" weight="bold" />
         </span>
         <span style={{ color: def.accent }}>

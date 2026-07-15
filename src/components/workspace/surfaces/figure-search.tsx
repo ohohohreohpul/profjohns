@@ -63,7 +63,7 @@ export function FigureSearch() {
       </p>
 
       <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-grey-200 bg-grey-50/70 px-3 py-2 transition-colors focus-within:border-grey-300 focus-within:bg-paper">
-        <Search className="size-4 shrink-0 text-grey-400" />
+        <Search className="size-4 shrink-0 text-grey-500" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -75,7 +75,7 @@ export function FigureSearch() {
           }}
           data-testid="figure-query"
           placeholder="Describe a figure… (e.g. 'bar chart of survival by age')"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-400"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-500"
         />
         <button
           onClick={run}

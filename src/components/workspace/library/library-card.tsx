@@ -72,7 +72,7 @@ export function LibraryCard({ item }: { item: AccountLibraryItem }) {
             >
               <Icon className="size-3.5" style={{ color: meta.accent }} />
             </span>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-grey-400">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-grey-500">
               {meta.label}
             </span>
           </div>
@@ -82,7 +82,7 @@ export function LibraryCard({ item }: { item: AccountLibraryItem }) {
           {item.title}
         </p>
         {item.subtitle && (
-          <p className="mt-1 line-clamp-1 text-[11px] text-grey-400">{item.subtitle}</p>
+          <p className="mt-1 line-clamp-1 text-[11px] text-grey-500">{item.subtitle}</p>
         )}
         {item.snippet && !hasThumb && (
           <p className="mt-1.5 line-clamp-2 flex-1 text-[11.5px] leading-relaxed text-grey-500">
@@ -97,12 +97,12 @@ export function LibraryCard({ item }: { item: AccountLibraryItem }) {
               key={p.id}
               className="flex max-w-[140px] items-center gap-1 rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-600"
             >
-              <FolderOpen className="size-2.5 shrink-0 text-grey-400" />
+              <FolderOpen className="size-2.5 shrink-0 text-grey-500" />
               <span className="truncate">{p.name}</span>
             </span>
           ))}
           {item.projects.length > 2 && (
-            <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-500">
+            <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-600">
               +{item.projects.length - 2}
             </span>
           )}

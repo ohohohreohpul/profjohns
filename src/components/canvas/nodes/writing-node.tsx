@@ -63,7 +63,7 @@ export function WritingNode({ id, data, selected }: CanvasNodeProps) {
           value={doc.title}
           onChange={(e) => updateDocTitle(id, e.target.value)}
           placeholder="Untitled"
-          className="nodrag w-full bg-transparent text-base font-semibold tracking-tight text-ink outline-none placeholder:text-grey-300"
+          className="nodrag w-full bg-transparent text-base font-semibold tracking-tight text-ink outline-none placeholder:text-grey-500"
         />
       </div>
 
@@ -76,7 +76,7 @@ export function WritingNode({ id, data, selected }: CanvasNodeProps) {
           <span
             className={cn(
               "rounded-full px-2 py-0.5 font-medium",
-              wc > 0 ? "bg-grey-100 text-grey-600" : "text-grey-300",
+              wc > 0 ? "bg-grey-100 text-grey-600" : "text-grey-500",
             )}
           >
             {wc > 0 ? `${wc} words` : "Blank"}

@@ -23,7 +23,7 @@ export function TextNode({ id, data, selected }: CanvasNodeProps) {
         onChange={(e) => updateNodeData(id, { text: e.target.value })}
         placeholder="Write something…"
         rows={10}
-        className="nodrag w-full resize-y rounded-lg border border-grey-200 bg-grey-50/50 px-3.5 py-3 text-[13px] leading-relaxed text-grey-800 outline-none ring-ink/5 transition-all placeholder:text-grey-400 focus:border-grey-300 focus:bg-paper focus:ring-4 min-h-[160px]"
+        className="nodrag w-full resize-y rounded-lg border border-grey-200 bg-grey-50/50 px-3.5 py-3 text-[13px] leading-relaxed text-grey-800 outline-none ring-ink/5 transition-all placeholder:text-grey-500 focus:border-grey-300 focus:bg-paper focus:ring-4 min-h-[160px]"
       />
     </NodeShell>
   );

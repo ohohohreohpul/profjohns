@@ -54,10 +54,10 @@ export function Toolbar({ onAdd, tool, onToolChange }: ToolbarProps) {
           </TooltipTrigger>
           <TooltipContent side="right">
             <p className="font-medium">
-              Select <span className="text-grey-300">· V</span>
+              Select <span className="text-grey-500">· V</span>
             </p>
-            <p className="text-grey-300">Click to select, right-click for nodes</p>
-            <p className="text-grey-400 mt-0.5">
+            <p className="text-grey-500">Click to select, right-click for nodes</p>
+            <p className="text-grey-500 mt-0.5">
               <span className="font-medium text-grey-500">Space</span> + drag = pan
             </p>
           </TooltipContent>
@@ -81,9 +81,9 @@ export function Toolbar({ onAdd, tool, onToolChange }: ToolbarProps) {
           </TooltipTrigger>
           <TooltipContent side="right">
             <p className="font-medium">
-              Hand <span className="text-grey-300">· H</span>
+              Hand <span className="text-grey-500">· H</span>
             </p>
-            <p className="text-grey-300">Drag anywhere to pan the canvas</p>
+            <p className="text-grey-500">Drag anywhere to pan the canvas</p>
           </TooltipContent>
         </Tooltip>
 
@@ -107,7 +107,7 @@ export function Toolbar({ onAdd, tool, onToolChange }: ToolbarProps) {
               </TooltipTrigger>
               <TooltipContent side="right">
                 <p className="font-medium">{def.label}</p>
-                <p className="text-grey-300">{def.description}</p>
+                <p className="text-grey-500">{def.description}</p>
               </TooltipContent>
             </Tooltip>
           );
@@ -133,12 +133,12 @@ export function Toolbar({ onAdd, tool, onToolChange }: ToolbarProps) {
             </TooltipTrigger>
             <TooltipContent side="right">
               <p className="font-medium">More nodes</p>
-              <p className="text-grey-300">Data viz, paper &amp; more</p>
+              <p className="text-grey-500">Data viz, paper &amp; more</p>
             </TooltipContent>
           </Tooltip>
           <PopoverContent side="right" align="end">
             <div className="flex flex-col gap-0.5">
-              <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-grey-400">
+              <p className="px-2 py-1 text-[10px] uppercase tracking-wider text-grey-500">
                 Advanced
               </p>
               {ADVANCED_ORDER.map((kind) => {

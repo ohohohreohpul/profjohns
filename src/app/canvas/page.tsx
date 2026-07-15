@@ -36,13 +36,13 @@ function BlankCta() {
             <MousePointerClick className="size-4" />
             <span className="text-xs">Right-click</span>
           </div>
-          <span className="text-xs text-grey-300">or</span>
+          <span className="text-xs text-grey-500">or</span>
           <div className="flex items-center gap-1.5 text-grey-500">
             <Plus className="size-4" />
             <span className="text-xs">Toolbar</span>
           </div>
         </div>
-        <p className="text-xs text-grey-400">to add your first node</p>
+        <p className="text-xs text-grey-500">to add your first node</p>
       </div>
     </div>
   );

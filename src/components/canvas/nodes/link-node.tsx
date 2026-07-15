@@ -132,9 +132,9 @@ function ReadyCard({ source, image, favicon, onRead, onRefetch }: ReadyCardProps
           // eslint-disable-next-line @next/next/no-img-element
           <img src={favicon} alt="" className="size-3.5 rounded-[3px]" loading="lazy" />
         ) : (
-          <ExternalLink className="size-3 text-grey-400" />
+          <ExternalLink className="size-3 text-grey-500" />
         )}
-        <span className="truncate text-[10px] font-medium uppercase tracking-wide text-grey-400">
+        <span className="truncate text-[10px] font-medium uppercase tracking-wide text-grey-500">
           {host}
         </span>
       </div>
@@ -166,7 +166,7 @@ function ReadyCard({ source, image, favicon, onRead, onRefetch }: ReadyCardProps
         <button
           onClick={onRefetch}
           title="Re-fetch preview"
-          className="ml-auto flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+          className="ml-auto flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
         >
           <RotateCw className="size-3" />
         </button>
@@ -186,7 +186,7 @@ function UrlEntry({ value, onChange, onSubmit, error }: UrlEntryProps) {
   return (
     <div className="nodrag">
       <div className="flex items-center gap-1.5 rounded-lg border border-grey-200 bg-paper px-2.5 py-1.5 focus-within:border-grey-300">
-        <ExternalLink className="size-3.5 shrink-0 text-grey-400" />
+        <ExternalLink className="size-3.5 shrink-0 text-grey-500" />
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -197,7 +197,7 @@ function UrlEntry({ value, onChange, onSubmit, error }: UrlEntryProps) {
             }
           }}
           placeholder="Paste a link…"
-          className="min-w-0 flex-1 bg-transparent text-[12px] text-ink outline-none placeholder:text-grey-400"
+          className="min-w-0 flex-1 bg-transparent text-[12px] text-ink outline-none placeholder:text-grey-500"
         />
         <button
           onClick={onSubmit}
@@ -214,7 +214,7 @@ function UrlEntry({ value, onChange, onSubmit, error }: UrlEntryProps) {
           {error}
         </p>
       ) : (
-        <p className="mt-1.5 text-[10.5px] leading-relaxed text-grey-400">
+        <p className="mt-1.5 text-[10.5px] leading-relaxed text-grey-500">
           Any article, doc, repo, or page — preview, read, and cite it.
         </p>
       )}

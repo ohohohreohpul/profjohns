@@ -342,7 +342,7 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
                 <div className="skeleton h-4 w-2/3" />
                 <div className="skeleton h-4 w-4/5" />
                 <div className="skeleton h-4 w-3/5" />
-                <p className="pt-2 text-center text-[11px] text-grey-400">
+                <p className="pt-2 text-center text-[11px] text-grey-500">
                   Loading full text…
                 </p>
               </div>
@@ -382,7 +382,7 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
               <Highlighter className="size-3.5" />
               Highlights
               {highlights.length > 0 && (
-                <span className="text-grey-400">{highlights.length}</span>
+                <span className="text-grey-500">{highlights.length}</span>
               )}
             </TabButton>
           </div>
@@ -493,7 +493,7 @@ function AssistantPanel({
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
         {thread.length === 0 && !asking && (
-          <p className="px-1 text-[11px] leading-snug text-grey-400">
+          <p className="px-1 text-[11px] leading-snug text-grey-500">
             Summarize the paper or ask a question — the assistant answers from
             the full text.
           </p>
@@ -511,7 +511,7 @@ function AssistantPanel({
             )}
           >
             {item.role === "summary" && (
-              <p className="mb-1 text-[10px] uppercase tracking-wider text-grey-400">
+              <p className="mb-1 text-[10px] uppercase tracking-wider text-grey-500">
                 Summary
               </p>
             )}
@@ -540,7 +540,7 @@ function AssistantPanel({
             disabled={!canAi}
             rows={2}
             placeholder="Ask this paper…"
-            className="min-w-0 flex-1 resize-none rounded-md border border-grey-200 bg-grey-50 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-grey-400 focus:border-grey-300 disabled:opacity-40"
+            className="min-w-0 flex-1 resize-none rounded-md border border-grey-200 bg-grey-50 px-2 py-1.5 text-xs text-ink outline-none placeholder:text-grey-500 focus:border-grey-300 disabled:opacity-40"
           />
           <button
             onClick={onAsk}
@@ -592,7 +592,7 @@ function HighlightsList({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {highlights.length === 0 ? (
-          <p className="px-1 text-[11px] leading-snug text-grey-400">
+          <p className="px-1 text-[11px] leading-snug text-grey-500">
             Select any text in the paper to highlight, cite, or copy it.
           </p>
         ) : (
@@ -608,7 +608,7 @@ function HighlightsList({
                 <button
                   onClick={() => onRemove(h.id)}
                   aria-label="Remove highlight"
-                  className="mt-1.5 text-grey-300 opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+                  className="mt-1.5 text-grey-500 opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
                 >
                   <Trash2 className="size-3.5" />
                 </button>

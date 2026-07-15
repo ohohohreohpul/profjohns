@@ -385,7 +385,7 @@ export function DiscoverHome() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask a research question, or type a topic…"
-            className="w-full bg-transparent px-2 py-1.5 text-[15px] text-ink outline-none placeholder:text-grey-400"
+            className="w-full bg-transparent px-2 py-1.5 text-[15px] text-ink outline-none placeholder:text-grey-500"
           />
           <div className="mt-2 flex items-center gap-2">
             <HeroSourcesPopover selected={sources} onChange={setSources} />
@@ -408,7 +408,7 @@ export function DiscoverHome() {
         <motion.div variants={fadeUp} className="mt-12">
           <div className="flex items-center gap-2.5">
             <h2 className="text-[15px] font-semibold tracking-tight text-ink">Discover</h2>
-            <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-500">
+            <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-600">
               {sort === "cited" ? "Most-cited" : "Recent research"}
             </span>
 
@@ -459,7 +459,7 @@ export function DiscoverHome() {
                   ? "bg-ink text-paper"
                   : hasForYou
                     ? "border border-ink/30 text-ink hover:bg-ink/5"
-                    : "border border-grey-200 text-grey-400 hover:text-grey-600",
+                    : "border border-grey-200 text-grey-500 hover:text-grey-600",
               )}
               title={
                 hasForYou
@@ -494,7 +494,7 @@ export function DiscoverHome() {
                       "absolute right-1 top-1/2 grid size-4 -translate-y-1/2 place-items-center rounded-full text-[10px] transition-opacity",
                       active
                         ? "text-paper/70 hover:text-paper"
-                        : "text-grey-400 opacity-0 hover:bg-grey-200 hover:text-ink group-hover:opacity-100",
+                        : "text-grey-500 opacity-0 hover:bg-grey-200 hover:text-ink group-hover:opacity-100",
                     )}
                     aria-label={`Remove ${it.label}`}
                   >
@@ -584,7 +584,7 @@ export function DiscoverHome() {
                 {refineThemes && refineThemes.length > 0 && (
                   <button
                     onClick={() => setRefineThemes(null)}
-                    className="ml-auto text-[10.5px] font-medium text-grey-400 hover:text-ink"
+                    className="ml-auto text-[10.5px] font-medium text-grey-500 hover:text-ink"
                   >
                     Clear
                   </button>
@@ -597,7 +597,7 @@ export function DiscoverHome() {
 
               {refineThemes && refineThemes.length > 0 && (
                 <div className="mt-2.5 space-y-2">
-                  <p className="text-[10.5px] text-grey-400">
+                  <p className="text-[10.5px] text-grey-500">
                     Themes from your library — click a query to research it:
                   </p>
                   {refineThemes.map((t) => (
@@ -637,7 +637,7 @@ export function DiscoverHome() {
               </p>
             ) : papers.length === 0 && tabId === FOR_YOU_TAB && !hasForYou ? (
               <div className="rounded-2xl border border-dashed border-grey-200 bg-grey-50/50 px-6 py-10 text-center">
-                <Sparkles className="mx-auto size-5 text-grey-300" />
+                <Sparkles className="mx-auto size-5 text-grey-500" />
                 <p className="mt-2 text-[13px] font-medium text-ink">
                   Your For You feed is empty
                 </p>
@@ -724,7 +724,7 @@ function FeedCard({
           </span>
         )}
       </div>
-      <p className="mt-1 truncate text-[11px] text-grey-400">
+      <p className="mt-1 truncate text-[11px] text-grey-500">
         {[paper.authors, paper.year, paper.venue].filter(Boolean).join(" · ")}
       </p>
       <p className="mt-2 line-clamp-3 flex-1 text-[12px] leading-relaxed text-grey-600">
@@ -743,7 +743,7 @@ function FeedCard({
           </a>
         )}
         {typeof paper.citations === "number" && paper.citations > 0 && (
-          <span className="rounded-md px-1.5 py-1 text-[10px] font-medium tabular-nums text-grey-400">
+          <span className="rounded-md px-1.5 py-1 text-[10px] font-medium tabular-nums text-grey-500">
             {paper.citations.toLocaleString()} cited
           </span>
         )}
@@ -767,7 +767,7 @@ function FeedCard({
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel>Save to Space</DropdownMenuLabel>
             {projects.length === 0 && (
-              <p className="px-2.5 py-1.5 text-[11px] text-grey-400">
+              <p className="px-2.5 py-1.5 text-[11px] text-grey-500">
                 No projects yet.
               </p>
             )}
@@ -804,7 +804,7 @@ function FeedCard({
       </div>
       {showFeedback && onFeedback && (
         <div className="mt-2 flex items-center gap-1 border-t border-grey-100 pt-2">
-          <span className="text-[10px] text-grey-400">Tune your feed:</span>
+          <span className="text-[10px] text-grey-500">Tune your feed:</span>
           <button
             onClick={() => onFeedback("more")}
             title="More like this"

@@ -40,8 +40,8 @@ export function LinksSurface() {
       </motion.div>
       <motion.div variants={fadeUp}>
       {links.length === 0 ? (
-        <p className="flex h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-grey-200 text-center text-[12px] text-grey-400">
-          <Link2 className="size-6 text-grey-300" />
+        <p className="flex h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-grey-200 text-center text-[12px] text-grey-500">
+          <Link2 className="size-6 text-grey-500" />
           Links from sources you find and keep appear here.
         </p>
       ) : (
@@ -57,14 +57,14 @@ export function LinksSurface() {
                 i > 0 && "border-t border-grey-100",
               )}
             >
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-grey-100 text-grey-500">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-grey-100 text-grey-600">
                 <ExternalLink className="size-3.5" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-1 text-[12.5px] font-medium text-ink">
                   {s.title}
                 </span>
-                <span className="text-[10.5px] text-grey-400">
+                <span className="text-[10.5px] text-grey-500">
                   {domain(s.url!)} · {[s.authors, s.year].filter(Boolean).join(" · ")}
                 </span>
               </span>

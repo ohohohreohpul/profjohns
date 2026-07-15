@@ -153,7 +153,7 @@ export function AccountLibrarySurface() {
               <h1 className="text-[15px] font-semibold tracking-tight text-ink">
                 Readroom
               </h1>
-              <p className="text-[12px] text-grey-400">
+              <p className="text-[12px] text-grey-500">
                 Everything across your account ·{" "}
                 <span className="tabular-nums">{items.length}</span> item
                 {items.length === 1 ? "" : "s"} in{" "}
@@ -178,18 +178,18 @@ export function AccountLibrarySurface() {
           {/* Toolbar — search + kind filters + categorize */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="flex min-w-[200px] flex-1 items-center gap-2 rounded-lg border border-grey-200 bg-paper px-3 py-1.5 focus-within:border-grey-300">
-              <Search className="size-3.5 shrink-0 text-grey-400" />
+              <Search className="size-3.5 shrink-0 text-grey-500" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search your readroom…"
-                className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-grey-400"
+                className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-grey-500"
               />
               {query && (
                 <button
                   onClick={() => setQuery("")}
                   aria-label="Clear search"
-                  className="text-grey-400 hover:text-ink"
+                  className="text-grey-500 hover:text-ink"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -217,7 +217,7 @@ export function AccountLibrarySurface() {
                     <span
                       className={cn(
                         "tabular-nums",
-                        isActive ? "text-grey-300" : "text-grey-400",
+                        isActive ? "text-grey-500" : "text-grey-500",
                       )}
                     >
                       {count}
@@ -245,7 +245,7 @@ export function AccountLibrarySurface() {
           {(chips.length > 0 || catError) && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               {aiCategories && (
-                <span className="flex items-center gap-1 text-[10.5px] font-medium uppercase tracking-wider text-grey-400">
+                <span className="flex items-center gap-1 text-[10.5px] font-medium uppercase tracking-wider text-grey-500">
                   <Sparkles className="size-3" />
                   Themes
                 </span>
@@ -286,7 +286,7 @@ export function AccountLibrarySurface() {
           {items.length === 0 ? (
             <EmptyState />
           ) : filtered.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-grey-200 px-4 py-12 text-center text-[12px] text-grey-400">
+            <p className="rounded-xl border border-dashed border-grey-200 px-4 py-12 text-center text-[12px] text-grey-500">
               Nothing matches. Try a different search or filter.
             </p>
           ) : (
@@ -313,7 +313,7 @@ export function AccountLibrarySurface() {
 function EmptyState() {
   return (
     <div className="mx-auto max-w-md rounded-2xl border border-dashed border-grey-200 px-6 py-16 text-center">
-      <span className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-grey-100 text-grey-400">
+      <span className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-grey-100 text-grey-600">
         <LibraryIcon className="size-6" />
       </span>
       <p className="text-[14px] font-semibold tracking-tight text-ink">

@@ -94,7 +94,7 @@ export function LilyVoice({
             />
           </button>
         </div>
-        <p className="mt-1 text-[10.5px] text-grey-400">
+        <p className="mt-1 text-[10.5px] text-grey-500">
           {useVoice ? "Drafts are written in your voice." : "Voice off — drafts use a neutral tone."}
         </p>
         <div className="mt-2 flex items-center gap-2 text-[10.5px]">
@@ -113,7 +113,7 @@ export function LilyVoice({
               setStyleProfile(null);
               onToggleVoice(false);
             }}
-            className="font-medium text-grey-400 hover:text-red-500"
+            className="font-medium text-grey-500 hover:text-red-500"
           >
             Forget
           </button>
@@ -152,7 +152,7 @@ export function LilyVoice({
             setError(null);
           }}
           aria-label="Cancel"
-          className="ml-auto grid size-5 place-items-center rounded text-grey-400 hover:bg-grey-100 hover:text-ink"
+          className="ml-auto grid size-5 place-items-center rounded text-grey-500 hover:bg-grey-100 hover:text-ink"
         >
           <X className="size-3.5" />
         </button>
@@ -162,7 +162,7 @@ export function LilyVoice({
         onChange={(e) => setSample(e.target.value)}
         placeholder="Paste a few paragraphs of your own academic writing — or add a paper below."
         rows={5}
-        className="w-full resize-none rounded-md border border-grey-200 bg-grey-50 px-2.5 py-2 text-[11.5px] leading-relaxed text-ink outline-none placeholder:text-grey-400 focus:border-grey-300"
+        className="w-full resize-none rounded-md border border-grey-200 bg-grey-50 px-2.5 py-2 text-[11.5px] leading-relaxed text-ink outline-none placeholder:text-grey-500 focus:border-grey-300"
       />
       <input
         ref={fileRef}
@@ -190,7 +190,7 @@ export function LilyVoice({
         </button>
       </div>
       {sample.trim().length > 0 && sample.trim().length < MIN_SAMPLE && (
-        <p className="mt-1.5 text-[10px] text-grey-400">
+        <p className="mt-1.5 text-[10px] text-grey-500">
           {MIN_SAMPLE - sample.trim().length} more characters for a reliable read.
         </p>
       )}

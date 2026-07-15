@@ -74,7 +74,7 @@ export function AgentsSurface() {
       }
     >
       {!hasHydrated ? (
-        <p className="text-[13px] text-grey-400">Loading agents…</p>
+        <p className="text-[13px] text-grey-500">Loading agents…</p>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
           {sorted.map((agent) => {
@@ -96,7 +96,7 @@ export function AgentsSurface() {
                   >
                     <Icon className="size-[18px]" />
                   </span>
-                  <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-500">
+                  <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-600">
                     {agent.builtIn ? "Built-in" : "Custom"}
                   </span>
                 </div>
@@ -107,7 +107,7 @@ export function AgentsSurface() {
                   {agent.description || "No description."}
                 </p>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="font-mono text-[10.5px] text-grey-400">
+                  <span className="font-mono text-[10.5px] text-grey-500">
                     {getModel(agent.modelId).label}
                   </span>
                   <button
@@ -184,7 +184,7 @@ function AgentEditor({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="grid size-7 place-items-center rounded-md text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+            className="grid size-7 place-items-center rounded-md text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
           >
             <X className="size-4" />
           </button>
@@ -313,7 +313,7 @@ function Field({
         {label}
       </label>
       {children}
-      {hint && <p className="mt-1 text-[11px] text-grey-400">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-grey-500">{hint}</p>}
     </div>
   );
 }

@@ -80,7 +80,7 @@ export function SurfaceScaffold({
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-grey-200 bg-paper px-4 pt-0 pl-14 md:pl-6">
         <h1 className="text-sm font-semibold tracking-tight text-ink">{title}</h1>
         {description && (
-          <p className="min-w-0 truncate text-[12px] text-grey-400">{description}</p>
+          <p className="min-w-0 truncate text-[12px] text-grey-500">{description}</p>
         )}
         {action && <div className="ml-auto">{action}</div>}
       </header>

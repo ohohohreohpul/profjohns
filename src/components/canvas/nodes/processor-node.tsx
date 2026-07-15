@@ -176,10 +176,10 @@ function Section({
 }) {
   return (
     <section>
-      <p className={`mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider ${accent ?? "text-grey-400"}`}>
+      <p className={`mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider ${accent ?? "text-grey-500"}`}>
         <Icon className="size-3" />
         {label}
-        <span className="tabular-nums text-grey-300">{count}</span>
+        <span className="tabular-nums text-grey-500">{count}</span>
       </p>
       <div className="space-y-1.5">{children}</div>
     </section>

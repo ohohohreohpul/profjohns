@@ -158,7 +158,7 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
               disabled={busy}
               className="nodrag flex items-center gap-1 rounded-full border border-grey-200 px-2.5 py-1 text-[10px] font-medium text-grey-600 transition-colors hover:border-grey-300 hover:bg-grey-50 hover:text-ink disabled:opacity-40"
             >
-              <Sparkles className="size-3 text-grey-400" />
+              <Sparkles className="size-3 text-grey-500" />
               {s}
             </button>
           ))}
@@ -180,7 +180,7 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
             )}
           >
             {msg.role === "assistant" && (
-              <Bot className="size-3.5 mb-1 text-grey-400" />
+              <Bot className="size-3.5 mb-1 text-grey-500" />
             )}
             <p className="whitespace-pre-wrap">{msg.text}</p>
 
@@ -218,7 +218,7 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
           placeholder="Ask the assistant…"
-          className="min-w-0 flex-1 bg-transparent text-[12px] text-ink outline-none placeholder:text-grey-400"
+          className="min-w-0 flex-1 bg-transparent text-[12px] text-ink outline-none placeholder:text-grey-500"
         />
         <button
           onClick={() => send()}

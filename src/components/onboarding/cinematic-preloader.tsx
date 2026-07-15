@@ -163,7 +163,7 @@ export function CinematicPreloader({
                     </span>
                     <span
                       className={
-                        isDone || isCurrent ? "text-ink" : "text-grey-400"
+                        isDone || isCurrent ? "text-ink" : "text-grey-500"
                       }
                     >
                       {step}

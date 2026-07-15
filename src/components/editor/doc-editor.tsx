@@ -236,7 +236,7 @@ function AutocompleteToggle({ editor }: { editor: Editor }) {
         "flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors",
         on
           ? "bg-node-writing/10 text-node-writing"
-          : "text-grey-400 hover:bg-grey-100 hover:text-ink",
+          : "text-grey-500 hover:bg-grey-100 hover:text-ink",
       )}
     >
       <Sparkles className="size-3.5" />

@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                   Email
                 </label>
                 <div className="flex items-center gap-2 rounded-xl border border-grey-200 bg-paper px-3 py-2.5 transition-colors focus-within:border-grey-400">
-                  <EnvelopeSimple className="size-4 shrink-0 text-grey-400" />
+                  <EnvelopeSimple className="size-4 shrink-0 text-grey-500" />
                   <input
                     type="email"
                     required
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     autoComplete="email"
-                    className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-300"
+                    className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-500"
                   />
                 </div>
               </div>

@@ -86,7 +86,7 @@ export function SpacesSurface() {
                   if (confirm("Delete this project?")) removeProject(p.id);
                 }}
                 aria-label="Delete project"
-                className="grid size-6 place-items-center rounded-lg text-grey-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover:opacity-100"
+                className="grid size-6 place-items-center rounded-lg text-grey-500 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover:opacity-100"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -102,10 +102,10 @@ export function SpacesSurface() {
                 className="w-full"
               />
             </div>
-            <p className="mt-1 line-clamp-2 text-[11px] text-grey-400">
+            <p className="mt-1 line-clamp-2 text-[11px] text-grey-500">
               {p.direction || "No description"}
             </p>
-            <div className="mt-4 flex items-center gap-3 text-[10px] text-grey-400">
+            <div className="mt-4 flex items-center gap-3 text-[10px] text-grey-500">
               <span className="flex items-center gap-1">
                 <Clock className="size-3" />
                 {timeAgo(p.updatedAt)}
@@ -130,7 +130,7 @@ export function SpacesSurface() {
         <motion.div variants={fadeUp}>
         <button
           onClick={create}
-          className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-grey-300 bg-grey-50/50 p-8 text-grey-400 transition-all hover:border-grey-400 hover:text-grey-600"
+          className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-grey-300 bg-grey-50/50 p-8 text-grey-500 transition-all hover:border-grey-400 hover:text-grey-600"
         >
           <Plus className="size-6" />
           <span className="text-[12px] font-medium">New project</span>

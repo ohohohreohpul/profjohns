@@ -268,7 +268,7 @@ function TabButton({
       {label}
       {count != null && (
         <span
-          className={`tabular-nums ${active ? "text-grey-300" : "text-grey-400"}`}
+          className={`tabular-nums ${active ? "text-grey-500" : "text-grey-500"}`}
         >
           {count}
         </span>
@@ -337,13 +337,13 @@ function SourcesPanel({ nodeId }: { nodeId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <p className="border-b border-grey-100 px-3 py-2.5 text-[11px] leading-snug text-grey-400">
+      <p className="border-b border-grey-100 px-3 py-2.5 text-[11px] leading-snug text-grey-500">
         Cite any connected source into your draft, or drop in a highlight you
         saved while reading.
       </p>
       <div className="flex-1 overflow-y-auto p-3">
         {papers.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-grey-200 px-3 py-6 text-center text-[11px] leading-snug text-grey-400">
+          <p className="rounded-lg border border-dashed border-grey-200 px-3 py-6 text-center text-[11px] leading-snug text-grey-500">
             No sources connected. Wire a Sources, Paper, or Library node into
             this draft on the canvas, then cite from it here.
           </p>
@@ -364,7 +364,7 @@ function SourcesPanel({ nodeId }: { nodeId: string }) {
                       <p className="line-clamp-2 text-xs font-medium text-ink">
                         {paper.title}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-grey-400">
+                      <p className="mt-0.5 text-[11px] text-grey-500">
                         {paper.authors} · {paper.year}
                       </p>
                     </div>
@@ -379,7 +379,7 @@ function SourcesPanel({ nodeId }: { nodeId: string }) {
                             title="Insert quote into draft"
                             className="group/hl flex w-full items-start gap-1.5 text-left"
                           >
-                            <Highlighter className="mt-0.5 size-3 shrink-0 text-grey-400 group-hover/hl:text-ink" />
+                            <Highlighter className="mt-0.5 size-3 shrink-0 text-grey-500 group-hover/hl:text-ink" />
                             <span className="line-clamp-2 text-[11px] leading-snug text-grey-600 group-hover/hl:text-ink">
                               {h.text}
                             </span>
@@ -560,7 +560,7 @@ function ComposePanel({
           {outline.length > 0 ? "Re-propose outline from board" : "Propose outline from board"}
         </button>
         {sources.length === 0 && (
-          <p className="mt-1.5 px-1 text-[10.5px] text-grey-400">
+          <p className="mt-1.5 px-1 text-[10.5px] text-grey-500">
             Connect a Sources node (or papers) to this draft first.
           </p>
         )}
@@ -600,7 +600,7 @@ function ComposePanel({
                     </button>
                   </div>
                   <details className="mt-1.5">
-                    <summary className="cursor-pointer text-[10.5px] font-medium text-grey-400 hover:text-grey-600">
+                    <summary className="cursor-pointer text-[10.5px] font-medium text-grey-500 hover:text-grey-600">
                       Sources for this section ({papers.length}/{sources.length})
                     </summary>
                     <ul className="mt-1 space-y-0.5">
@@ -670,7 +670,7 @@ function TitleSuggestions({
         {busy ? "Thinking…" : titles ? "Suggest more titles" : "Suggest a title"}
       </button>
       {disabled && (
-        <p className="mt-1.5 text-[10px] text-grey-400">Write a little first, then get title ideas.</p>
+        <p className="mt-1.5 text-[10px] text-grey-500">Write a little first, then get title ideas.</p>
       )}
       {error && (
         <p className="mt-1.5 flex items-center gap-1 text-[10.5px] text-red-600">
@@ -753,7 +753,7 @@ function AiPanel({
         </p>
 
         {/* Write presets */}
-        <p className="px-1 pb-1.5 pt-3 text-[11px] uppercase tracking-wider text-grey-400">
+        <p className="px-1 pb-1.5 pt-3 text-[11px] uppercase tracking-wider text-grey-500">
           Draft from sources
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -772,7 +772,7 @@ function AiPanel({
         {/* Edit presets — only when there's text to edit */}
         {!draftEmpty && (
           <>
-            <p className="px-1 pb-1.5 pt-4 text-[11px] uppercase tracking-wider text-grey-400">
+            <p className="px-1 pb-1.5 pt-4 text-[11px] uppercase tracking-wider text-grey-500">
               Refine your draft
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -821,7 +821,7 @@ function AiPanel({
           placeholder={sources.length === 0 ? "Connect sources first…" : "Tell the writer what to draft…"}
           rows={3}
           disabled={sources.length === 0}
-          className="w-full resize-none rounded-md border border-grey-200 bg-grey-50 px-2.5 py-2 text-xs text-ink outline-none placeholder:text-grey-400 focus:border-grey-300 disabled:opacity-40"
+          className="w-full resize-none rounded-md border border-grey-200 bg-grey-50 px-2.5 py-2 text-xs text-ink outline-none placeholder:text-grey-500 focus:border-grey-300 disabled:opacity-40"
         />
         <button
           onClick={() => onRunWrite()}
@@ -865,17 +865,17 @@ function OutlinePanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto p-3">
-        <p className="mb-3 text-[11px] text-grey-400">
+        <p className="mb-3 text-[11px] text-grey-500">
           Plan your document structure. Sections appear here only — they don't
           insert text into the draft.
         </p>
         {outline.length === 0 ? (
-          <p className="text-[11px] text-grey-300">No sections yet.</p>
+          <p className="text-[11px] text-grey-500">No sections yet.</p>
         ) : (
           <ul className="space-y-1">
             {outline.map((section, i) => (
               <li key={i} className="group flex items-center gap-1">
-                <GripVertical className="size-3 shrink-0 text-grey-300" />
+                <GripVertical className="size-3 shrink-0 text-grey-500" />
                 <span className="grid size-5 shrink-0 place-items-center rounded-sm bg-grey-100 text-[10px] font-medium text-grey-700">
                   {i + 1}
                 </span>
@@ -891,7 +891,7 @@ function OutlinePanel({
                 />
                 <button
                   onClick={() => removeSection(i)}
-                  className="grid size-5 shrink-0 place-items-center rounded text-grey-300 opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+                  className="grid size-5 shrink-0 place-items-center rounded text-grey-500 opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
                 >
                   <X className="size-3" />
                 </button>
@@ -1018,7 +1018,7 @@ function AuditPanel({
                     <div className="min-w-0">
                       <p className="text-[12px] leading-snug text-ink">{f.claim}</p>
                       {f.note && (
-                        <p className="mt-1 text-[10.5px] leading-snug text-grey-400">
+                        <p className="mt-1 text-[10.5px] leading-snug text-grey-500">
                           {f.note}
                         </p>
                       )}
@@ -1037,7 +1037,7 @@ function AuditPanel({
         )}
 
         {findings && findings.length === 0 && (
-          <p className="mt-3 rounded-lg border border-dashed border-grey-200 px-3 py-6 text-center text-[11px] text-grey-400">
+          <p className="mt-3 rounded-lg border border-dashed border-grey-200 px-3 py-6 text-center text-[11px] text-grey-500">
             No distinct claims found to audit yet.
           </p>
         )}
@@ -1052,7 +1052,7 @@ function AuditPanel({
 
       <div className="border-t border-grey-100 p-3">
         {!canRun && (
-          <p className="mb-2 text-[11px] leading-snug text-grey-400">
+          <p className="mb-2 text-[11px] leading-snug text-grey-500">
             {sources.length === 0
               ? "Connect sources to audit the draft against."
               : "Write a draft first, then run the audit."}

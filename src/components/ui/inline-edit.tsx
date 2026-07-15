@@ -97,7 +97,7 @@ export function InlineEdit({
     >
       <span className="truncate">{value || placeholder}</span>
       <PencilSimple
-        className="size-3 shrink-0 text-grey-300 opacity-0 transition-opacity group-hover/edit:opacity-100 group/edit:text-grey-500"
+        className="size-3 shrink-0 text-grey-500 opacity-0 transition-opacity group-hover/edit:opacity-100 group/edit:text-grey-500"
         style={{ width: iconSize, height: iconSize }}
       />
     </button>

@@ -28,14 +28,14 @@ export function WritingDocument({
 
   return (
     <article className="mx-auto max-w-2xl rounded-lg border border-grey-200 bg-paper px-10 py-10 shadow-flat">
-      <p className="text-[11px] uppercase tracking-wider text-grey-400">
+      <p className="text-[11px] uppercase tracking-wider text-grey-500">
         Working draft
       </p>
       <input
         value={doc.title}
         onChange={(e) => updateDocTitle(nodeId, e.target.value)}
         placeholder="Untitled"
-        className="mb-6 mt-2 w-full bg-transparent font-serif tracking-display text-[2rem] font-semibold leading-tight text-ink outline-none placeholder:text-grey-300"
+        className="mb-6 mt-2 w-full bg-transparent font-serif tracking-display text-[2rem] font-semibold leading-tight text-ink outline-none placeholder:text-grey-500"
       />
       <DocEditor nodeId={nodeId} />
     </article>

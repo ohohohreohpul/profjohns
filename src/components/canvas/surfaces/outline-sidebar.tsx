@@ -189,14 +189,14 @@ export function OutlineSidebar() {
         <button
           onClick={() => setOpen(false)}
           aria-label="Hide outline"
-          className="ml-auto grid size-6 place-items-center rounded-md text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+          className="ml-auto grid size-6 place-items-center rounded-md text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
         >
           <PanelLeftClose className="size-3.5" />
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
         {count === 0 ? (
-          <p className="px-2 py-6 text-center text-[11px] leading-relaxed text-grey-400">
+          <p className="px-2 py-6 text-center text-[11px] leading-relaxed text-grey-500">
             Nothing on the canvas yet. Add a node from the toolbar and it shows
             up here.
           </p>

@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
               New password
             </label>
             <div className="flex items-center gap-2 rounded-xl border border-grey-200 bg-paper px-3 py-2.5 transition-colors focus-within:border-grey-400">
-              <Lock className="size-4 shrink-0 text-grey-400" />
+              <Lock className="size-4 shrink-0 text-grey-500" />
               <input
                 type="password"
                 required
@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
                 autoComplete="new-password"
-                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-300"
+                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-500"
               />
             </div>
           </div>
@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
               Confirm password
             </label>
             <div className="flex items-center gap-2 rounded-xl border border-grey-200 bg-paper px-3 py-2.5 transition-colors focus-within:border-grey-400">
-              <Lock className="size-4 shrink-0 text-grey-400" />
+              <Lock className="size-4 shrink-0 text-grey-500" />
               <input
                 type="password"
                 required
@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
-                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-300"
+                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-500"
               />
             </div>
           </div>

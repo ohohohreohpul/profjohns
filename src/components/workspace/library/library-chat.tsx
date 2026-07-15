@@ -68,7 +68,7 @@ export function LibraryChat({
         <button
           onClick={onClose}
           aria-label="Close"
-          className="ml-auto grid size-7 place-items-center rounded-lg text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+          className="ml-auto grid size-7 place-items-center rounded-lg text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
         >
           <X className="size-4" />
         </button>
@@ -120,7 +120,7 @@ export function LibraryChat({
           )
         )}
         {busy && (
-          <p className="flex items-center gap-2 text-[12px] text-grey-400">
+          <p className="flex items-center gap-2 text-[12px] text-grey-500">
             <Loader2 className="size-3.5 animate-spin" />
             Reading your readroom…
           </p>
@@ -138,7 +138,7 @@ export function LibraryChat({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask your readroom…"
-          className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-paper px-3 py-2 text-[12.5px] text-ink outline-none placeholder:text-grey-400 focus:border-grey-300"
+          className="min-w-0 flex-1 rounded-lg border border-grey-200 bg-paper px-3 py-2 text-[12.5px] text-ink outline-none placeholder:text-grey-500 focus:border-grey-300"
         />
         <button
           type="submit"

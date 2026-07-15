@@ -12,7 +12,7 @@ import { WritingDocument } from "@/components/canvas/surfaces/writing-document";
 function Loader() {
   return (
     <div className="grid h-dvh place-items-center bg-grey-50">
-      <p className="animate-wordmark text-sm font-medium tracking-display text-grey-300">
+      <p className="animate-wordmark text-sm font-medium tracking-display text-grey-500">
         ProfJohns
       </p>
     </div>
@@ -61,7 +61,7 @@ export function DocEditor() {
           Library
         </Link>
         {project && (
-          <span className="truncate text-[13px] text-grey-400">{project.name}</span>
+          <span className="truncate text-[13px] text-grey-500">{project.name}</span>
         )}
         {canvasId && (
           <Link
@@ -79,7 +79,7 @@ export function DocEditor() {
         {node ? (
           <WritingDocument nodeId={node} direction="" />
         ) : (
-          <p className="mx-auto max-w-2xl text-center text-sm text-grey-400">
+          <p className="mx-auto max-w-2xl text-center text-sm text-grey-500">
             Document not found.
           </p>
         )}

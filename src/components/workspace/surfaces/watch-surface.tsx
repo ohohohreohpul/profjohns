@@ -115,7 +115,7 @@ export function WatchSurface() {
     return (
       <SurfaceScaffold title="Watch" description="Standing searches that run in the background">
         <div className="mx-auto max-w-md rounded-xl border border-grey-200 bg-paper p-6 text-center shadow-sm">
-          <Telescope className="mx-auto size-6 text-grey-300" />
+          <Telescope className="mx-auto size-6 text-grey-500" />
           <p className="mt-2 text-[14px] font-medium text-ink">Sign in to set up standing searches</p>
           <p className="mt-1.5 text-[13px] leading-relaxed text-grey-500">
             Standing tasks run server-side and collect new sources while you&apos;re away —
@@ -160,13 +160,13 @@ export function WatchSurface() {
 
         {/* Tasks */}
         <section>
-          <h2 className="mb-2 font-display text-[13px] font-semibold uppercase tracking-wider text-grey-400">
+          <h2 className="mb-2 font-display text-[13px] font-semibold uppercase tracking-wider text-grey-500">
             Standing searches
           </h2>
           {loading ? (
-            <p className="text-[13px] text-grey-400">Loading…</p>
+            <p className="text-[13px] text-grey-500">Loading…</p>
           ) : tasks.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-grey-200 px-4 py-6 text-center text-[13px] text-grey-400">
+            <p className="rounded-xl border border-dashed border-grey-200 px-4 py-6 text-center text-[13px] text-grey-500">
               No standing searches yet. Create one above.
             </p>
           ) : (
@@ -184,7 +184,7 @@ export function WatchSurface() {
                     <Telescope className="size-4 shrink-0 text-node-explorer" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13.5px] font-medium text-ink">{task.topic}</p>
-                      <p className="mt-0.5 flex items-center gap-2 text-[11px] text-grey-400">
+                      <p className="mt-0.5 flex items-center gap-2 text-[11px] text-grey-500">
                         <span className="capitalize">{task.schedule}</span>
                         <span>·</span>
                         <span>{task.sources.map((s) => PROVIDER_LABEL[s]).join(", ") || "all sources"}</span>
@@ -202,7 +202,7 @@ export function WatchSurface() {
                         "shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
                         task.enabled
                           ? "bg-grey-100 text-grey-700 hover:bg-grey-200"
-                          : "text-grey-400 hover:bg-grey-100",
+                          : "text-grey-500 hover:bg-grey-100",
                       )}
                     >
                       {task.enabled ? "On" : "Paused"}
@@ -223,7 +223,7 @@ export function WatchSurface() {
                     <button
                       onClick={() => remove(task)}
                       aria-label="Delete task"
-                      className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      className="grid size-7 shrink-0 place-items-center rounded-md text-grey-500 transition-colors hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -236,7 +236,7 @@ export function WatchSurface() {
 
         {/* Findings inbox */}
         <section>
-          <h2 className="mb-2 flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-wider text-grey-400">
+          <h2 className="mb-2 flex items-center gap-2 font-display text-[13px] font-semibold uppercase tracking-wider text-grey-500">
             <Clock className="size-3.5" />
             New findings
             {newFindings.length > 0 && (
@@ -246,7 +246,7 @@ export function WatchSurface() {
             )}
           </h2>
           {newFindings.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-grey-200 px-4 py-6 text-center text-[13px] text-grey-400">
+            <p className="rounded-xl border border-dashed border-grey-200 px-4 py-6 text-center text-[13px] text-grey-500">
               Nothing new. Run a search or wait for the next scheduled sweep.
             </p>
           ) : (
@@ -271,7 +271,7 @@ export function WatchSurface() {
                         f.title
                       )}
                     </p>
-                    <p className="mt-0.5 truncate text-[11px] text-grey-400">
+                    <p className="mt-0.5 truncate text-[11px] text-grey-500">
                       {[f.authors, f.year].filter(Boolean).join(" · ")}
                     </p>
                     {f.why && <p className="mt-1 text-[11px] italic leading-snug text-grey-500">{f.why}</p>}
@@ -279,14 +279,14 @@ export function WatchSurface() {
                   <button
                     onClick={() => decide(f, "kept")}
                     aria-label="Keep"
-                    className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                    className="grid size-7 shrink-0 place-items-center rounded-md text-grey-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
                   >
                     <Check className="size-4" />
                   </button>
                   <button
                     onClick={() => decide(f, "dismissed")}
                     aria-label="Dismiss"
-                    className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+                    className="grid size-7 shrink-0 place-items-center rounded-md text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
                   >
                     <X className="size-4" />
                   </button>
@@ -328,7 +328,7 @@ function NewTaskForm({
   return (
     <section className="rounded-xl border border-grey-200 bg-paper p-4 shadow-sm">
       <div className="flex items-center gap-2 rounded-lg border border-grey-200 bg-grey-50/70 px-3 py-2 transition-colors focus-within:border-grey-300 focus-within:bg-paper">
-        <Telescope className="size-4 shrink-0 text-grey-400" />
+        <Telescope className="size-4 shrink-0 text-grey-500" />
         <input
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
@@ -340,7 +340,7 @@ function NewTaskForm({
           }}
           data-testid="watch-topic"
           placeholder="What should I keep watching for? (e.g. 'LLM agents for clinical triage')"
-          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-400"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-grey-500"
         />
       </div>
 

@@ -395,7 +395,7 @@ h1, h2, h3 {
 
 /* Inline autocomplete ghost text — grey continuation at the caret. */
 .tiptap-ghost {
-  color: var(--color-grey-400);
+  color: var(--color-grey-500);
   pointer-events: none;
   user-select: none;
   white-space: pre-wrap;
@@ -404,7 +404,7 @@ h1, h2, h3 {
 /* ContentEditable placeholder — shows when block is empty. */
 [data-placeholder]:empty::before {
   content: attr(data-placeholder);
-  color: var(--color-grey-300);
+  color: var(--color-grey-500);
   pointer-events: none;
 }
 
@@ -602,7 +602,7 @@ h1, h2, h3 {
 /* Empty-document placeholder (TipTap Placeholder extension). */
 .tiptap-doc p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: var(--color-grey-400);
+  color: var(--color-grey-500);
   float: left;
   height: 0;
   pointer-events: none;

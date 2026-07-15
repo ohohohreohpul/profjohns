@@ -44,7 +44,7 @@ export function LibraryNode({ id, data, selected }: CanvasNodeProps) {
       className="w-72"
     >
       {sources.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-grey-200 px-3 py-4 text-center text-[11px] leading-relaxed text-grey-400">
+        <p className="rounded-lg border border-dashed border-grey-200 px-3 py-4 text-center text-[11px] leading-relaxed text-grey-500">
           No saved sources yet. Upload or pin sources in this project&apos;s
           Library, and they appear here.
         </p>
@@ -56,10 +56,10 @@ export function LibraryNode({ id, data, selected }: CanvasNodeProps) {
                 key={s.id}
                 className="flex items-start gap-2 rounded-lg border border-grey-100 bg-grey-50/50 px-2.5 py-1.5"
               >
-                <BookOpen className="mt-0.5 size-3 shrink-0 text-grey-400" />
+                <BookOpen className="mt-0.5 size-3 shrink-0 text-grey-500" />
                 <div className="min-w-0">
                   <p className="line-clamp-1 text-[11.5px] font-medium text-ink">{s.title}</p>
-                  <p className="truncate text-[10px] text-grey-400">
+                  <p className="truncate text-[10px] text-grey-500">
                     {[s.authors, s.year].filter(Boolean).join(" · ")}
                   </p>
                 </div>
@@ -67,11 +67,11 @@ export function LibraryNode({ id, data, selected }: CanvasNodeProps) {
             ))}
           </div>
           {sources.length > 5 && (
-            <p className="mt-1.5 text-[10px] text-grey-400">
+            <p className="mt-1.5 text-[10px] text-grey-500">
               + {sources.length - 5} more
             </p>
           )}
-          <p className="mt-2 text-[10px] text-grey-400">
+          <p className="mt-2 text-[10px] text-grey-500">
             {sources.length} source{sources.length === 1 ? "" : "s"} feed connected nodes
           </p>
         </>
