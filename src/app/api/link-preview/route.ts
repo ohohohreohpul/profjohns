@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeFetch, SsrfError } from "@/lib/security/safe-fetch";
+import { requireUser, authErrorResponse, AuthError } from "@/lib/auth/server-auth";
+import { canUseLocalMode } from "@/lib/config/env";
+import { checkRateLimits, getClientIP, RATE_LIMITS } from "@/lib/security/rate-limit";
 
 /**
  * Fetches a web URL and returns Open Graph / meta preview data for the canvas
  * Link node (FigJam-style card): title, description, image, site name, favicon,
  * published date. Full article text is a separate concern — the node's "Make
  * readable" action calls /api/readable for that.
+ *
+ * Protected by authentication, rate limiting, and SSRF-safe fetching.
  */
 
 interface ApiResponse<T> {
@@ -22,29 +28,6 @@ export interface LinkPreview {
   siteName: string | null;
   favicon: string | null;
   publishedYear: number | null;
-}
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unexpected error";
-}
-
-const PRIVATE_HOST =
-  /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?|\[?fc00:|\[?fe80:)/i;
-
-/**
- * Reject non-http(s) schemes and obvious internal targets before fetching
- * user-supplied URLs (SSRF guard). For production this should be paired with
- * DNS-resolution checks / an egress allowlist — see CLAUDE.md.
- */
-function assertSafeUrl(raw: string): URL {
-  if (!/^https?:\/\//i.test(raw)) {
-    throw new Error("A valid http(s) URL is required.");
-  }
-  const parsed = new URL(raw);
-  if (PRIVATE_HOST.test(parsed.hostname)) {
-    throw new Error("That host is not allowed.");
-  }
-  return parsed;
 }
 
 function decodeEntities(value: string): string {
@@ -111,27 +94,58 @@ function publishedYear(html: string): number | null {
 export async function GET(
   request: NextRequest,
 ): Promise<NextResponse<ApiResponse<LinkPreview>>> {
+  // Authentication
+  let userId: string;
+  try {
+    if (canUseLocalMode()) {
+      userId = "local-user";
+    } else {
+      const user = await requireUser();
+      userId = user.id;
+    }
+  } catch (error) {
+    if (error instanceof AuthError) return authErrorResponse(error) as NextResponse<ApiResponse<LinkPreview>>;
+    throw error;
+  }
+
+  // Rate limiting
+  const ip = getClientIP(request);
+  const rateResult = checkRateLimits(userId, ip, "/api/link-preview", RATE_LIMITS.readable);
+  if (!rateResult.allowed) {
+    return NextResponse.json(
+      { success: false, data: null, error: "Rate limit exceeded. Please slow down." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)) },
+      },
+    );
+  }
+
   const url = request.nextUrl.searchParams.get("url")?.trim() ?? "";
 
-  let safe: URL;
-  try {
-    safe = assertSafeUrl(url);
-  } catch (error: unknown) {
+  if (!url || !/^https?:\/\//i.test(url)) {
     return NextResponse.json(
-      { success: false, data: null, error: getErrorMessage(error) },
+      { success: false, data: null, error: "A valid http(s) URL is required." },
       { status: 400 },
     );
   }
 
   try {
-    const res = await fetch(safe.toString(), {
-      headers: { "User-Agent": "ProfJohns/0.1 (research canvas prototype)" },
-      redirect: "follow",
+    const res = await safeFetch(url, {
+      timeoutMs: 10_000,
+      maxBytes: 600_000, // 600KB max for HTML preview
+      allowedContentTypes: ["text/html", "application/xhtml+xml"],
     });
-    if (!res.ok) throw new Error(`Source responded with ${res.status}`);
 
-    const resolved = new URL(res.url || safe.toString());
-    const html = (await res.text()).slice(0, 600_000);
+    if (!res.ok) {
+      return NextResponse.json(
+        { success: false, data: null, error: `Source responded with ${res.status}.` },
+        { status: 502 },
+      );
+    }
+
+    const resolved = new URL(res.finalUrl);
+    const html = await res.text();
 
     const title =
       metaContent(html, ["og:title", "twitter:title"]) ??
@@ -163,9 +177,13 @@ export async function GET(
       error: null,
     });
   } catch (error: unknown) {
+    const message = error instanceof SsrfError
+      ? error.message
+      : "Failed to fetch the preview.";
+
     return NextResponse.json(
-      { success: false, data: null, error: getErrorMessage(error) },
-      { status: 502 },
+      { success: false, data: null, error: message },
+      { status: error instanceof SsrfError ? 400 : 502 },
     );
   }
 }
