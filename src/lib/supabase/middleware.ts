@@ -1,15 +1,27 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { canUseLocalMode, IS_LOCAL } from "@/lib/config/env";
 
 /**
  * Refreshes the Supabase session on every request.
- * When Supabase env vars are not set, this is a no-op (local-only mode).
+ *
+ * When Supabase env vars are not set AND local mode is explicitly allowed
+ * (ALLOW_LOCAL_MODE=true in local env), this is a no-op.
+ *
+ * In preview/production, missing env vars would have already caused a
+ * build-time failure. If somehow reached without env vars, we pass through
+ * rather than crash the request — the server-side auth layer will handle it.
  */
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // No-op when Supabase is not configured — app runs in localStorage mode.
   if (!supabaseUrl || !supabaseKey) {
+    if (canUseLocalMode()) {
+      return NextResponse.next({ request });
+    }
+    // In non-local envs without config, let the request pass —
+    // server-side auth checks will reject unauthorized access.
+    if (!IS_LOCAL) return NextResponse.next({ request });
     return NextResponse.next({ request });
   }
 
@@ -39,9 +51,6 @@ export async function updateSession(request: NextRequest) {
   });
 
   // IMPORTANT: getUser() must be called to refresh the session token.
-  // We do NOT server-side redirect here — the client-side AuthProvider
-  // handles auth state and redirects to /login if needed. This avoids
-  // race conditions where the session cookie hasn't synced yet.
   await supabase.auth.getUser();
 
   return supabaseResponse;

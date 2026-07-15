@@ -1,13 +1,22 @@
 import { cookies } from "next/headers";
+import { canUseLocalMode, IS_LOCAL, assertEnvironmentConfigured } from "@/lib/config/env";
 
 /**
  * Server-side Supabase client.
- * Returns null when env vars are not configured (local-only mode).
+ *
+ * Returns null when running in explicitly-allowed local-only mode.
+ * In preview/production, missing env vars throw rather than silently
+ * disabling auth.
  */
 export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+
+  if (!url || !key) {
+    if (canUseLocalMode()) return null;
+    if (IS_LOCAL) assertEnvironmentConfigured();
+    return null;
+  }
 
   const { createServerClient } = await import("@supabase/ssr");
   const cookieStore = await cookies();

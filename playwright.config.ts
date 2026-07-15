@@ -21,7 +21,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= pnpm exec next dev -p 3211",
+      "NEXT_PUBLIC_SUPABASE_URL= NEXT_PUBLIC_SUPABASE_ANON_KEY= ALLOW_LOCAL_MODE=true pnpm exec next dev -p 3211",
     port: 3211,
     reuseExistingServer: false,
     timeout: 120_000,
