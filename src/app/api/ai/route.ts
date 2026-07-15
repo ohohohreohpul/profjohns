@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { withApiAuth } from "@/lib/security/api-auth";
+import { withUsageTracking, sanitizeVendorError } from "@/lib/security/usage";
+import { RATE_LIMITS } from "@/lib/security/rate-limit";
 
 /**
  * AI boundary — OpenRouter backend.
@@ -11,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
  *   explore — Perplexity-style synthesized search answer
  *
  * Uses OPENROUTER_API_KEY env var. Without it, returns graceful message.
+ * Protected by withApiAuth: authentication, rate limiting, body validation.
  */
 
 const OR_BASE = "https://openrouter.ai/api/v1/chat/completions";
@@ -59,25 +64,40 @@ interface SourceContext {
 
 type SourceProvider = "openalex" | "arxiv" | "semanticscholar" | "wikipedia";
 
-interface AiRequest {
-  mode: AiMode;
-  text?: string;
-  title?: string;
-  question?: string;
-  instruction?: string;
-  sources?: SourceContext[];
-  draft?: string;
-  allowedSources?: SourceProvider[];
-  /** Free-text research directions, used by the `refine` mode. */
-  directions?: string[];
-  /** Lily's voice profile — injected into the `write` mode when present. */
-  style?: string;
-  /** An Agent's system prompt — when a node runs FROM an agent, its persona is
-   *  prepended to the mode's instructions (VISION Phase 2). */
-  persona?: string;
-  /** A data-URL or https image — sent to a multimodal model in `vision` mode. */
-  image?: string;
-}
+const VALID_MODES: AiMode[] = [
+  "summarize", "ask", "write", "batch", "edit", "diagram", "explore",
+  "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit",
+  "dna", "synth", "vision", "complete", "titles", "outline", "section",
+];
+
+const WRITE_MODES: AiMode[] = ["write", "edit", "section"];
+
+// Zod schema for request validation
+const aiRequestSchema = z.object({
+  mode: z.enum(VALID_MODES as [string, ...string[]]),
+  text: z.string().max(200_000).optional(),
+  title: z.string().max(500).optional(),
+  question: z.string().max(10_000).optional(),
+  instruction: z.string().max(10_000).optional(),
+  sources: z.array(z.object({
+    title: z.string().max(500),
+    authors: z.string().max(500).optional(),
+    year: z.number().int().optional(),
+    abstract: z.string().max(50_000).optional(),
+  })).max(50).optional(),
+  draft: z.string().max(200_000).optional(),
+  allowedSources: z.array(z.enum(["openalex", "arxiv", "semanticscholar", "wikipedia"])).optional(),
+  directions: z.array(z.string().max(500)).max(20).optional(),
+  style: z.string().max(20_000).optional(),
+  persona: z.string().max(20_000).optional(),
+  image: z.string().max(5_000_000).optional(),
+}).refine(
+  (data) => {
+    if (data.mode === "vision") return !!data.image?.trim();
+    return true;
+  },
+  { message: "No image provided for vision mode." },
+);
 
 interface ApiResponse<T> {
   success: boolean;
@@ -147,371 +167,267 @@ function buildSourcesBlock(sources: SourceContext[]): string {
     .slice(0, MAX_CONTEXT_CHARS);
 }
 
-export async function POST(
-  request: NextRequest,
-): Promise<NextResponse<ApiResponse<{ answer: string }>>> {
-  let body: AiRequest;
-  try {
-    body = (await request.json()) as AiRequest;
-  } catch {
-    return NextResponse.json(
-      { success: false, data: null, error: "Invalid request body.", configured: true },
-      { status: 400 },
-    );
-  }
+export const POST = withApiAuth(
+  {
+    schema: aiRequestSchema,
+    rateLimit: RATE_LIMITS.ai,
+    maxBodyBytes: 500_000,
+  },
+  async ({ user, body }) => {
+    const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona, image } = body as z.infer<typeof aiRequestSchema> & { mode: AiMode };
 
-  const { mode, text, title, question, instruction, sources, draft, allowedSources, directions, style, persona, image } = body;
-  const validModes: AiMode[] = ["summarize", "ask", "write", "batch", "edit", "diagram", "explore", "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit", "dna", "synth", "vision", "complete", "titles", "outline", "section"];
-  if (mode === "vision" && !image?.trim()) {
-    return NextResponse.json(
-      { success: false, data: null, error: "No image provided.", configured: true },
-      { status: 400 },
-    );
-  }
-  if (!validModes.includes(mode)) {
-    return NextResponse.json(
-      { success: false, data: null, error: `Unknown mode: ${mode}`, configured: true },
-      { status: 400 },
-    );
-  }
+    // Semantic validation (beyond zod structural validation)
+    const semanticError = validateModeSemantics(mode, body);
+    if (semanticError) {
+      return NextResponse.json(
+        { success: false, data: null, error: semanticError, configured: true },
+        { status: 400 },
+      );
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          configured: false,
+          error: "AI is not configured. Add OPENROUTER_API_KEY to .env.local and restart.",
+        },
+        { status: 200 },
+      );
+    }
+
+    const model =
+      mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
+        ? MODEL_FAST
+        : MODEL_BALANCED;
+
+    const maxTokens =
+      mode === "write" || mode === "edit" || mode === "section"
+        ? MAX_OUTPUT_WRITE
+        : mode === "triage" || mode === "audit" || mode === "synth"
+          ? 2048
+          : mode === "complete"
+            ? 48
+            : mode === "titles"
+              ? 320
+              : MAX_OUTPUT_DEFAULT;
+
+    const { contextLabel, contextBody, userContent } = buildContext(mode, body as Record<string, unknown>);
+
+    const voiceBlock =
+      (mode === "write" || mode === "section") && style?.trim()
+        ? `\n\nAUTHOR VOICE PROFILE — write in this voice (it governs tone/rhythm/diction; never let it override factual accuracy or citations):\n${style.trim()}`
+        : "";
+    const personaBlock = persona?.trim() ? `${persona.trim()}\n\n` : "";
+    const systemPrompt = `${personaBlock}${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}${voiceBlock}`;
+
+    try {
+      const { result: json } = await withUsageTracking(
+        {
+          userId: user.id,
+          vendor: "openrouter",
+          model,
+          requestType: `ai:${mode}`,
+          timeoutMs: 30_000,
+        },
+        async (signal) => {
+          const res = await fetch(OR_BASE, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+              "HTTP-Referer": process.env.APP_URL ?? "http://localhost:3000",
+              "X-Title": "ProfJohns",
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: maxTokens,
+              messages: [
+                { role: "system", content: systemPrompt },
+                mode === "vision" && image
+                  ? {
+                      role: "user",
+                      content: [
+                        { type: "text", text: userContent },
+                        { type: "image_url", image_url: { url: image } },
+                      ],
+                    }
+                  : { role: "user", content: userContent },
+              ],
+            }),
+            signal,
+          });
+
+          if (!res.ok) {
+            throw new Error(`VENDOR:${res.status}`);
+          }
+
+          return (await res.json()) as {
+            choices?: { message?: { content?: string } }[];
+            usage?: { total_tokens?: number };
+          };
+        },
+      );
+
+      const answer = json.choices?.[0]?.message?.content?.trim() ?? "";
+
+      return NextResponse.json({
+        success: true,
+        data: { answer },
+        error: null,
+        configured: true,
+      });
+    } catch (error: unknown) {
+      const isVendorError = error instanceof Error && error.message.startsWith("VENDOR:");
+      const status = isVendorError ? parseInt(error.message.split(":")[1], 10) : 502;
+      const message = isVendorError
+        ? sanitizeVendorError("OpenRouter", status)
+        : error instanceof Error && error.name === "AbortError"
+          ? "The request timed out. Please try again."
+          : "An unexpected error occurred.";
+
+      return NextResponse.json(
+        { success: false, data: null, error: message, configured: true },
+        { status: isVendorError && status === 429 ? 429 : 502 },
+      );
+    }
+  },
+);
+
+function validateModeSemantics(mode: AiMode, body: Record<string, unknown>): string | null {
+  const text = body.text as string | undefined;
+  const instruction = body.instruction as string | undefined;
+  const question = body.question as string | undefined;
+  const sources = body.sources as SourceContext[] | undefined;
+  const draft = body.draft as string | undefined;
+  const directions = body.directions as string[] | undefined;
 
   if (mode === "write") {
-    if (!instruction?.trim()) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Tell the assistant what to write.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (!sources || sources.length === 0) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Connect at least one source to write from.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!instruction?.trim()) return "Tell the assistant what to write.";
+    if (!sources || sources.length === 0) return "Connect at least one source to write from.";
   } else if (mode === "edit") {
-    if (!text || text.trim().length < 10) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Select or provide text to edit.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (!instruction?.trim()) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Specify what kind of edit to apply.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!text || text.trim().length < 10) return "Select or provide text to edit.";
+    if (!instruction?.trim()) return "Specify what kind of edit to apply.";
   } else if (mode === "batch") {
-    if (!sources || sources.length === 0) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Connect at least one source.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!sources || sources.length === 0) return "Connect at least one source.";
   } else if (mode === "diagram") {
-    if (!text || text.trim().length < 20) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Provide content to generate a diagram from.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!text || text.trim().length < 20) return "Provide content to generate a diagram from.";
   } else if (mode === "explore") {
-    if (!question?.trim()) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Ask a question to explore.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (!sources || sources.length === 0) {
-      return NextResponse.json(
-        { success: false, data: null, error: "No search results to synthesize from.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!question?.trim()) return "Ask a question to explore.";
+    if (!sources || sources.length === 0) return "No search results to synthesize from.";
   } else if (mode === "angles") {
-    if (!text || text.trim().length < 3) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Enter a topic to research.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!text || text.trim().length < 3) return "Enter a topic to research.";
   } else if (mode === "triage" || mode === "gaps") {
-    if (!question?.trim()) {
-      return NextResponse.json(
-        { success: false, data: null, error: "A topic is required.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (!sources || sources.length === 0) {
-      return NextResponse.json(
-        { success: false, data: null, error: "No sources to evaluate.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!question?.trim()) return "A topic is required.";
+    if (!sources || sources.length === 0) return "No sources to evaluate.";
   } else if (mode === "refine") {
-    if ((!sources || sources.length === 0) && (!directions || directions.length === 0)) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Keep at least one source or set a research direction first.", configured: true },
-        { status: 400 },
-      );
-    }
+    if ((!sources || sources.length === 0) && (!directions || directions.length === 0))
+      return "Keep at least one source or set a research direction first.";
   } else if (mode === "libchat" || mode === "libcat") {
-    if (!text || text.trim().length < 2) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Your library is empty — add documents, sources, or media first.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (mode === "libchat" && !question?.trim()) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Ask a question first.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!text || text.trim().length < 2) return "Your library is empty — add documents, sources, or media first.";
+    if (mode === "libchat" && !question?.trim()) return "Ask a question first.";
   } else if (mode === "audit") {
-    if (!draft || draft.trim().length < 20) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Write a draft to audit first.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (!sources || sources.length === 0) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Connect sources to audit the draft against.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!draft || draft.trim().length < 20) return "Write a draft to audit first.";
+    if (!sources || sources.length === 0) return "Connect sources to audit the draft against.";
   } else if (mode === "synth") {
-    if (!sources || sources.length === 0) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Connect at least one source to synthesize.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!sources || sources.length === 0) return "Connect at least one source to synthesize.";
   } else if (mode === "dna") {
-    if (!text || text.trim().length < 200) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Add a longer writing sample (a few paragraphs) so Lily can learn your voice.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!text || text.trim().length < 200) return "Add a longer writing sample (a few paragraphs) so Lily can learn your voice.";
   } else {
-    if (!text || text.trim().length < 20) {
-      return NextResponse.json(
-        { success: false, data: null, error: "No text to work with.", configured: true },
-        { status: 400 },
-      );
-    }
-    if (mode === "ask" && !question?.trim()) {
-      return NextResponse.json(
-        { success: false, data: null, error: "Ask a question first.", configured: true },
-        { status: 400 },
-      );
-    }
+    if (!text || text.trim().length < 20) return "No text to work with.";
+    if (mode === "ask" && !question?.trim()) return "Ask a question first.";
   }
+  return null;
+}
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        configured: false,
-        error:
-          "AI is not configured. Add OPENROUTER_API_KEY to .env.local and restart.",
-      },
-      { status: 200 },
-    );
-  }
-
-  const model =
-    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
-      ? MODEL_FAST
-      : MODEL_BALANCED;
-
-  const maxTokens =
-    mode === "write" || mode === "edit" || mode === "section"
-      ? MAX_OUTPUT_WRITE
-      : mode === "triage" || mode === "audit" || mode === "synth"
-        ? 2048
-        : mode === "complete"
-          ? 48
-          : mode === "titles"
-            ? 320
-            : MAX_OUTPUT_DEFAULT;
-
-  let contextLabel: string;
-  let contextBody: string;
-  let userContent: string;
+function buildContext(mode: AiMode, body: Record<string, unknown>): {
+  contextLabel: string;
+  contextBody: string;
+  userContent: string;
+} {
+  const text = (body.text as string | undefined) ?? "";
+  const title = body.title as string | undefined;
+  const question = (body.question as string | undefined) ?? "";
+  const instruction = (body.instruction as string | undefined) ?? "";
+  const sources = (body.sources as SourceContext[] | undefined) ?? [];
+  const draft = (body.draft as string | undefined) ?? "";
+  const allowedSources = (body.allowedSources as SourceProvider[] | undefined);
+  const directions = (body.directions as string[] | undefined) ?? [];
 
   if (mode === "edit") {
-    contextLabel = "TEXT TO EDIT";
-    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
-    userContent = (instruction as string).trim();
+    return { contextLabel: "TEXT TO EDIT", contextBody: text.slice(0, MAX_CONTEXT_CHARS), userContent: instruction.trim() };
   } else if (mode === "write") {
-    contextLabel = "SOURCES";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    const draftExcerpt = (draft ?? "").slice(-4000);
-    userContent = draftExcerpt
-      ? `${instruction}\n\n---\nCurrent draft (continue from / match this):\n${draftExcerpt}`
-      : (instruction as string);
+    const draftExcerpt = draft.slice(-4000);
+    return {
+      contextLabel: "SOURCES",
+      contextBody: buildSourcesBlock(sources),
+      userContent: draftExcerpt ? `${instruction}\n\n---\nCurrent draft (continue from / match this):\n${draftExcerpt}` : instruction,
+    };
   } else if (mode === "batch") {
-    contextLabel = "PAPERS TO EXTRACT";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    userContent = "Extract the key claims and TL;DR for each paper listed above.";
+    return { contextLabel: "PAPERS TO EXTRACT", contextBody: buildSourcesBlock(sources), userContent: "Extract the key claims and TL;DR for each paper listed above." };
   } else if (mode === "diagram") {
-    contextLabel = "CONTENT TO DIAGRAM";
-    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
-    userContent = "Generate a Mermaid diagram from this content.";
+    return { contextLabel: "CONTENT TO DIAGRAM", contextBody: text.slice(0, MAX_CONTEXT_CHARS), userContent: "Generate a Mermaid diagram from this content." };
   } else if (mode === "explore") {
-    contextLabel = "SEARCH RESULTS";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    userContent = (question as string).trim();
+    return { contextLabel: "SEARCH RESULTS", contextBody: buildSourcesBlock(sources), userContent: question.trim() };
   } else if (mode === "angles") {
-    contextLabel = "TOPIC";
-    contextBody = (text as string).slice(0, 2000);
     const pool = allowedSources ?? ["openalex", "arxiv", "semanticscholar", "wikipedia"];
     const poolList = pool.join(", ");
-    userContent =
-      pool.length < 4
+    return {
+      contextLabel: "TOPIC",
+      contextBody: text.slice(0, 2000),
+      userContent: pool.length < 4
         ? `Propose distinct search angles to comprehensively cover this topic. Route EVERY angle to one of ONLY these databases: ${poolList}. Do not use any other database.`
-        : "Propose distinct search angles to comprehensively cover this topic.";
-  } else if (mode === "triage") {
-    contextLabel = "SOURCES";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    userContent = `Topic: ${(question as string).trim()}\n\nScore and cluster each source by relevance to this topic.`;
-  } else if (mode === "gaps") {
-    contextLabel = "SOURCES GATHERED SO FAR";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    userContent = `Topic: ${(question as string).trim()}\n\nWhat important coverage gaps remain?`;
-  } else if (mode === "refine") {
-    contextLabel = "KEPT SOURCES";
-    contextBody = buildSourcesBlock(sources ?? []);
-    const dirs = (directions ?? []).filter(Boolean).join("\n- ");
-    userContent = dirs
-      ? `Research directions:\n- ${dirs}\n\nCluster these sources into themes and propose search expansions.`
-      : "Cluster these sources into themes and propose search expansions.";
-  } else if (mode === "libchat") {
-    contextLabel = "LIBRARY CATALOG";
-    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
-    userContent = (question as string).trim();
-  } else if (mode === "libcat") {
-    contextLabel = "LIBRARY CATALOG";
-    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
-    userContent = "Group these library items into themed categories.";
-  } else if (mode === "audit") {
-    contextLabel = "SOURCES";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    userContent = `Audit this draft's claims against the sources above.\n\nDRAFT:\n${(draft as string).slice(0, 12000)}`;
-  } else if (mode === "dna") {
-    contextLabel = "WRITING SAMPLE";
-    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
-    userContent = "Infer this author's reusable voice profile.";
-  } else if (mode === "synth") {
-    contextLabel = "SOURCES";
-    contextBody = buildSourcesBlock(sources as SourceContext[]);
-    userContent = "Synthesize these sources into claims, contradictions, and themes.";
-  } else if (mode === "outline") {
-    contextLabel = "SOURCES";
-    contextBody = buildSourcesBlock(sources ?? []);
-    const claims = (text ?? "").trim();
-    userContent = claims
-      ? `CLAIMS from the author's synthesis:\n${claims.slice(0, 4000)}\n\nPropose the section outline.`
-      : "Propose the section outline.";
-  } else if (mode === "section") {
-    contextLabel = "SOURCES";
-    contextBody = buildSourcesBlock(sources ?? []);
-    const claims = (text ?? "").trim();
-    const outlineList = (directions ?? []).filter(Boolean).join(" | ");
-    userContent = [
-      `Write the section titled: "${(question ?? "").trim()}"`,
-      outlineList ? `Full paper outline (for flow/context): ${outlineList}` : "",
-      claims ? `CLAIMS from the author's synthesis (grounded in the sources):\n${claims.slice(0, 4000)}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-  } else if (mode === "complete") {
-    contextLabel = "DOCUMENT SO FAR (continue from the very end)";
-    contextBody = ((text ?? "") as string).slice(-3000);
-    userContent = "Continue the document from exactly where it ends.";
-  } else if (mode === "titles") {
-    contextLabel = "DRAFT";
-    contextBody = ((draft ?? text ?? "") as string).slice(0, 8000);
-    userContent = "Suggest 5 title options for this paper.";
-  } else if (mode === "vision") {
-    // The image carries the content; caption/alt (if any) arrives via `text`.
-    contextLabel = "FIGURE CAPTION";
-    contextBody = (text ?? "").slice(0, 2000) || "(none provided)";
-    userContent = (question?.trim() ||
-      "Describe this figure in detail for a researcher.") as string;
-  } else {
-    contextLabel = "PAPER";
-    contextBody = `${title ? `TITLE: ${title}\n\n` : ""}${(text as string).slice(0, MAX_CONTEXT_CHARS)}`;
-    userContent = mode === "ask" ? (question as string) : "Summarize this paper.";
-  }
-
-  // Lily: condition the writer on the author's learned voice profile.
-  const voiceBlock =
-    (mode === "write" || mode === "section") && style?.trim()
-      ? `\n\nAUTHOR VOICE PROFILE — write in this voice (it governs tone/rhythm/diction; never let it override factual accuracy or citations):\n${style.trim()}`
-      : "";
-  // A bound agent's persona leads the system prompt so it colours behavior
-  // without discarding the mode's task-specific instructions.
-  const personaBlock = persona?.trim() ? `${persona.trim()}\n\n` : "";
-  const systemPrompt = `${personaBlock}${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}${voiceBlock}`;
-
-  try {
-    const res = await fetch(OR_BASE, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": process.env.APP_URL ?? "http://localhost:3000",
-        "X-Title": "ProfJohns",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: maxTokens,
-        messages: [
-          { role: "system", content: systemPrompt },
-          mode === "vision" && image
-            ? {
-                role: "user",
-                content: [
-                  { type: "text", text: userContent },
-                  { type: "image_url", image_url: { url: image } },
-                ],
-              }
-            : { role: "user", content: userContent },
-        ],
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(
-        res.status === 429
-          ? "Rate limited. Try again in a moment."
-          : `OpenRouter: ${res.status} ${err.slice(0, 200)}`,
-      );
-    }
-
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
+        : "Propose distinct search angles to comprehensively cover this topic.",
     };
-
-    const answer = json.choices?.[0]?.message?.content?.trim() ?? "";
-
-    return NextResponse.json({
-      success: true,
-      data: { answer },
-      error: null,
-      configured: true,
-    });
-  } catch (error: unknown) {
-    return NextResponse.json(
-      { success: false, data: null, error: getErrorMessage(error), configured: true },
-      { status: 502 },
-    );
+  } else if (mode === "triage") {
+    return { contextLabel: "SOURCES", contextBody: buildSourcesBlock(sources), userContent: `Topic: ${question.trim()}\n\nScore and cluster each source by relevance to this topic.` };
+  } else if (mode === "gaps") {
+    return { contextLabel: "SOURCES GATHERED SO FAR", contextBody: buildSourcesBlock(sources), userContent: `Topic: ${question.trim()}\n\nWhat important coverage gaps remain?` };
+  } else if (mode === "refine") {
+    const dirs = directions.filter(Boolean).join("\n- ");
+    return {
+      contextLabel: "KEPT SOURCES",
+      contextBody: buildSourcesBlock(sources),
+      userContent: dirs ? `Research directions:\n- ${dirs}\n\nCluster these sources into themes and propose search expansions.` : "Cluster these sources into themes and propose search expansions.",
+    };
+  } else if (mode === "libchat") {
+    return { contextLabel: "LIBRARY CATALOG", contextBody: text.slice(0, MAX_CONTEXT_CHARS), userContent: question.trim() };
+  } else if (mode === "libcat") {
+    return { contextLabel: "LIBRARY CATALOG", contextBody: text.slice(0, MAX_CONTEXT_CHARS), userContent: "Group these library items into themed categories." };
+  } else if (mode === "audit") {
+    return { contextLabel: "SOURCES", contextBody: buildSourcesBlock(sources), userContent: `Audit this draft's claims against the sources above.\n\nDRAFT:\n${draft.slice(0, 12000)}` };
+  } else if (mode === "dna") {
+    return { contextLabel: "WRITING SAMPLE", contextBody: text.slice(0, MAX_CONTEXT_CHARS), userContent: "Infer this author's reusable voice profile." };
+  } else if (mode === "synth") {
+    return { contextLabel: "SOURCES", contextBody: buildSourcesBlock(sources), userContent: "Synthesize these sources into claims, contradictions, and themes." };
+  } else if (mode === "outline") {
+    const claims = text.trim();
+    return {
+      contextLabel: "SOURCES",
+      contextBody: buildSourcesBlock(sources),
+      userContent: claims ? `CLAIMS from the author's synthesis:\n${claims.slice(0, 4000)}\n\nPropose the section outline.` : "Propose the section outline.",
+    };
+  } else if (mode === "section") {
+    const claims = text.trim();
+    const outlineList = directions.filter(Boolean).join(" | ");
+    return {
+      contextLabel: "SOURCES",
+      contextBody: buildSourcesBlock(sources),
+      userContent: [
+        `Write the section titled: "${question.trim()}"`,
+        outlineList ? `Full paper outline (for flow/context): ${outlineList}` : "",
+        claims ? `CLAIMS from the author's synthesis (grounded in the sources):\n${claims.slice(0, 4000)}` : "",
+      ].filter(Boolean).join("\n\n"),
+    };
+  } else if (mode === "complete") {
+    return { contextLabel: "DOCUMENT SO FAR (continue from the very end)", contextBody: text.slice(-3000), userContent: "Continue the document from exactly where it ends." };
+  } else if (mode === "titles") {
+    return { contextLabel: "DRAFT", contextBody: (draft || text).slice(0, 8000), userContent: "Suggest 5 title options for this paper." };
+  } else if (mode === "vision") {
+    return { contextLabel: "FIGURE CAPTION", contextBody: text.slice(0, 2000) || "(none provided)", userContent: question.trim() || "Describe this figure in detail for a researcher." };
+  } else {
+    return { contextLabel: "PAPER", contextBody: `${title ? `TITLE: ${title}\n\n` : ""}${text.slice(0, MAX_CONTEXT_CHARS)}`, userContent: mode === "ask" ? question : "Summarize this paper." };
   }
 }
