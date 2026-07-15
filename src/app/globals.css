@@ -614,3 +614,39 @@ h1, h2, h3 {
   font-weight: 500;
   cursor: default;
 }
+
+/* ---- Accessibility: focus-visible, reduced motion ---- */
+
+/* Global focus-visible ring — 2px ink outline with 2px offset for 3:1 contrast. */
+*:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Buttons and links already have rounded corners — don't override their radius. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion preference — disable all animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Ensure interactive elements meet minimum target size (24x24px WCAG 2.5.8). */
+button,
+[role="button"],
+a[role="button"] {
+  min-height: 24px;
+  min-width: 24px;
+}

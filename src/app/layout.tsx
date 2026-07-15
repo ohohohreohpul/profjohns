@@ -35,13 +35,20 @@ export default function RootLayout({
         />
       </head>
       <body>
+        {/* Skip navigation — keyboard users can jump to main content */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-paper"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>
           <PersistenceSync />
           <AuthGuard>
             <TooltipProvider delayDuration={200}>
               <NavProgress />
               <RouteOverlay />
-              {children}
+              <div id="main-content">{children}</div>
             </TooltipProvider>
           </AuthGuard>
         </AuthProvider>

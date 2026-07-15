@@ -227,7 +227,11 @@ function ProfileCard({
         </div>
 
         {error && (
-          <p className="flex items-center gap-1.5 text-[12px] text-red-600">
+          <p
+            role="alert"
+            aria-live="assertive"
+            className="flex items-center gap-1.5 text-[12px] text-red-600"
+          >
             <WarningCircle className="size-3.5 shrink-0" />
             {error}
           </p>

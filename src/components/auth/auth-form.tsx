@@ -179,13 +179,21 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </div>
 
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[12px] text-red-600">
+            <p
+              role="alert"
+              aria-live="assertive"
+              className="rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[12px] text-red-600"
+            >
               {error}
             </p>
           )}
 
           {notice && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-700">
+            <p
+              role="status"
+              aria-live="polite"
+              className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-700"
+            >
               {notice}
             </p>
           )}
