@@ -127,20 +127,25 @@ export type FeatureKey =
  * Requires the authenticated user AND the specified feature entitlement.
  * Throws AuthError (FORBIDDEN, 403) if the user lacks the entitlement.
  *
- * Until the billing system (BILL-002/BILL-003) is live, all authenticated
- * users are treated as having all entitlements. This function is the single
- * enforcement point — when the entitlement table exists, this is where the
- * database check goes.
+ * Checks the entitlements table in the database (BILL-003). Never authorizes
+ * from client-visible JWT metadata.
  */
 export async function requireEntitlement(
   feature: FeatureKey,
 ): Promise<AuthenticatedUser> {
   const user = await requireUser();
 
-  // TODO (BILL-003): Check the entitlements table for this user + feature.
-  // For now, all authenticated users have access. The enforcement point is
-  // already in place — we just need to wire the database check here.
-  void feature;
+  // Check the entitlements table in the database
+  const { checkEntitlement } = await import("@/lib/billing/entitlements");
+  const check = await checkEntitlement(user.id, feature);
+
+  if (!check.hasAccess) {
+    throw new AuthError(
+      `Access to ${feature} requires an active subscription.`,
+      "FORBIDDEN",
+      403,
+    );
+  }
 
   return user;
 }
