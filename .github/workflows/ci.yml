@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main, launch-readiness]
+  pull_request:
+    branches: [main, launch-readiness]
+
+env:
+  NEXT_PUBLIC_SUPABASE_URL: ""
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+  OPENROUTER_API_KEY: "test-key-not-real"
+  ALLOW_LOCAL_MODE: "true"
+
+jobs:
+  quality:
+    name: Lint, Typecheck, Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript check
+        run: pnpm typecheck
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Production build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ""
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+
+  token-and-accessibility-gates:
+    name: Token and Accessibility Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate design tokens
+        run: python3 scripts/validate_tokens.py
+
+      - name: Validate WCAG contrast
+        run: python3 scripts/validate_contrast.py
+
+      - name: Check for emoji
+        run: python3 scripts/check_no_emoji.py
+
+  tests:
+    name: Playwright Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: pnpm test
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ""
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+          ALLOW_LOCAL_MODE: "true"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit for vulnerabilities
+        run: pnpm audit --prod --audit-level=high
+        continue-on-error: true
+
+      - name: Audit dev dependencies
+        run: pnpm audit --audit-level=critical
+        continue-on-error: true

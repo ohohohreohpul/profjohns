@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "lattice",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
-      "autoPort": true
+      "name": "profjohns-site",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4321", "--directory", "/Users/jirananpanlanatiyarak/Downloads/profjohns-site"],
+      "port": 4321
     }
   ]
 }

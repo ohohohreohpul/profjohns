@@ -2,6 +2,7 @@
 /.next
 /out
 /build
+/dist
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
@@ -12,3 +13,7 @@ next-env.d.ts
 # Playwright
 /test-results/
 /playwright-report/
+
+# Supabase
+/supabase/.branches
+/supabase/.temp
