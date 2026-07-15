@@ -21,6 +21,28 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   const isLogin = mode === "login";
 
+  function sanitizeAuthError(err: unknown): string {
+    const msg = err instanceof Error ? err.message : "Something went wrong.";
+    // Map common Supabase error messages to user-readable recovery actions
+    if (msg.includes("Invalid login credentials")) {
+      return "Incorrect email or password. Please try again.";
+    }
+    if (msg.includes("Email not confirmed")) {
+      return "Please confirm your email before signing in. Check your inbox for the confirmation link.";
+    }
+    if (msg.includes("User already registered")) {
+      return "An account with this email already exists. Try signing in instead.";
+    }
+    if (msg.includes("Password should be at least")) {
+      return "Password must be at least 6 characters.";
+    }
+    if (msg.includes("rate limit") || msg.includes("too many")) {
+      return "Too many attempts. Please wait a moment and try again.";
+    }
+    // Never expose raw Supabase internal errors
+    return msg;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -35,13 +57,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         const { error, data } = await signUpWithEmail(email, password);
         if (error) throw error;
         if (data.user && !data.session) {
-          setNotice("Check your email for a confirmation link.");
+          setNotice("Check your email for a confirmation link to complete your signup.");
         } else if (data.session) {
           window.location.href = redirect;
         }
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(sanitizeAuthError(err));
     } finally {
       setBusy(false);
     }
@@ -112,15 +134,26 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                autoComplete="email"
                 className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-300"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-grey-600">
-              Password
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-[12px] font-medium text-grey-600">
+                Password
+              </label>
+              {isLogin && (
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] font-medium text-grey-500 underline-offset-4 hover:underline"
+                >
+                  Forgot?
+                </Link>
+              )}
+            </div>
             <div className="flex items-center gap-2 rounded-xl border border-grey-200 bg-paper px-3 py-2.5 transition-colors focus-within:border-grey-400">
               <Lock className="size-4 shrink-0 text-grey-400" />
               <input
@@ -130,6 +163,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-grey-300"
               />
             </div>

@@ -70,6 +70,36 @@ export function useAuthActions() {
     return supabase.auth.updateUser({ password });
   }, []);
 
+  /** Send a password reset email. The email contains a link to
+   *  /auth/reset?code=... which Supabase exchanges for a session. */
+  const resetPassword = React.useCallback(async (email: string) => {
+    const supabase = createClient();
+    if (!supabase) return { error: { message: "Auth is not configured." } as unknown };
+    return supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset`,
+    });
+  }, []);
+
+  /** Resend the email confirmation link. */
+  const resendConfirmation = React.useCallback(async (email: string) => {
+    const supabase = createClient();
+    if (!supabase) return { error: { message: "Auth is not configured." } as unknown };
+    return supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  }, []);
+
+  /** Sign out of all sessions (revokes all refresh tokens). */
+  const signOutAllSessions = React.useCallback(async () => {
+    const supabase = createClient();
+    if (supabase) await supabase.auth.signOut({ scope: "global" });
+    window.location.href = "/";
+  }, []);
+
   return {
     signInWithEmail,
     signUpWithEmail,
@@ -77,5 +107,8 @@ export function useAuthActions() {
     signOut,
     updateDisplayName,
     updatePassword,
+    resetPassword,
+    resendConfirmation,
+    signOutAllSessions,
   };
 }

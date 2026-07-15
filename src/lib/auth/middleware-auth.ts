@@ -5,7 +5,7 @@ import { canUseLocalMode } from "@/lib/config/env";
  * Routes that are accessible without authentication.
  * Everything else requires a valid server-side session.
  */
-export const PUBLIC_ROUTES = ["/", "/login", "/signup"];
+export const PUBLIC_ROUTES = ["/", "/login", "/signup", "/forgot-password"];
 
 export function isPublicRoute(pathname: string): boolean {
   return (
