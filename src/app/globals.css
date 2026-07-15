@@ -1,0 +1,616 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+/* Type system — Swiss / high-contrast: General Sans (display, Fontshare),
+   Inter (body/UI) + JetBrains Mono (credits/citations/models, Google). The
+   font stylesheets are loaded via <link> in layout.tsx — NOT a CSS @import,
+   which Tailwind v4 would hoist after its own output and invalidate. */
+
+/*
+  ProfJohns — design system. Swiss & high-contrast (light).
+  Solid surfaces, crisp 1px borders, flat depth. NO gradients, NO glassmorphism.
+  Hierarchy comes from scale, weight, and a stark neutral ramp. A single ink
+  accent (#171717); blue (#2563EB) for links/highlights, green (#059669) for AI.
+*/
+
+@theme {
+  --color-ink: #171717;
+  --color-paper: #ffffff;
+
+  --color-grey-50: #fafafa;
+  --color-grey-100: #f4f4f5;
+  --color-grey-200: #e5e5e5;
+  --color-grey-300: #d4d4d4;
+  --color-grey-400: #a3a3a3;
+  --color-grey-500: #737373;
+  --color-grey-600: #525252;
+  --color-grey-700: #404040;
+  --color-grey-800: #262626;
+  --color-grey-900: #171717;
+
+  /* Canvas field — solid, faintly cool neutral (no atmospheric gradients). */
+  --color-canvas: #f5f5f5;
+
+  /* Accent — ink-first Swiss. Blue = links/highlight, green = AI indicator. */
+  --color-accent: #171717;
+  --color-accent-fg: #ffffff;
+  --color-accent-dark: #262626;
+  --color-accent-deep: #000000;
+  --color-highlight: #2563eb;
+  --color-ai: #059669;
+
+  /* Per-node semantic identity — one restrained accent per node type. */
+  --color-node-explorer: oklch(58% 0.13 248); /* blue — search/gather */
+  --color-node-processor: oklch(56% 0.16 300); /* violet — AI synthesis */
+  --color-node-block: oklch(55% 0.035 260); /* slate — content */
+  --color-node-text: oklch(55% 0.035 260); /* slate — notes */
+  --color-node-shell: oklch(62% 0 0); /* neutral — container */
+  --color-node-reader: oklch(68% 0.12 70); /* amber — reading surface */
+  --color-node-writing: oklch(53% 0.11 158); /* green — the draft */
+  --color-node-assistant: oklch(60% 0.12 195); /* teal — AI chat (brand) */
+  --color-node-media: oklch(58% 0.12 200); /* cyan — visual media */
+  --color-node-link: oklch(60% 0.14 25); /* coral — external web link */
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "General Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-card: 0.625rem;
+
+  /* Flat depth only — a hairline lift, never a glow. */
+  --shadow-flat: 0 1px 0 0 rgb(23 23 23 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(23 23 23 / 0.06);
+  --shadow-lift: 0 4px 16px -6px rgb(23 23 23 / 0.12);
+}
+
+:root {
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --border: var(--color-grey-200);
+  --muted: var(--color-grey-500);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Next.js root div must fill viewport. */
+#__next,
+#root {
+  height: 100%;
+}
+
+/* Display / heading face — General Sans, tight tracking (Swiss headings). */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Tighten the default tracking on display type for an editorial feel. */
+.tracking-display {
+  letter-spacing: -0.03em;
+}
+
+/* ---- Phase A: Page Transitions ---- */
+
+/* Surface entrance (existing, kept). */
+@keyframes surface-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-surface-in {
+  animation: surface-in 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Surface exit — reverse of entrance. */
+@keyframes surface-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.985); }
+}
+.animate-surface-out {
+  animation: surface-out 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Canvas behind a surface: dimmed but no scale — avoids white gaps. */
+.canvas-behind-surface {
+  filter: brightness(0.94);
+  transition: filter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Side panel — slides in from the right, canvas stays visible. */
+@keyframes panel-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-panel-in {
+  animation: panel-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes panel-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+.animate-panel-out {
+  animation: panel-out 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+/* Backdrop that lets canvas peek through on the left. */
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-backdrop-in {
+  animation: backdrop-in 200ms ease-out;
+}
+
+/* Onboarding page phase transition — fade + scale. */
+@keyframes phase-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.97); }
+}
+.animate-phase-out {
+  animation: phase-out 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes phase-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-phase-in {
+  animation: phase-in 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Preloader step — staggered fade in + slide up. */
+@keyframes step-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-step-enter {
+  animation: step-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Animated checkmark — stroke draw effect. */
+@keyframes check-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.animate-check-draw {
+  animation: check-draw 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Preloader progress bar. */
+@keyframes progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.animate-progress-fill {
+  animation: progress-fill 2600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transform-origin: left;
+}
+
+/* White flash — brief full-screen overlay before canvas appears. */
+@keyframes flash-out {
+  0% { opacity: 1; }
+  60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-flash-out {
+  animation: flash-out 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ---- Phase B: Node Lifecycle ---- */
+
+/* Node entrance (existing — now applied to all). */
+@keyframes node-in {
+  from { opacity: 0; transform: translateX(-12px) scale(0.96); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-node-in {
+  animation: node-in 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Node delete — scale down + fade out. */
+@keyframes node-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.92); }
+}
+.animate-node-out {
+  animation: node-out 160ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+/* Node selection — subtle scale bump that settles. */
+.node-selected-bump {
+  animation: selection-bump 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes selection-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+/* Edge draw-in pulse. */
+@keyframes edge-draw {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+.react-flow__edge-path.edge-animate {
+  stroke-dasharray: 1000;
+  animation: edge-draw 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ---- Phase C: Micro-Interactions ---- */
+
+/* Shake for errors. */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.animate-shake {
+  animation: shake 350ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+/* Floating toolbar — scale up from cursor. */
+@keyframes float-in {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(0.6); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.animate-float-in {
+  animation: float-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Thread bubble — slide in. */
+@keyframes bubble-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes bubble-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-bubble-in-right {
+  animation: bubble-in-right 150ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.animate-bubble-in-left {
+  animation: bubble-in-left 150ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Auto-dismiss fade. */
+@keyframes fade-out-delay {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.animate-fade-dismiss {
+  animation: fade-out-delay 5s ease-out forwards;
+}
+
+/* Filter panel grid animation. */
+.filter-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.filter-grid.open {
+  grid-template-rows: 1fr;
+}
+.filter-grid > div {
+  overflow: hidden;
+}
+
+/* Tab indicator sliding pill. */
+.tab-pill {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Phase D: Loading & Empty States ---- */
+
+/* Skeleton shimmer. */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-grey-200) 25%,
+    var(--color-grey-100) 50%,
+    var(--color-grey-200) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border-radius: 4px;
+}
+
+/* Branded loading — wordmark pulse. */
+@keyframes wordmark-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+.animate-wordmark {
+  animation: wordmark-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Blank canvas CTA — float in from below. */
+@keyframes cta-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-cta-enter {
+  animation: cta-enter 500ms 1.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Handle bounce hint. */
+@keyframes handle-bounce {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+.animate-handle-bounce {
+  animation: handle-bounce 800ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* ---- Existing animations (kept) ---- */
+
+/* Subtle highlight mark used by the reading agent anchors. */
+.anchor-mark {
+  background: var(--color-grey-200);
+  box-shadow: inset 2px 0 0 0 var(--color-ink);
+  border-radius: 2px;
+}
+
+/* Gentle pulse for the onboarding hint — draws the eye to the Run button. */
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(16% 0 0 / 0.18); }
+  50% { box-shadow: 0 0 0 4px oklch(16% 0 0 / 0.06); }
+}
+.animate-hint-pulse {
+  animation: hint-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Inline autocomplete ghost text — grey continuation at the caret. */
+.tiptap-ghost {
+  color: var(--color-grey-400);
+  pointer-events: none;
+  user-select: none;
+  white-space: pre-wrap;
+}
+
+/* ContentEditable placeholder — shows when block is empty. */
+[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-grey-300);
+  pointer-events: none;
+}
+
+/* ---- React Flow overrides ---- */
+/* Solid Swiss canvas — a single flat neutral field. No gradients, no pools;
+   the dotted grid + crisp white nodes carry the structure. */
+.react-flow__background {
+  background: var(--color-canvas);
+}
+
+/* Palette buttons (left toolbar) — echo each node's accent on hover so the
+   palette and the nodes share one identity language. Reads --a off the button. */
+.palette-btn {
+  color: var(--color-grey-600);
+}
+.palette-btn:hover {
+  color: var(--a);
+  background: color-mix(in oklab, var(--a) 12%, transparent);
+}
+
+/* Node surface — Swiss: solid white, crisp 1px border, hairline lift.
+   No translucency, no backdrop blur, no float glow. */
+.node-surface {
+  background: var(--color-paper);
+  border-color: var(--color-grey-200);
+  box-shadow: var(--shadow-sm);
+}
+.node-surface:hover {
+  border-color: var(--color-grey-300);
+  box-shadow: var(--shadow-lift);
+}
+/* Selected — a single crisp ink ring (border.focus = ink), flat. */
+.node-surface.is-selected,
+.node-surface.is-selected:hover {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 1px var(--color-ink), var(--shadow-sm);
+}
+
+/* Hand (pan) tool cursor. */
+.canvas-grab .react-flow__pane {
+  cursor: grab;
+}
+.canvas-grab .react-flow__pane:active {
+  cursor: grabbing;
+}
+.canvas-grab .react-flow__node {
+  cursor: grab !important;
+}
+
+/* Select tool cursor — default pointer. */
+.react-flow__pane {
+  cursor: default;
+}
+
+/* Force arrow cursor on nodes — React Flow defaults to grab. */
+.react-flow__node {
+  cursor: default !important;
+}
+.rf-cursor-fix .react-flow__node {
+  cursor: default !important;
+}
+.react-flow__node input,
+.react-flow__node textarea,
+.react-flow__node [contenteditable] {
+  cursor: auto;
+}
+.canvas-grab .react-flow__node {
+  cursor: grab !important;
+}
+.react-flow__node > * {
+  cursor: default;
+}
+.react-flow__node input,
+.react-flow__node textarea,
+.react-flow__node [contenteditable],
+.react-flow__node .nodrag {
+  cursor: auto;
+}
+
+/* Solid Swiss connectors — a crisp neutral hairline, ink on hover/selected.
+   (No gradient stroke — honors the zero-gradient rule.) */
+.react-flow__edge-path {
+  stroke: var(--color-grey-400);
+  stroke-width: 1.5;
+  transition: stroke-width 200ms, stroke 200ms;
+  stroke-linecap: round;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--color-ink);
+  stroke-width: 2;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--color-grey-100);
+  border: 1px solid var(--color-grey-200);
+  border-radius: 9999px;
+  transition: all 150ms;
+}
+
+.react-flow__handle:hover {
+  width: 12px;
+  height: 12px;
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__controls {
+  box-shadow: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--border);
+  color: var(--color-ink);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--color-grey-100);
+}
+
+.react-flow__controls-button svg {
+  fill: var(--color-ink);
+}
+
+/* Node dragging — lift shadow. */
+.react-flow__node {
+  cursor: default !important;
+}
+.react-flow__node.dragging {
+  transition: filter 100ms, opacity 100ms;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.14));
+  opacity: 0.92;
+}
+
+/* Edge draw animation — flowing dash pattern. */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: edge-flow 0.5s linear infinite;
+}
+
+@keyframes edge-flow {
+  to { stroke-dashoffset: -10; }
+}
+
+/* TipTap document editor — typographic rhythm for the Writing surface. */
+.tiptap-doc {
+  font-family: var(--font-serif, Georgia, serif);
+  color: var(--color-grey-800);
+}
+.tiptap-doc p {
+  margin: 0 0 0.75em;
+  line-height: 1.75;
+}
+.tiptap-doc h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin: 1.1em 0 0.4em;
+}
+.tiptap-doc h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin: 1em 0 0.35em;
+}
+.tiptap-doc ul,
+.tiptap-doc ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.4em;
+}
+.tiptap-doc ul { list-style: disc; }
+.tiptap-doc ol { list-style: decimal; }
+.tiptap-doc li { margin: 0.15em 0; }
+.tiptap-doc blockquote {
+  margin: 0 0 0.75em;
+  padding-left: 0.9em;
+  border-left: 2px solid var(--color-grey-200);
+  color: var(--color-grey-500);
+}
+.tiptap-doc:focus { outline: none; }
+
+/* Empty-document placeholder (TipTap Placeholder extension). */
+.tiptap-doc p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-grey-400);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Inline citation chip — carries data-paper-id; references derive from these. */
+.lattice-citation {
+  color: var(--color-node-reader);
+  font-weight: 500;
+  cursor: default;
+}

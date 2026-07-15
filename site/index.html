@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ProfJohns — A node-based research canvas</title>
+<meta name="description" content="Gather sources on an infinite canvas, read with an always-on agent, and write in your own voice." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>
+<style>
+:root {
+  --bg-base: #FFFFFF;
+  --surface-1: #FCFCFD;
+  --surface-2: #F7F8FA;
+  --stroke: #ECECF1;
+  --stroke-strong: #E0E0E6;
+  --teal-500: #009B94;
+  --teal-600: #07878F;
+  --teal-100: #D6F0EE;
+  --teal-50: #EEF8F7;
+  --slate: #2A5C6F;
+  --ink-900: #101014;
+  --ink-700: #3D3D4A;
+  --ink-500: #6B6B76;
+  --ink-300: #C7C7CF;
+  --dot-blue: #3B6BFF;
+  --dot-violet: #7C4DFF;
+  --dot-green: #16B364;
+  --dot-amber: #F5A524;
+  --dot-teal: #009B94;
+  --font-display: "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --card-radius: 16px;
+  --card-shadow: 0 1px 2px rgba(16,16,20,.04), 0 12px 32px rgba(16,16,20,.06);
+  --card-shadow-hover: 0 1px 2px rgba(16,16,20,.06), 0 20px 48px rgba(16,16,20,.10);
+  --max-w: 1200px;
+  --gutter: 24px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{background:var(--bg-base);color:var(--ink-900);font-family:var(--font-body);font-weight:400;line-height:1.6;overflow-x:hidden}
+::selection{background:var(--teal-100);color:var(--teal-600)}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+
+/* scroll progress */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;background:var(--teal-500);z-index:200;width:0;transform-origin:left}
+
+/* nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 var(--gutter);background:rgba(255,255,255,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s,background .3s}
+nav.scrolled{border-bottom-color:var(--stroke)}
+.nav-brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:600;font-size:18px;letter-spacing:-.02em}
+.nav-brand svg{width:28px;height:28px}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{font-size:14px;color:var(--ink-500);transition:color .2s;font-weight:500}
+.nav-links a:hover{color:var(--ink-900)}
+.nav-cta{padding:10px 18px;border-radius:999px;background:var(--teal-500);color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .2s,box-shadow .2s;display:inline-flex;align-items:center;gap:6px}
+.nav-cta:hover{background:var(--teal-600);box-shadow:0 4px 16px rgba(0,155,148,.25)}
+@media(max-width:768px){.nav-links{display:none}}
+
+.container{max-width:var(--max-w);margin:0 auto;padding:0 var(--gutter)}
+section{position:relative;padding:96px 0}
+@media(max-width:768px){section{padding:64px 0}}
+
+.eyebrow{font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-500)}
+.card{background:var(--surface-1);border:1px solid var(--stroke);border-radius:var(--card-radius);box-shadow:var(--card-shadow);transition:box-shadow .3s,transform .3s}
+.skeleton{height:8px;border-radius:4px;background:var(--ink-300);opacity:.6}
+.skeleton.w-60{width:60%}.skeleton.w-80{width:80%}.skeleton.w-100{width:100%}
+.skeleton.w-40{width:40%}.skeleton.w-70{width:70%}
+.tag-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.04em}
+.tag-teal{background:var(--teal-100);color:var(--teal-600)}
+.tag-ink{background:var(--surface-2);color:var(--ink-500)}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-blue{background:var(--dot-blue)}.dot-violet{background:var(--dot-violet)}.dot-green{background:var(--dot-green)}.dot-amber{background:var(--dot-amber)}.dot-teal{background:var(--dot-teal)}
+
+/* HERO */
+#hero{min-height:92vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-top:120px}
+.hero-mascot{width:120px;height:120px;margin-bottom:32px;position:relative}
+.hero-mascot svg{width:100%;height:100%}
+.hero-researcher-bubble{position:absolute;top:-6px;right:-22px;width:54px;height:54px;border-radius:50%;background:var(--surface-1);border:1px solid var(--stroke);box-shadow:var(--card-shadow);display:flex;align-items:center;justify-content:center;z-index:3}
+.hero-researcher-bubble::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px dashed var(--ink-300);opacity:.5;animation:rb-spin 14s linear infinite}
+.hero-researcher-bubble svg{width:32px;height:32px}
+.hero-researcher-bubble .rb-ring{position:absolute;bottom:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:var(--dot-green);border:2px solid var(--bg-base)}
+@keyframes rb-spin{to{transform:rotate(360deg)}}
+.hero-headline{font-family:var(--font-display);font-weight:700;font-size:clamp(48px,6vw,80px);line-height:1.02;letter-spacing:-.03em;color:var(--ink-900);max-width:18ch}
+.hero-headline .word-wrap{display:inline-block;overflow:hidden;vertical-align:top}
+.hero-headline .word{display:inline-block}
+.hero-sub{margin-top:24px;font-size:20px;color:var(--ink-500);max-width:620px;line-height:1.5}
+.hero-cta{margin-top:40px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.btn{padding:12px 28px;border-radius:999px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px;border:none}
+.btn-primary{background:var(--teal-500);color:#fff}
+.btn-primary:hover{background:var(--teal-600);box-shadow:0 4px 16px rgba(0,155,148,.25)}
+.btn-ghost{background:transparent;color:var(--ink-900);border:1px solid var(--stroke-strong)}
+.btn-ghost:hover{border-color:var(--ink-300)}
+.scroll-cue{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-500);display:flex;flex-direction:column;align-items:center;gap:10px}
+.scroll-cue .line{width:1px;height:40px;background:var(--ink-300);position:relative;overflow:hidden}
+.scroll-cue .line-inner{position:absolute;top:0;width:100%;height:40%;background:var(--teal-500)}
+
+/* SECTION 2 — Workflow */
+#workflow{padding:0;overflow:hidden}
+.workflow-frame{width:100%;max-width:var(--max-w);margin:0 auto;height:500px;position:relative;background:var(--surface-1);border:1px solid var(--stroke);border-radius:20px;overflow:hidden}
+.workflow-frame::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--ink-300) 1px,transparent 1px);background-size:20px 20px;opacity:.5}
+.workflow-eyebrow{text-align:center;margin-bottom:16px}
+.workflow-title{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,4vw,44px);text-align:center;letter-spacing:-.02em;margin-bottom:48px}
+.wf-node{position:absolute;padding:16px 20px;background:#fff;border:1px solid var(--stroke-strong);border-radius:var(--card-radius);box-shadow:var(--card-shadow);min-width:200px;z-index:2}
+.wf-node .wf-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);margin-bottom:6px}
+.wf-node .wf-title{font-size:15px;font-weight:600;color:var(--ink-900)}
+.wf-node .wf-sub{font-size:12px;color:var(--ink-500);margin-top:4px}
+.wf-node .wf-dot{position:absolute;top:16px;left:16px}
+.wf-node.has-dot{padding-left:36px}
+.wf-node.n1{top:50%;left:5%;transform:translateY(-50%)}
+.wf-node.n2{top:50%;left:50%;transform:translate(-50%,-50%)}
+.wf-node.n3{top:50%;right:5%;transform:translateY(-50%)}
+.wf-svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.wf-prompt{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:12px;color:var(--ink-500);padding:8px 16px;border-radius:999px;background:var(--surface-2);border:1px solid var(--stroke);z-index:3;white-space:nowrap}
+.wf-prompt .key{color:var(--teal-500);font-weight:600}
+
+/* SECTION 3 — Triptych */
+.triptych{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative}
+@media(max-width:900px){.triptych{grid-template-columns:1fr}}
+.tri-card{padding:24px;cursor:default}
+.tri-card .tri-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.tri-card .tri-avatar{width:36px;height:36px;border-radius:50%;background:var(--teal-100);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tri-card .tri-avatar .dot{width:12px;height:12px}
+.tri-card .tri-name{font-size:15px;font-weight:600;color:var(--ink-900)}
+.tri-card .tri-bars{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.tri-card .tri-inner{background:var(--surface-2);border:1px solid var(--stroke);border-radius:10px;padding:14px;display:flex;align-items:center;gap:10px}
+.tri-card .tri-caption{margin-top:14px;font-size:13px;color:var(--teal-500);font-weight:500}
+.tri-arrow{position:absolute;top:50%;transform:translateY(-50%);font-size:24px;color:var(--ink-300);z-index:1;pointer-events:none}
+.tri-arrow.a1{left:33.3%}
+.tri-arrow.a2{left:66.6%}
+@media(max-width:900px){.tri-arrow{display:none}}
+
+/* SECTION 4 — Reader + Highlights */
+.reader-split{display:grid;grid-template-columns:60% 40%;gap:24px}
+@media(max-width:900px){.reader-split{grid-template-columns:1fr}}
+.reader-frame{background:var(--surface-1);border:1px solid var(--stroke);border-radius:var(--card-radius);padding:24px;position:relative;overflow:hidden}
+.reader-frame::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--ink-300) 1px,transparent 1px);background-size:20px 20px;opacity:.3;pointer-events:none}
+.hl-card{position:relative;z-index:1;padding:14px 0;border-bottom:1px solid var(--stroke)}
+.hl-card:last-child{border-bottom:none}
+.hl-row{display:flex;align-items:flex-start;gap:12px}
+.hl-swatch{display:inline-block;height:16px;background:var(--teal-100);border-radius:3px;flex-shrink:0;transform:scaleX(0);transform-origin:left;margin-top:2px}
+.hl-swatch.s1{width:120px}.hl-swatch.s2{width:80px}
+.hl-bars{flex:1;display:flex;flex-direction:column;gap:6px}
+.summary-card{background:var(--surface-1);border:1px solid var(--stroke);border-radius:var(--card-radius);padding:24px}
+.summary-card .sc-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);margin-bottom:16px}
+.summary-bar{height:10px;border-radius:5px;background:var(--surface-2);border:1px solid var(--stroke);margin-bottom:10px;clip-path:inset(0 100% 0 0);position:relative}
+.summary-bar .kw-pill{position:absolute;top:-2px;left:8px;height:14px;padding:0 6px;border-radius:3px;background:var(--teal-100);font-family:var(--font-mono);font-size:9px;color:var(--teal-600);display:flex;align-items:center;font-weight:600}
+
+/* SECTION 5 — Node Taxonomy Rail */
+.tax-rail{display:flex;gap:16px;overflow:hidden;padding-bottom:8px}
+.tax-card{flex:0 0 280px;padding:20px;position:relative}
+.tax-card .tc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.tax-card .tc-pill{font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-500)}
+.tax-card .tc-title{font-size:15px;font-weight:600;margin-bottom:12px}
+.tax-card .tc-bars{display:flex;flex-direction:column;gap:8px}
+.tax-divider{display:flex;align-items:center;gap:12px;margin:24px 0}
+.tax-divider .td-line{flex:1;height:1px;background:var(--stroke)}
+.tax-divider .td-pill{font-family:var(--font-mono);font-size:11px;padding:4px 12px;border-radius:999px;background:var(--surface-2);color:var(--ink-500);border:1px solid var(--stroke)}
+.citograph{flex-shrink:0}
+
+/* SECTION 6 — Roadmap */
+.roadmap-tabs{display:flex;gap:8px;margin-bottom:24px}
+.roadmap-tab{padding:8px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--stroke);background:var(--surface-1);color:var(--ink-500);transition:all .2s}
+.roadmap-tab.active{background:var(--ink-900);color:#fff;border-color:var(--ink-900)}
+.roadmap-count{font-family:var(--font-display);font-size:48px;font-weight:700;color:var(--teal-500);letter-spacing:-.02em;margin-bottom:32px}
+.roadmap-count .rc-label{font-size:14px;color:var(--ink-500);font-weight:400;margin-left:12px}
+.rm-table{width:100%;border-collapse:collapse}
+.rm-table th{background:var(--surface-2);padding:12px 16px;text-align:left;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink-500);letter-spacing:.04em;border-bottom:1px solid var(--stroke)}
+.rm-table td{padding:12px 16px;border-bottom:1px solid var(--stroke);font-size:14px}
+.rm-status{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.rm-done{background:var(--teal-100);color:var(--teal-600)}
+.rm-partial{background:#FEF3C7;color:#92400E}
+.rm-todo{background:var(--surface-2);color:var(--ink-500)}
+
+/* SECTION 7 — AI Assistant */
+.ai-split{display:grid;grid-template-columns:1fr 1.2fr;gap:48px;align-items:start}
+@media(max-width:900px){.ai-split{grid-template-columns:1fr}}
+.ai-left .ai-eyebrow{color:var(--dot-violet);margin-bottom:12px}
+.ai-left h2{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,4vw,44px);letter-spacing:-.02em;margin-bottom:16px}
+.ai-left p{font-size:16px;color:var(--ink-500);line-height:1.6}
+.ai-left .ai-bars{margin-top:24px;display:flex;flex-direction:column;gap:8px}
+.ai-panel{background:var(--surface-1);border:1px solid var(--stroke);border-radius:var(--card-radius);padding:20px;box-shadow:var(--card-shadow)}
+.ai-search{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface-2);border:1px solid var(--stroke);border-radius:12px;margin-bottom:16px}
+.ai-search .ai-caret{width:2px;height:18px;background:var(--ink-900);flex-shrink:0}
+.ai-model-pill{margin-left:auto;padding:4px 10px;border-radius:6px;background:var(--ink-900);color:#fff;font-family:var(--font-mono);font-size:11px;font-weight:500}
+.ai-ask{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.ai-ask .tag-teal{padding:4px 10px}
+.ai-ask-bar{flex:1;height:12px;border-radius:6px;background:var(--teal-50);width:0}
+.ai-thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.ai-thumb{aspect-ratio:1;background:var(--surface-2);border:1px solid var(--stroke);border-radius:8px;display:flex;flex-direction:column;justify-content:space-between;padding:8px;position:relative;overflow:hidden}
+.ai-thumb .at-journal{font-family:var(--font-mono);font-size:8px;color:var(--ink-500);letter-spacing:.04em;text-transform:uppercase}
+.ai-thumb .at-title{font-size:9px;font-weight:600;color:var(--ink-900);line-height:1.25;margin-top:3px}
+.ai-thumb .at-spark{display:flex;align-items:flex-end;gap:1px;height:14px;margin-top:4px}
+.ai-thumb .at-spark span{flex:1;background:var(--ink-300);border-radius:1px;min-height:2px}
+.ai-thumb .at-tag{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:2px;background:var(--teal-100)}
+
+/* SECTION 8 — Future Pipeline + Footer */
+.pipeline{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:64px}
+@media(max-width:768px){.pipeline{grid-template-columns:1fr}}
+.pipe-card{padding:32px;display:flex;gap:20px;align-items:flex-start}
+.pipe-mascot{width:56px;height:56px;flex-shrink:0}
+.pipe-mascot svg{width:100%;height:100%}
+.pipe-card h3{font-family:var(--font-display);font-weight:600;font-size:18px;margin-bottom:8px}
+.pipe-card p{font-size:14px;color:var(--ink-500);line-height:1.5}
+.pipe-path{margin-top:12px;font-family:var(--font-mono);font-size:11px;color:var(--ink-500);padding:4px 10px;border-radius:6px;background:var(--surface-2);display:inline-block;border:1px solid var(--stroke)}
+
+#cta-final{text-align:center;padding:80px 0}
+.cta-headline{font-family:var(--font-display);font-weight:700;font-size:clamp(36px,5vw,64px);letter-spacing:-.02em;max-width:16ch;margin:0 auto 24px}
+.cta-sub{font-size:18px;color:var(--ink-500);max-width:48ch;margin:0 auto 40px}
+
+footer{border-top:1px solid var(--stroke);padding:40px var(--gutter)}
+.footer-inner{max-width:var(--max-w);margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px}
+.footer-brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:600;font-size:16px}
+.footer-brand svg{width:24px;height:24px}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-family:var(--font-mono);font-size:12px;color:var(--ink-500);transition:color .2s}
+.footer-links a:hover{color:var(--ink-900)}
+.footer-copy{font-family:var(--font-mono);font-size:11px;color:var(--ink-300)}
+
+/* section headers */
+.sec-head{margin-bottom:48px}
+.sec-head .eyebrow{margin-bottom:12px}
+.sec-head h2{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,4vw,48px);letter-spacing:-.02em;max-width:24ch}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(30px)}
+
+/* interactive node demo */
+.node-canvas{width:100%;max-width:var(--max-w);height:420px;margin:0 auto;position:relative;background:var(--surface-1);border:1px solid var(--stroke);border-radius:20px;overflow:hidden}
+.node-canvas::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--ink-300) 1px,transparent 1px);background-size:20px 20px;opacity:.4}
+.nd{position:absolute;padding:16px 20px;background:#fff;border:1px solid var(--stroke-strong);border-radius:var(--card-radius);box-shadow:var(--card-shadow);z-index:2;min-width:200px;transition:border-color .3s,box-shadow .3s}
+.nd .nd-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);margin-bottom:6px}
+.nd .nd-title{font-size:14px;font-weight:600;color:var(--ink-900)}
+.nd.source{top:50%;left:6%;transform:translateY(-50%)}
+.nd.target{top:50%;right:6%;transform:translateY(-50%);border-style:dashed}
+.nd.target.active{border-style:solid;border-color:var(--teal-500);box-shadow:0 0 0 4px var(--teal-50)}
+.nd-handle{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--teal-500);transform:translateY(-50%);z-index:3;cursor:grab}
+.nd-handle:active{cursor:grabbing}
+.nd.source .nd-handle.out{right:-7px}
+.nd.target .nd-handle.in{left:-7px}
+.nd-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.nd-prompt{position:absolute;top:20px;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:12px;color:var(--ink-500);padding:8px 16px;border-radius:999px;background:var(--surface-2);border:1px solid var(--stroke);z-index:4;white-space:nowrap;transition:opacity .4s}
+.nd-prompt .key{color:var(--teal-500);font-weight:600}
+.nd-status{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:12px;padding:10px 18px;border-radius:999px;background:#fff;border:1px solid var(--stroke);font-family:var(--font-mono);font-size:12px;color:var(--ink-500);opacity:0;transition:opacity .4s}
+.nd-status.show{opacity:1}
+.nd-spinner{width:14px;height:14px;border:2px solid var(--stroke-strong);border-top-color:var(--teal-500);border-radius:50%;animation:nd-spin .7s linear infinite}
+@keyframes nd-spin{to{transform:rotate(360deg)}}
+.nd-research{position:absolute;bottom:60px;left:50%;transform:translateX(-50%) translateY(20px);width:86%;max-width:640px;z-index:5;opacity:0;pointer-events:none;transition:opacity .5s,transform .5s}
+.nd-research.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.nd-research .rr-head{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal-500);margin-bottom:10px}
+.paper-card{display:flex;gap:12px;padding:12px 16px;margin-bottom:6px;background:#fff;border:1px solid var(--stroke);border-radius:10px}
+.paper-card .pc-num{font-family:var(--font-mono);font-size:11px;color:var(--ink-300);min-width:20px;padding-top:1px}
+.paper-card .pc-title{font-size:13px;font-weight:500;color:var(--ink-900);line-height:1.35}
+.paper-card .pc-meta{font-size:11px;color:var(--ink-500);margin-top:3px;font-family:var(--font-mono)}
+.nd-reset{position:absolute;top:20px;right:20px;z-index:5;padding:6px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--stroke);color:var(--ink-500);font-size:12px;font-family:var(--font-mono);cursor:pointer;opacity:0;transition:opacity .3s}
+.nd-reset.show{opacity:1}
+.nd-reset:hover{color:var(--ink-900);border-color:var(--ink-300)}
+
+/* chat */
+#agent-chat{text-align:center}
+.chat-window{max-width:480px;margin:0 auto;background:var(--surface-1);border:1px solid var(--stroke);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:24px;display:flex;flex-direction:column;gap:12px;text-align:left}
+.chat-head{display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--stroke)}
+.chat-avatar{width:36px;height:36px;flex-shrink:0}
+.chat-name{font-size:14px;font-weight:600}
+.chat-status{font-size:11px;color:var(--ink-500);font-family:var(--font-mono)}
+.chat-status .live{color:var(--dot-green)}
+.chat-msg{align-self:flex-start;max-width:88%;padding:12px 16px;border-radius:16px 16px 16px 4px;background:var(--surface-2);border:1px solid var(--stroke);font-size:14px;line-height:1.5;opacity:0;transform:translateY(10px)}
+.chat-msg.show{opacity:1;transform:translateY(0);transition:opacity .4s,transform .4s}
+.chat-typing{align-self:flex-start;padding:12px 16px;border-radius:16px 16px 16px 4px;background:var(--surface-2);border:1px solid var(--stroke);display:flex;gap:5px;opacity:0}
+.chat-typing.show{opacity:1}
+.chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--ink-300);animation:blink 1.4s infinite both}
+.chat-typing span:nth-child(2){animation-delay:.2s}
+.chat-typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<nav id="nav">
+  <div class="nav-brand">
+    <svg viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M 979 590 C 1020 587 1103 603 1141 616 C 1170 609 1225 603 1253 611 C 1283 621 1290 649 1278 677 C 1318 688 1366 707 1391 741 C 1408 766 1420 798 1389 819 C 1401 839 1406 859 1415 880 C 1424 903 1442 924 1421 947 C 1408 962 1392 965 1374 966 C 1374 1002 1370 1050 1338 1073 C 1337 1094 1333 1114 1328 1134 C 1364 1174 1362 1243 1320 1280 C 1312 1287 1304 1291 1295 1296 C 1286 1317 1280 1329 1265 1348 C 1227 1395 1139 1416 1080 1421 C 1022 1427 962 1417 907 1402 C 832 1382 714 1320 677 1252 C 636 1238 626 1201 618 1162 C 593 1137 578 1117 576 1080 C 574 1048 583 1027 602 1002 C 601 991 599 979 598 968 C 595 934 605 900 611 867 C 619 824 625 788 654 754 C 690 711 742 685 797 681 C 803 667 811 654 820 642 C 843 615 856 618 885 609 C 919 599 944 594 979 590 z" fill="#009B94"/></svg>
+    <span>ProfJohns</span>
+  </div>
+  <div class="nav-links">
+    <a href="#workflow">Workflow</a>
+    <a href="#triptych">Nodes</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#agent-chat">Agent</a>
+  </div>
+  <button class="nav-cta">Open the canvas →</button>
+</nav>
+
+<!-- ===================== SECTION 1: HERO ===================== -->
+<section id="hero">
+  <div class="hero-mascot" id="heroMascot">
+    <svg viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path class="mascot-path" d="M 979 590 C 1020 587 1103 603 1141 616 C 1170 609 1225 603 1253 611 C 1283 621 1290 649 1278 677 C 1318 688 1366 707 1391 741 C 1408 766 1420 798 1389 819 C 1401 839 1406 859 1415 880 C 1424 903 1442 924 1421 947 C 1408 962 1392 965 1374 966 C 1374 1002 1370 1050 1338 1073 C 1337 1094 1333 1114 1328 1134 C 1364 1174 1362 1243 1320 1280 C 1312 1287 1304 1291 1295 1296 C 1286 1317 1280 1329 1265 1348 C 1227 1395 1139 1416 1080 1421 C 1022 1427 962 1417 907 1402 C 832 1382 714 1320 677 1252 C 636 1238 626 1201 618 1162 C 593 1137 578 1117 576 1080 C 574 1048 583 1027 602 1002 C 601 991 599 979 598 968 C 595 934 605 900 611 867 C 619 824 625 788 654 754 C 690 711 742 685 797 681 C 803 667 811 654 820 642 C 843 615 856 618 885 609 C 919 599 944 594 979 590 z" fill="#009B94"/>
+      <path d="M 1008 1054 C 1037 1051 1062 1071 1066 1099 C 1070 1128 1050 1154 1022 1158 C 1003 1160 984 1153 973 1138 C 961 1123 959 1103 966 1086 C 973 1068 989 1056 1008 1054 z" fill="#009B94"/>
+      <path d="M 1247 1111 C 1294 1109 1306 1180 1260 1204 C 1207 1216 1202 1120 1247 1111 z" fill="#009B94"/>
+      <path d="M 1021 961 C 1039 960 1058 962 1076 962 C 1108 962 1099 988 1083 991 C 1067 995 1036 993 1018 993 C 1005 994 957 999 948 992 C 945 990 944 988 943 985 C 943 981 945 977 947 974 C 959 962 1004 962 1021 961 z" fill="#009B94"/>
+      <path d="M 1251 1002 C 1281 1001 1329 1050 1298 1070 C 1287 1067 1279 1049 1268 1042 C 1257 1035 1237 1032 1241 1015 C 1243 1008 1245 1006 1251 1002 z" fill="#009B94"/>
+      <path d="M 1155 1154 C 1179 1153 1181 1180 1181 1199 C 1181 1206 1176 1211 1171 1215 C 1162 1218 1149 1218 1150 1207 C 1150 1192 1148 1177 1148 1163 C 1148 1159 1152 1156 1155 1154 z" fill="#009B94"/>
+      <path d="M 1104 1273 C 1091 1261 1100 1247 1112 1256 C 1117 1262 1121 1263 1129 1265 C 1136 1264 1150 1260 1151 1271 C 1146 1282 1132 1284 1121 1281 C 1113 1279 1110 1277 1104 1273 z" fill="#2A5C6F"/>
+      <path d="M 1129 1265 C 1136 1264 1150 1260 1151 1271 C 1146 1282 1132 1284 1121 1281 C 1123 1274 1127 1274 1129 1265 z" fill="#07878F"/>
+      <path d="M 1104 1273 C 1091 1261 1100 1247 1112 1256 C 1107 1264 1107 1264 1104 1273 z" fill="#07878F"/>
+      <path d="M 881 782 C 888 782 903 786 899 794 C 885 823 842 891 819 908 C 813 909 809 908 805 904 C 803 901 801 897 802 894 C 803 890 835 845 840 838 C 851 825 869 791 881 782 z" fill="#009B94"/>
+    </svg>
+    <div class="hero-researcher-bubble" id="heroResearcher" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="24" r="10" fill="#009B94"/><path d="M14 56 C14 44 22 38 32 38 C42 38 50 44 50 56 Z" fill="#009B94" opacity=".85"/></svg>
+      <span class="rb-ring"></span>
+    </div>
+  </div>
+  <h1 class="hero-headline" id="heroHeadline">A node-based research canvas.</h1>
+  <p class="hero-sub" id="heroSub">Gather sources on an infinite canvas, read with an always-on agent, and write in your own voice — because ProfJohns learned how you write, not how everyone writes.</p>
+  <div class="hero-cta" id="heroCta">
+    <a href="#node-demo" class="btn btn-primary">Open the canvas →</a>
+    <a href="#workflow" class="btn btn-ghost">See the workflow</a>
+  </div>
+  <div class="scroll-cue">
+    <span>Scroll</span>
+    <div class="line"><div class="line-inner" id="scrollCueInner"></div></div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 2: WORKFLOW ===================== -->
+<section id="workflow">
+  <div class="container">
+    <div class="workflow-eyebrow"><span class="eyebrow">The workflow</span></div>
+    <h2 class="workflow-title">Connect nodes, and it thinks.</h2>
+  </div>
+  <div class="workflow-frame" id="wfFrame">
+    <div class="wf-prompt" id="wfPrompt"><span class="key">Edges</span> carry data between nodes</div>
+    <svg class="wf-svg" id="wfSvg">
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <polygon points="0 0, 8 4, 0 8" fill="#C7C7CF"/>
+        </marker>
+      </defs>
+    </svg>
+    <div class="wf-node n1 has-dot" id="wfN1">
+      <span class="wf-dot dot dot-blue"></span>
+      <div class="wf-label">Find Sources</div>
+      <div class="wf-title">arXiv + Semantic Scholar</div>
+      <div class="wf-sub">Wire a note → Run</div>
+    </div>
+    <div class="wf-node n2 has-dot" id="wfN2">
+      <span class="wf-dot dot dot-violet"></span>
+      <div class="wf-label">Synthesis</div>
+      <div class="wf-title">Compare across N papers</div>
+      <span class="tag-pill tag-teal" style="margin-top:8px">Run</span>
+    </div>
+    <div class="wf-node n3 has-dot" id="wfN3">
+      <span class="wf-dot dot dot-green"></span>
+      <div class="wf-label">Review</div>
+      <div class="wf-title">Citation audit + anchors</div>
+      <div class="wf-sub">From real sources</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== INTERACTIVE NODE DEMO ===================== -->
+<section id="node-demo" style="padding-top:0">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Try it</span>
+      <h2>Drag to connect. Watch it think.</h2>
+    </div>
+  </div>
+  <div class="node-canvas" id="ndCanvas">
+    <div class="nd-prompt" id="ndPrompt"><span class="key">Click &amp; drag</span> from the dot to connect the nodes</div>
+    <div class="nd source" id="ndSource">
+      <div class="nd-label">Note</div>
+      <div class="nd-title">"Effects of micro-credentials on labour mobility"</div>
+      <div class="nd-handle out" id="ndHandle" role="button" aria-label="Drag to connect" tabindex="0"></div>
+    </div>
+    <div class="nd target" id="ndTarget">
+      <div class="nd-label">Find Sources</div>
+      <div class="nd-title">arXiv · Semantic Scholar</div>
+      <div class="nd-handle in" id="ndHandleIn"></div>
+    </div>
+    <svg class="nd-svg" id="ndSvg">
+      <path id="ndPath" d="" stroke="#009B94" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="0 1"/>
+    </svg>
+    <div class="nd-status" id="ndStatus">
+      <div class="nd-spinner"></div>
+      <span id="ndStatusText">Analyzing query…</span>
+    </div>
+    <div class="nd-research" id="ndResearch">
+      <div class="rr-head">4 sources found · ranked by relevance</div>
+      <div class="paper-card"><span class="pc-num">01</span><div><div class="pc-title">Micro-credentialing and the skills signalling problem in hiring markets</div><div class="pc-meta">M. Chen · 2024 · J. Labour Econ.</div></div></div>
+      <div class="paper-card"><span class="pc-num">02</span><div><div class="pc-title">Do short-cycle credentials improve wage mobility? A quasi-experiment</div><div class="pc-meta">R. Okafor, L. Bench · 2023 · Rev. Econ. Studies</div></div></div>
+      <div class="paper-card"><span class="pc-num">03</span><div><div class="pc-title">Stacking credentials: evidence from European labour transitions</div><div class="pc-meta">P. Voss et al. · 2024 · Eur. J. Education</div></div></div>
+    </div>
+    <button class="nd-reset" id="ndReset">↻ Reset</button>
+  </div>
+</section>
+
+<!-- ===================== SECTION 3: TRIPTYCH ===================== -->
+<section id="triptych">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Node taxonomy</span>
+      <h2>Every node has a job. Connect them, and the graph works.</h2>
+    </div>
+    <div class="triptych" id="triptychGrid">
+      <div class="card tri-card" data-dot="blue">
+        <div class="tri-head">
+          <div class="tri-avatar"><span class="dot dot-blue"></span></div>
+          <div class="tri-name">Find Sources</div>
+        </div>
+        <div class="tri-bars">
+          <div class="skeleton w-80"></div>
+          <div class="skeleton w-60"></div>
+        </div>
+        <div class="tri-inner">
+          <span class="dot dot-blue" style="width:8px;height:8px"></span>
+          <div class="skeleton w-100" style="height:6px"></div>
+        </div>
+        <div class="tri-caption">Search · gather · rank</div>
+      </div>
+      <div class="card tri-card" data-dot="violet">
+        <div class="tri-head">
+          <div class="tri-avatar"><span class="dot dot-violet"></span></div>
+          <div class="tri-name">Synthesis</div>
+        </div>
+        <div class="tri-bars">
+          <div class="skeleton w-80"></div>
+          <div class="skeleton w-60"></div>
+        </div>
+        <div class="tri-inner">
+          <span class="dot dot-violet" style="width:8px;height:8px"></span>
+          <div class="skeleton w-100" style="height:6px"></div>
+        </div>
+        <div class="tri-caption">Compare · contrast · extract</div>
+      </div>
+      <div class="card tri-card" data-dot="teal">
+        <div class="tri-head">
+          <div class="tri-avatar"><span class="dot dot-teal"></span></div>
+          <div class="tri-name">Writing</div>
+        </div>
+        <div class="tri-bars">
+          <div class="skeleton w-80"></div>
+          <div class="skeleton w-60"></div>
+        </div>
+        <div class="tri-inner">
+          <span class="dot dot-teal" style="width:8px;height:8px"></span>
+          <div class="skeleton w-100" style="height:6px"></div>
+        </div>
+        <div class="tri-caption">Draft · edit · export</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 4: READER + HIGHLIGHTS ===================== -->
+<section id="reader">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">The reader</span>
+      <h2>Highlight, extract, summarize — in one surface.</h2>
+    </div>
+    <div class="reader-split">
+      <div class="reader-frame" id="readerFrame">
+        <div class="hl-card">
+          <div class="hl-row">
+            <span class="hl-swatch s1" data-hl="1"></span>
+            <div class="hl-bars">
+              <div class="skeleton w-100" style="height:6px"></div>
+              <div class="skeleton w-70" style="height:6px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="hl-card">
+          <div class="hl-row">
+            <span class="hl-swatch s2" data-hl="2"></span>
+            <div class="hl-bars">
+              <div class="skeleton w-100" style="height:6px"></div>
+              <div class="skeleton w-40" style="height:6px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="summary-card" id="summaryCard">
+        <div class="sc-label">Extracted summary</div>
+        <div class="summary-bar" data-clip="1"><span class="kw-pill">micro-credentials</span></div>
+        <div class="summary-bar" data-clip="2" style="width:90%"></div>
+        <div class="summary-bar" data-clip="3"><span class="kw-pill">wage mobility</span></div>
+        <div class="summary-bar" data-clip="4" style="width:85%"></div>
+        <div class="summary-bar" data-clip="5"><span class="kw-pill">stacking</span></div>
+        <div class="summary-bar" data-clip="6" style="width:70%"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 5: NODE TAXONOMY RAIL ===================== -->
+<section id="taxonomy">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Source providers</span>
+      <h2>Five providers. One canvas.</h2>
+    </div>
+    <div class="tax-divider">
+      <div class="td-line"></div>
+      <svg class="citograph" width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 20 C 30 8, 50 8, 60 20 C 70 32, 90 32, 108 20" stroke="#C7C7CF" stroke-width="1.2" fill="none"/>
+        <path d="M12 20 C 30 32, 50 32, 60 20" stroke="#C7C7CF" stroke-width="1.2" fill="none"/>
+        <path d="M60 20 C 75 12, 95 12, 108 20" stroke="#C7C7CF" stroke-width="1.2" fill="none"/>
+        <circle cx="12" cy="20" r="4" fill="#3B6BFF"/>
+        <circle cx="60" cy="20" r="4" fill="#009B94"/>
+        <circle cx="108" cy="20" r="4" fill="#7C4DFF"/>
+        <circle cx="36" cy="11" r="3" fill="#16B364"/>
+        <circle cx="84" cy="11" r="3" fill="#F5A524"/>
+      </svg>
+      <div class="td-line"></div>
+      <span class="td-pill">connected sources</span>
+      <div class="td-line"></div>
+    </div>
+    <div class="tax-rail" id="taxRail">
+      <div class="card tax-card">
+        <div class="tc-top"><span class="dot dot-blue"></span><span class="tc-pill">arXiv</span></div>
+        <div class="tc-title">Pre-prints</div>
+        <div class="tc-bars"><div class="skeleton w-100"></div><div class="skeleton w-80"></div><div class="skeleton w-60"></div></div>
+      </div>
+      <div class="card tax-card">
+        <div class="tc-top"><span class="dot dot-violet"></span><span class="tc-pill">Semantic Scholar</span></div>
+        <div class="tc-title">Citation graph</div>
+        <div class="tc-bars"><div class="skeleton w-100"></div><div class="skeleton w-80"></div><div class="skeleton w-60"></div></div>
+      </div>
+      <div class="card tax-card">
+        <div class="tc-top"><span class="dot dot-green"></span><span class="tc-pill">PDF upload</span></div>
+        <div class="tc-title">Extract + parse</div>
+        <div class="tc-bars"><div class="skeleton w-100"></div><div class="skeleton w-80"></div><div class="skeleton w-60"></div></div>
+      </div>
+      <div class="card tax-card">
+        <div class="tc-top"><span class="dot dot-amber"></span><span class="tc-pill">Composio</span></div>
+        <div class="tc-title">Statista + datasets</div>
+        <div class="tc-bars"><div class="skeleton w-100"></div><div class="skeleton w-80"></div><div class="skeleton w-60"></div></div>
+      </div>
+      <div class="card tax-card">
+        <div class="tc-top"><span class="dot dot-teal"></span><span class="tc-pill">Web search</span></div>
+        <div class="tc-title">Real-time results</div>
+        <div class="tc-bars"><div class="skeleton w-100"></div><div class="skeleton w-80"></div><div class="skeleton w-60"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 6: ROADMAP ===================== -->
+<section id="roadmap">
+  <div class="container">
+    <div class="roadmap-tabs">
+      <button class="roadmap-tab active" data-tab="now">Now</button>
+      <button class="roadmap-tab" data-tab="next">Next</button>
+    </div>
+    <div id="rmNow">
+      <table class="rm-table">
+        <thead><tr><th>#</th><th>Capability</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>—</td><td>Node canvas (toolbar + drag-from-edge)</td><td><span class="rm-status rm-done">✅ Done</span></td><td>React Flow, 4 node types</td></tr>
+          <tr><td>2</td><td>Keep sources visible</td><td><span class="rm-status rm-done">✅ Done</span></td><td>Sources node + sources rail</td></tr>
+          <tr><td>4</td><td>All nodes visible</td><td><span class="rm-status rm-done">✅ Done</span></td><td>Canvas with fit-view, controls</td></tr>
+          <tr><td>1</td><td>Research multiple sources</td><td><span class="rm-status rm-partial">🟡 Partial</span></td><td>arXiv + Semantic Scholar live. Add: web search</td></tr>
+          <tr><td>—</td><td>Writing surface (real editor)</td><td><span class="rm-status rm-done">✅ Done</span></td><td>Block editor, persists to store</td></tr>
+          <tr><td>—</td><td>Review surface (gallery + agent)</td><td><span class="rm-status rm-done">✅ Done</span></td><td>Anchors from real sources</td></tr>
+          <tr><td>8</td><td>Data visualization tool</td><td><span class="rm-status rm-partial">🟡 Partial</span></td><td>Viz node live. Add: more chart types</td></tr>
+          <tr><td>9</td><td>Export</td><td><span class="rm-status rm-done">✅ Done</span></td><td>md / LaTeX / .txt / .docx live</td></tr>
+          <tr><td>3</td><td>Work on different citations</td><td><span class="rm-status rm-partial">🟡 Partial</span></td><td>Citation registry + in-text marks live</td></tr>
+          <tr><td>7</td><td>Adhere to paper standards</td><td><span class="rm-status rm-partial">🟡 Partial</span></td><td>APA / IEEE / Nature / MLA presets live</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="rmNext" style="display:none">
+      <table class="rm-table">
+        <thead><tr><th>#</th><th>Capability</th><th>Status</th><th>Plan</th></tr></thead>
+        <tbody>
+          <tr><td>5</td><td>Citation audit agent</td><td><span class="rm-status rm-todo">⬜ Todo</span></td><td>Checks every claim has a backing source</td></tr>
+          <tr><td>6</td><td>AI humanization + recommendations</td><td><span class="rm-status rm-todo">⬜ Todo</span></td><td>"Make this sound like me" rewrite passes</td></tr>
+          <tr><td>10</td><td>Writing-DNA (upload past papers)</td><td><span class="rm-status rm-todo">⬜ Todo</span></td><td>Upload corpus → derive style profile → condition drafts</td></tr>
+          <tr><td>11</td><td>External connectors (Composio)</td><td><span class="rm-status rm-todo">⬜ Todo</span></td><td>Statista, datasets, web research</td></tr>
+          <tr><td>5/6</td><td>Reader AI assistant</td><td><span class="rm-status rm-partial">🟡 Partial</span></td><td>Boundary built at /api/ai. Lights up with API key</td></tr>
+          <tr><td>—</td><td>Real AI calls + credit accounting</td><td><span class="rm-status rm-todo">⬜ Todo</span></td><td>Extend /api/ai to Extract/Writing/Review</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 7: AI ASSISTANT ===================== -->
+<section id="ai-assistant">
+  <div class="container">
+    <div class="ai-split">
+      <div class="ai-left">
+        <div class="ai-eyebrow eyebrow">Reader AI</div>
+        <h2>Ask questions. Get answers from your sources.</h2>
+        <p>The reader has an always-on assistant. Summarize a paper, ask a follow-up, or pull key findings — all grounded in the sources you've gathered on the canvas.</p>
+        <div class="ai-bars">
+          <div class="skeleton w-100" style="height:8px"></div>
+          <div class="skeleton w-80" style="height:8px"></div>
+          <div class="skeleton w-60" style="height:8px"></div>
+        </div>
+      </div>
+      <div class="ai-panel" id="aiPanel">
+        <div class="ai-search">
+          <span class="ai-caret" id="aiCaret"></span>
+          <span style="font-size:13px;color:var(--ink-500)">Summarize the key findings from papers 1–3</span>
+          <span class="ai-model-pill" id="aiModelPill">claude-sonnet-4-6</span>
+        </div>
+        <div class="ai-ask">
+          <span class="tag-pill tag-teal">Ask</span>
+          <div class="ai-ask-bar" id="aiAskBar"></div>
+        </div>
+        <div class="ai-thumbs" id="aiThumbs">
+          <div class="ai-thumb"><div class="at-tag"></div><div><div class="at-journal">arXiv</div><div class="at-title">Micro-credentialing & hiring signals</div></div><div class="at-spark"><span style="height:30%"></span><span style="height:55%"></span><span style="height:40%"></span><span style="height:75%"></span><span style="height:60%"></span><span style="height:90%"></span></div></div>
+          <div class="ai-thumb"><div class="at-tag"></div><div><div class="at-journal">Rev. Econ.</div><div class="at-title">Wage mobility quasi-exp.</div></div><div class="at-spark"><span style="height:45%"></span><span style="height:60%"></span><span style="height:50%"></span><span style="height:80%"></span><span style="height:65%"></span><span style="height:70%"></span></div></div>
+          <div class="ai-thumb"><div class="at-tag"></div><div><div class="at-journal">Eur. J. Ed.</div><div class="at-title">Stacking credentials EU</div></div><div class="at-spark"><span style="height:35%"></span><span style="height:70%"></span><span style="height:55%"></span><span style="height:85%"></span><span style="height:45%"></span><span style="height:60%"></span></div></div>
+          <div class="ai-thumb"><div class="at-tag"></div><div><div class="at-journal">Nature</div><div class="at-title">Skills signalling problem</div></div><div class="at-spark"><span style="height:50%"></span><span style="height:40%"></span><span style="height:65%"></span><span style="height:55%"></span><span style="height:90%"></span><span style="height:75%"></span></div></div>
+          <div class="ai-thumb"><div class="at-tag"></div><div><div class="at-journal">Science</div><div class="at-title">Short-cycle credentials meta</div></div><div class="at-spark"><span style="height:60%"></span><span style="height:80%"></span><span style="height:45%"></span><span style="height:70%"></span><span style="height:55%"></span><span style="height:85%"></span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SECTION 8: FUTURE PIPELINE + CTA + FOOTER ===================== -->
+<section id="pipeline">
+  <div class="container">
+    <div class="pipeline">
+      <div class="card pipe-card" id="pipe1">
+        <div class="pipe-mascot">
+          <svg viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M 979 590 C 1020 587 1103 603 1141 616 C 1170 609 1225 603 1253 611 C 1283 621 1290 649 1278 677 C 1318 688 1366 707 1391 741 C 1408 766 1420 798 1389 819 C 1401 839 1406 859 1415 880 C 1424 903 1442 924 1421 947 C 1408 962 1392 965 1374 966 C 1374 1002 1370 1050 1338 1073 C 1337 1094 1333 1114 1328 1134 C 1364 1174 1362 1243 1320 1280 C 1312 1287 1304 1291 1295 1296 C 1286 1317 1280 1329 1265 1348 C 1227 1395 1139 1416 1080 1421 C 1022 1427 962 1417 907 1402 C 832 1382 714 1320 677 1252 C 636 1238 626 1201 618 1162 C 593 1137 578 1117 576 1080 C 574 1048 583 1027 602 1002 C 601 991 599 979 598 968 C 595 934 605 900 611 867 C 619 824 625 788 654 754 C 690 711 742 685 797 681 C 803 667 811 654 820 642 C 843 615 856 618 885 609 C 919 599 944 594 979 590 z" fill="#009B94"/></svg>
+        </div>
+        <div>
+          <h3>Build-your-own background agent</h3>
+          <p>A researcher that reads 10–20+ papers continuously, even while you sleep. Ping-pong with it in the morning over coffee.</p>
+          <span class="pipe-path">/api/ai/agent</span>
+        </div>
+      </div>
+      <div class="card pipe-card" id="pipe2">
+        <div class="pipe-mascot">
+          <svg viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M 979 590 C 1020 587 1103 603 1141 616 C 1170 609 1225 603 1253 611 C 1283 621 1290 649 1278 677 C 1318 688 1366 707 1391 741 C 1408 766 1420 798 1389 819 C 1401 839 1406 859 1415 880 C 1424 903 1442 924 1421 947 C 1408 962 1392 965 1374 966 C 1374 1002 1370 1050 1338 1073 C 1337 1094 1333 1114 1328 1134 C 1364 1174 1362 1243 1320 1280 C 1312 1287 1304 1291 1295 1296 C 1286 1317 1280 1329 1265 1348 C 1227 1395 1139 1416 1080 1421 C 1022 1427 962 1417 907 1402 C 832 1382 714 1320 677 1252 C 636 1238 626 1201 618 1162 C 593 1137 578 1117 576 1080 C 574 1048 583 1027 602 1002 C 601 991 599 979 598 968 C 595 934 605 900 611 867 C 619 824 625 788 654 754 C 690 711 742 685 797 681 C 803 667 811 654 820 642 C 843 615 856 618 885 609 C 919 599 944 594 979 590 z" fill="#009B94"/></svg>
+        </div>
+        <div>
+          <h3>AI reads your paper and rethinks it</h3>
+          <p>A critique agent over your own draft that proposes structural and argumentative revisions — not just grammar fixes.</p>
+          <span class="pipe-path">/api/ai/rethink</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CARING AGENT CHAT ===================== -->
+<section id="agent-chat">
+  <div class="container">
+    <div class="sec-head" style="text-align:center">
+      <span class="eyebrow">The agent</span>
+      <h2 style="margin:0 auto">An agent that looks after the work.</h2>
+    </div>
+    <div class="chat-window" id="chatWindow">
+      <div class="chat-head">
+        <div class="chat-avatar">
+          <svg viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M 979 590 C 1020 587 1103 603 1141 616 C 1170 609 1225 603 1253 611 C 1283 621 1290 649 1278 677 C 1318 688 1366 707 1391 741 C 1408 766 1420 798 1389 819 C 1401 839 1406 859 1415 880 C 1424 903 1442 924 1421 947 C 1408 962 1392 965 1374 966 C 1374 1002 1370 1050 1338 1073 C 1337 1094 1333 1114 1328 1134 C 1364 1174 1362 1243 1320 1280 C 1312 1287 1304 1291 1295 1296 C 1286 1317 1280 1329 1265 1348 C 1227 1395 1139 1416 1080 1421 C 1022 1427 962 1417 907 1402 C 832 1382 714 1320 677 1252 C 636 1238 626 1201 618 1162 C 593 1137 578 1117 576 1080 C 574 1048 583 1027 602 1002 C 601 991 599 979 598 968 C 595 934 605 900 611 867 C 619 824 625 788 654 754 C 690 711 742 685 797 681 C 803 667 811 654 820 642 C 843 615 856 618 885 609 C 919 599 944 594 979 590 z" fill="#009B94"/></svg>
+        </div>
+        <div>
+          <div class="chat-name">ProfJohns</div>
+          <div class="chat-status"><span class="live">●</span> active · reading your canvas</div>
+        </div>
+      </div>
+      <div class="chat-msg" id="msg1">Hey Mason — you've been writing for about 6 hours now. ☕</div>
+      <div class="chat-msg" id="msg2">You should get some rest. I'll keep going on the research side — pulling papers for the gap you flagged in section 3 and running the citation audit in the background.</div>
+      <div class="chat-msg" id="msg3">When you're back, tell me about your coffee. 🙂</div>
+      <div class="chat-typing" id="chatTyping"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA + FOOTER ===================== -->
+<section id="cta-final">
+  <div class="container">
+    <h2 class="cta-headline">Start a research canvas.<br/>Write in your own voice.</h2>
+    <p class="cta-sub">Drop a research direction, connect nodes, and let ProfJohns gather sources, audit citations, and draft alongside you.</p>
+    <a href="#" class="btn btn-primary" id="ctaBtn">Open the canvas →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <svg viewBox="0 0 2048 2048" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M 979 590 C 1020 587 1103 603 1141 616 C 1170 609 1225 603 1253 611 C 1283 621 1290 649 1278 677 C 1318 688 1366 707 1391 741 C 1408 766 1420 798 1389 819 C 1401 839 1406 859 1415 880 C 1424 903 1442 924 1421 947 C 1408 962 1392 965 1374 966 C 1374 1002 1370 1050 1338 1073 C 1337 1094 1333 1114 1328 1134 C 1364 1174 1362 1243 1320 1280 C 1312 1287 1304 1291 1295 1296 C 1286 1317 1280 1329 1265 1348 C 1227 1395 1139 1416 1080 1421 C 1022 1427 962 1417 907 1402 C 832 1382 714 1320 677 1252 C 636 1238 626 1201 618 1162 C 593 1137 578 1117 576 1080 C 574 1048 583 1027 602 1002 C 601 991 599 979 598 968 C 595 934 605 900 611 867 C 619 824 625 788 654 754 C 690 711 742 685 797 681 C 803 667 811 654 820 642 C 843 615 856 618 885 609 C 919 599 944 594 979 590 z" fill="#009B94"/></svg>
+      <span>ProfJohns</span>
+    </div>
+    <div class="footer-links">
+      <a href="#">arXiv</a>
+      <a href="#">Semantic Scholar</a>
+      <a href="#">Composio</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#">Privacy</a>
+    </div>
+    <div class="footer-copy">© 2025 ProfJohns · a node-based research canvas</div>
+  </div>
+</footer>
+
+<script>
+gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
+const prm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* scroll progress bar */
+gsap.to("#scrollProgress", {
+  width: "100%",
+  ease: "none",
+  scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 0.3 }
+});
+
+/* nav scroll state */
+const nav = document.getElementById("nav");
+ScrollTrigger.create({ start: "top -64", end: 99999, onUpdate: self => nav.classList.toggle("scrolled", self.scroll() > 64) });
+
+/* HERO entrance */
+if (!prm) {
+  const heroTL = gsap.timeline({ defaults: { ease: "back.out(1.6)" } });
+  heroTL
+    .from("#heroMascot", { scale: 0.8, y: 24, opacity: 0, duration: 0.8 })
+    .from("#heroResearcher", { scale: 0.4, opacity: 0, duration: 0.6, ease: "back.out(2)" }, "-=0.2")
+    .from("#heroHeadline", { y: 30, opacity: 0, duration: 0.8, ease: "expo.out" }, "-=0.3")
+    .from("#heroSub", { y: 20, opacity: 0, duration: 0.6, ease: "power3.out" }, "-=0.4")
+    .from("#heroCta a", { y: 16, opacity: 0, duration: 0.5, stagger: 0.1, ease: "power3.out" }, "-=0.3")
+    .from(".scroll-cue", { opacity: 0, duration: 0.6 }, "-=0.2");
+  gsap.to("#scrollCueInner", { y: 16, duration: 1.4, repeat: -1, yoyo: true, ease: "sine.inOut", delay: 1.2 });
+  gsap.to("#heroResearcher", { y: "+=8", duration: 2.2, repeat: -1, yoyo: true, ease: "sine.inOut", delay: 1 });
+}
+
+/* WORKFLOW — draw edges, pin section */
+ScrollTrigger.matchMedia({
+  "(min-width: 769px)": function() {
+    const wfSvg = document.getElementById("wfSvg");
+    const wfFrame = document.getElementById("wfFrame");
+    const n1 = document.getElementById("wfN1");
+    const n2 = document.getElementById("wfN2");
+    const n3 = document.getElementById("wfN3");
+
+    function getCenter(el, side) {
+      const r = el.getBoundingClientRect();
+      const fr = wfFrame.getBoundingClientRect();
+      const x = side === "right" ? r.right - fr.left : side === "left" ? r.left - fr.left : r.left + r.width/2 - fr.left;
+      const y = r.top + r.height/2 - fr.top;
+      return { x, y };
+    }
+    function bezierPath(x1, y1, x2, y2) {
+      const dx = (x2 - x1) * 0.4;
+      return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+    }
+
+    function drawEdges() {
+      wfSvg.querySelectorAll(".wf-edge").forEach(e => e.remove());
+      const p1 = getCenter(n1, "right");
+      const p2 = getCenter(n2, "left");
+      const p3 = getCenter(n2, "right");
+      const p4 = getCenter(n3, "left");
+      const edges = [
+        { d: bezierPath(p1.x, p1.y, p2.x, p2.y), cls: "wf-edge" },
+        { d: bezierPath(p3.x, p3.y, p4.x, p4.y), cls: "wf-edge" }
+      ];
+      edges.forEach(e => {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", e.d);
+        path.setAttribute("stroke", "#C7C7CF");
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke-dasharray", "1000");
+        path.setAttribute("stroke-dashoffset", "1000");
+        path.classList.add(e.cls);
+        wfSvg.appendChild(path);
+        gsap.to(path, { strokeDashoffset: 0, duration: 0.8, ease: "power2.inOut", scrollTrigger: { trigger: "#workflow", start: "top 70%" } });
+      });
+      // traveling teal dot — alternate between both edges
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("r", "5");
+      dot.setAttribute("fill", "#009B94");
+      dot.classList.add("wf-edge");
+      wfSvg.appendChild(dot);
+      let edgeIdx = 0;
+      function travelNext() {
+        gsap.to(dot, {
+          motionPath: { path: edges[edgeIdx].d, align: wfSvg, alignOrigin: [0.5, 0.5] },
+          duration: 1.4, ease: "none", onComplete: () => { edgeIdx = 1 - edgeIdx; travelNext(); }
+        });
+      }
+      travelNext();
+    }
+    setTimeout(drawEdges, 100);
+  }
+});
+
+/* TRIPTYCH — batch reveal + hover */
+ScrollTrigger.batch(".tri-card", {
+  start: "top 85%",
+  onEnter: batch => gsap.from(batch, { y: 32, opacity: 0, duration: 0.7, stagger: 0.12, ease: "power3.out" })
+});
+document.querySelectorAll(".tri-card").forEach(card => {
+  card.addEventListener("mouseenter", () => gsap.to(card, { y: -6, boxShadow: "0 1px 2px rgba(16,16,20,.06), 0 20px 48px rgba(16,16,20,.10)", duration: 0.3 }));
+  card.addEventListener("mouseleave", () => gsap.to(card, { y: 0, boxShadow: "0 1px 2px rgba(16,16,20,.04), 0 12px 32px rgba(16,16,20,.06)", duration: 0.3 }));
+});
+
+/* READER — highlight swatches + summary clip-path */
+ScrollTrigger.create({
+  trigger: "#reader", start: "top 70%", once: true,
+  onEnter: () => {
+    gsap.to(".hl-swatch", { scaleX: 1, duration: 0.5, stagger: 0.08, ease: "power2.out" });
+    gsap.to(".summary-bar", { clipPath: "inset(0 0 0 0)", duration: 0.5, stagger: 0.08, ease: "power2.out", delay: 0.3 });
+  }
+});
+
+/* TAXONOMY — horizontal drift + dot pulse */
+ScrollTrigger.create({
+  trigger: "#taxonomy", start: "top 70%", end: "bottom top", scrub: true,
+  onUpdate: self => {
+    const drift = -160 * self.progress;
+    gsap.set("#taxRail", { x: drift });
+  }
+});
+ScrollTrigger.create({
+  trigger: "#taxonomy", start: "top 75%", once: true,
+  onEnter: () => {
+    gsap.from(".citograph circle", { scale: 0, transformOrigin: "50% 50%", duration: 0.5, stagger: 0.08, ease: "back.out(2)" });
+    gsap.from(".citograph path", { strokeDashoffset: 200, strokeDasharray: 200, duration: 0.8, stagger: 0.1, ease: "power2.out" });
+  }
+});
+document.querySelectorAll(".tax-card .dot").forEach(dot => {
+  const colors = { "dot-blue": "rgba(59,107,255,.3)", "dot-violet": "rgba(124,77,255,.3)", "dot-green": "rgba(22,179,100,.3)", "dot-amber": "rgba(245,165,36,.3)", "dot-teal": "rgba(0,155,148,.3)" };
+  const cls = [...dot.classList].find(c => colors[c]);
+  if (cls && !prm) gsap.to(dot, { boxShadow: `0 0 0 4px ${colors[cls]}`, duration: 1.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
+});
+
+/* ROADMAP — count up + row reveals */
+ScrollTrigger.create({
+  trigger: "#roadmap", start: "top 70%", once: true,
+  onEnter: () => {
+    gsap.from(".rm-table tbody tr", { opacity: 0, x: 12, duration: 0.4, stagger: 0.04, ease: "power2.out" });
+    gsap.from(".rm-status", { scale: 0.8, duration: 0.4, stagger: 0.04, ease: "back.out(2)", delay: 0.2 });
+  }
+});
+document.querySelectorAll(".roadmap-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".roadmap-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    const isNow = tab.dataset.tab === "now";
+    document.getElementById("rmNow").style.display = isNow ? "" : "none";
+    document.getElementById("rmNext").style.display = isNow ? "none" : "";
+  });
+});
+
+/* AI ASSISTANT — model pill bounce, caret blink, ask bar stream, thumb cascade */
+ScrollTrigger.create({
+  trigger: "#ai-assistant", start: "top 70%", once: true,
+  onEnter: () => {
+    gsap.from("#aiModelPill", { scale: 0.8, duration: 0.5, ease: "back.out(2)" });
+    if (!prm) gsap.to("#aiCaret", { opacity: 0, duration: 0.6, repeat: -1, yoyo: true, ease: "steps(1)" });
+    gsap.to("#aiAskBar", { width: "100%", duration: 1.5, ease: "steps(24)", delay: 0.3 });
+    gsap.from(".ai-thumb", { scale: 0.9, opacity: 0, duration: 0.4, stagger: 0.06, ease: "power2.out", delay: 0.5 });
+  }
+});
+
+/* PIPELINE — mascot idle loop */
+if (!prm) {
+  document.querySelectorAll(".pipe-mascot").forEach(m => {
+    gsap.to(m, { rotation: 3, duration: 2.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
+  });
+  gsap.to("#ctaBtn", { boxShadow: "0 4px 24px rgba(0,155,148,.3)", duration: 1.6, repeat: -1, yoyo: true, ease: "sine.inOut" });
+}
+
+/* CHAT sequence */
+const chatTL = gsap.timeline({ scrollTrigger: { trigger: "#agent-chat", start: "top 60%", once: true } });
+chatTL
+  .from("#chatWindow", { y: 40, opacity: 0, duration: 0.8, ease: "power3.out" })
+  .add(() => document.getElementById("chatTyping").classList.add("show"), "-=0.2")
+  .to({}, { duration: 1.2 })
+  .add(() => { document.getElementById("chatTyping").classList.remove("show"); document.getElementById("msg1").classList.add("show"); })
+  .to({}, { duration: 1.6 })
+  .add(() => document.getElementById("msg2").classList.add("show"))
+  .to({}, { duration: 2.4 })
+  .add(() => document.getElementById("msg3").classList.add("show"))
+  .to({}, { duration: 0.5 })
+  .add(() => document.getElementById("chatTyping").classList.add("show"));
+
+/* generic reveals */
+document.querySelectorAll(".sec-head, .workflow-title").forEach(el => {
+  gsap.from(el, { y: 30, opacity: 0, duration: 0.7, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 85%" } });
+});
+
+/* ============================================================
+   INTERACTIVE NODE DEMO — drag to connect
+   ============================================================ */
+(function nodeDemo() {
+  const canvas = document.getElementById("ndCanvas");
+  const svg = document.getElementById("ndSvg");
+  const path = document.getElementById("ndPath");
+  const handle = document.getElementById("ndHandle");
+  const prompt = document.getElementById("ndPrompt");
+  const status = document.getElementById("ndStatus");
+  const statusText = document.getElementById("ndStatusText");
+  const research = document.getElementById("ndResearch");
+  const target = document.getElementById("ndTarget");
+  const resetBtn = document.getElementById("ndReset");
+  let dragging = false, connected = false, startPt = { x: 0, y: 0 };
+
+  function getCenter(el) {
+    const r = el.getBoundingClientRect();
+    const cr = canvas.getBoundingClientRect();
+    return { x: r.left + r.width/2 - cr.left, y: r.top + r.height/2 - cr.top };
+  }
+  function buildPath(x1, y1, x2, y2) {
+    const dx = (x2 - x1) * 0.5;
+    return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
+  }
+  function ptr(e) { return e.touches ? { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY } : { clientX: e.clientX, clientY: e.clientY }; }
+
+  function start(e) {
+    if (connected) return;
+    e.preventDefault();
+    dragging = true;
+    startPt = getCenter(handle);
+    const p = ptr(e);
+    const cr = canvas.getBoundingClientRect();
+    update(startPt.x, startPt.y, p.clientX - cr.left, p.clientY - cr.top);
+    prompt.style.opacity = "0";
+  }
+  function move(e) {
+    if (!dragging) return;
+    const cr = canvas.getBoundingClientRect();
+    const p = ptr(e);
+    update(startPt.x, startPt.y, p.clientX - cr.left, p.clientY - cr.top);
+  }
+  function end(e) {
+    if (!dragging) return;
+    dragging = false;
+    const tc = getCenter(document.getElementById("ndHandleIn"));
+    const p = ptr(e.changedTouches ? { touches: e.changedTouches } : e);
+    const cr = canvas.getBoundingClientRect();
+    const lx = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX) - cr.left;
+    const ly = (e.changedTouches ? e.changedTouches[0].clientY : e.clientY) - cr.top;
+    if (Math.hypot(lx - tc.x, ly - tc.y) < 80) connect();
+    else { path.setAttribute("d", ""); prompt.style.opacity = "1"; }
+  }
+  function update(x1, y1, x2, y2) {
+    path.setAttribute("d", buildPath(x1, y1, x2, y2));
+    path.setAttribute("stroke-dasharray", "1000");
+    path.setAttribute("stroke-dashoffset", "0");
+  }
+  function connect() {
+    connected = true;
+    const sc = getCenter(handle);
+    const tc = getCenter(document.getElementById("ndHandleIn"));
+    path.setAttribute("d", buildPath(sc.x, sc.y, tc.x, tc.y));
+    const len = path.getTotalLength();
+    path.setAttribute("stroke-dasharray", len);
+    path.setAttribute("stroke-dashoffset", len);
+    gsap.to(path, { attr: { "stroke-dashoffset": 0 }, duration: 0.5, ease: "power2.inOut" });
+    target.classList.add("active");
+    prompt.style.opacity = "0";
+    setTimeout(() => {
+      status.classList.add("show");
+      const steps = [{ t: "Analyzing query…", d: 1000 }, { t: "Searching arXiv + Semantic Scholar…", d: 1200 }, { t: "Ranking 4 sources by relevance…", d: 900 }];
+      let acc = 0;
+      steps.forEach(s => { setTimeout(() => statusText.textContent = s.t, acc); acc += s.d; });
+      setTimeout(() => {
+        status.classList.remove("show");
+        research.classList.add("show");
+        resetBtn.classList.add("show");
+        gsap.from(".paper-card", { y: 16, opacity: 0, duration: 0.4, stagger: 0.12, ease: "power2.out" });
+      }, acc + 300);
+    }, 500);
+  }
+  function reset() {
+    connected = false;
+    path.setAttribute("d", "");
+    target.classList.remove("active");
+    research.classList.remove("show");
+    resetBtn.classList.remove("show");
+    prompt.style.opacity = "1";
+    status.classList.remove("show");
+  }
+  handle.addEventListener("mousedown", start);
+  handle.addEventListener("touchstart", start, { passive: false });
+  window.addEventListener("mousemove", move);
+  window.addEventListener("touchmove", move, { passive: false });
+  window.addEventListener("mouseup", end);
+  window.addEventListener("touchend", end);
+  handle.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && !connected) { e.preventDefault(); connect(); } });
+  resetBtn.addEventListener("click", reset);
+  if (!prm) gsap.to(handle, { scale: 1.2, duration: 1.4, repeat: -1, yoyo: true, ease: "sine.inOut" });
+})();
+
+/* refresh after fonts */
+if (document.fonts) document.fonts.ready.then(() => ScrollTrigger.refresh());
+</script>
+</body>
+</html>

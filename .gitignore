@@ -1,0 +1,19 @@
+/node_modules
+/.next
+/out
+/build
+/dist
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.env*
+!.env.example
+/.vercel
+
+# Playwright
+/test-results/
+/playwright-report/
+
+# Supabase
+/supabase/.branches
+/supabase/.temp

@@ -1,0 +1,96 @@
+{
+  "theme": "Light",
+  "archetype": "Archetype 4: Swiss & High-Contrast",
+  "rationale": "For a professional tool-grade application like ProfJohns (referencing Figma and Perplexity), the UI must be dense, clear, and highly functional. We avoid all gradients, relying on solid colors, crisp 1px borders, and a stark, confident typographic hierarchy.",
+  "typography": {
+    "headings": {
+      "fontFamily": "General Sans, sans-serif",
+      "weights": ["font-medium", "font-semibold"],
+      "tracking": "tracking-tight",
+      "usage": "Use for all page titles, canvas node titles, and surface headers. Do not use Inter for headings."
+    },
+    "body": {
+      "fontFamily": "Inter, sans-serif",
+      "weights": ["font-normal", "font-medium"],
+      "usage": "Use for dense data, node content, and writing surface body text."
+    },
+    "mono": {
+      "fontFamily": "JetBrains Mono, monospace",
+      "usage": "Use for AI credit costs, citations, model names, and code blocks."
+    }
+  },
+  "colors": {
+    "background": {
+      "canvas": "#F5F5F5",
+      "surfaces": "#FFFFFF",
+      "sidebar": "#FAFAFA"
+    },
+    "surface": {
+      "node": "#FFFFFF",
+      "toolbar": "#FFFFFF",
+      "hover": "#F4F4F5",
+      "active": "#E4E4E7"
+    },
+    "border": {
+      "default": "#E5E5E5",
+      "focus": "#171717",
+      "divider": "#F5F5F5"
+    },
+    "text": {
+      "primary": "#171717",
+      "secondary": "#737373",
+      "tertiary": "#A3A3A3",
+      "inverse": "#FFFFFF"
+    },
+    "accent": {
+      "primary": "#171717",
+      "primary_hover": "#262626",
+      "blue_highlight": "#2563EB",
+      "ai_indicator": "#059669"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Optical alignment, dense but breathable. Utilize generous padding in reading surfaces, but tight, structural grids in the canvas nodes.",
+    "canvas_chrome": "Floating toolbars must be solid white with a 1px border. No glassmorphism. Use 'p-1' or 'p-2' with 'gap-1' for dense icon rows.",
+    "node_cards": "Use 'p-4' internally, 'rounded-lg', 'border border-neutral-200', 'bg-white'. Avoid heavy drop shadows; use 'shadow-sm' for floating feeling.",
+    "surfaces": {
+      "writing": "Max-width centered column ('max-w-3xl'), 'pt-24', 'px-8'. Left rail for connected sources, Right rail for AI-assist.",
+      "review": "Split pane layout. 50% gallery/grid of sources, 50% reading agent side panel. Borders separating the panes ('border-l border-neutral-200').",
+      "workspace": "Left sidebar navigation ('w-64', 'border-r'), main content area."
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-neutral-900 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-800 transition-colors",
+      "secondary": "bg-white text-neutral-900 border border-neutral-200 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50 transition-colors",
+      "icon": "p-1.5 rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+    },
+    "nodes": {
+      "header": "flex justify-between items-center pb-2 border-b border-neutral-100 mb-2",
+      "title": "text-sm font-semibold font-general-sans text-neutral-900",
+      "model_picker": "text-xs font-mono text-neutral-500 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-200 cursor-pointer hover:bg-neutral-100",
+      "content": "text-sm text-neutral-700 leading-relaxed"
+    },
+    "editor": {
+      "styling": "prose prose-neutral max-w-none prose-headings:font-general-sans prose-headings:tracking-tight prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline"
+    },
+    "data_testid": "MANDATORY on all buttons, links, inputs, and interactive canvas nodes (e.g., 'data-testid=\"node-model-picker\"')."
+  },
+  "motion": {
+    "interaction": "Micro-interactions on hover. Use framer-motion for smooth sidebar toggles or panel slides. Keep durations short (150-200ms).",
+    "canvas": "React Flow handles pan/zoom. Node spawning should scale in slightly (0.95 -> 1.0) with opacity fade."
+  },
+  "icons": {
+    "library": "lucide-react",
+    "style": "Stroke width 1.5 for a crisp, technical look. Size 16px or 18px for toolbars."
+  },
+  "instructions_to_main_agent": [
+    "Install 'General Sans' via fontshare or local assets. Use 'Inter' for body.",
+    "Implement the UI using Tailwind v4 standard utility classes. ENSURE ZERO GRADIENTS (`bg-gradient`, `bg-transparent` with blur are forbidden). Everything must be solid colors.",
+    "Build the React Flow canvas with custom node components matching the exact styling in 'components.nodes'.",
+    "For Writing/Review surfaces, use a full-width layout with structural 1px borders (`border-neutral-200`) separating rails/panels.",
+    "All interactive elements must include `data-testid` attributes (e.g., `data-testid=\"workspace-nav-library\"`).",
+    "Implement the floating toolbar on the canvas with `absolute bottom-6 left-1/2 -translate-x-1/2 bg-white border border-neutral-200 shadow-sm rounded-lg p-1.5 flex gap-1 z-50`.",
+    "For the always-on reading agent, use a sticky side panel on the right with a message feed layout, distinguished by a subtle background color (`bg-neutral-50`)."
+  ]
+}
