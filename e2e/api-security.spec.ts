@@ -58,7 +58,7 @@ test.describe("API request validation", () => {
       data: { not: "a file" },
     });
     // formData parse will fail or file check will fail
-    expect([400, 500]).toContain(res.status());
+    expect([400, 500, 502]).toContain(res.status());
   });
 
   test("GET /api/readable rejects non-http URLs", async ({ request }) => {

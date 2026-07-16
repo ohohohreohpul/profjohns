@@ -21,7 +21,8 @@ test.describe("Keyboard navigation", () => {
 
   test("login form is keyboard navigable", async ({ page }) => {
     await page.goto(`${BASE}/login`);
-    // Tab through form fields
+    // Tab through: skip nav link -> logo link -> email input
+    await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     await page.keyboard.press("Tab");
     // Should reach the email field
