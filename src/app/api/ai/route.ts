@@ -348,6 +348,8 @@ function validateModeSemantics(mode: AiMode, body: Record<string, unknown>): str
     if (!text || text.trim().length < 20) return "Select a section to revise.";
     if (!instruction?.trim()) return "Specify what to change in the section.";
     if (!sources || sources.length === 0) return "Connect sources for citation grounding.";
+  } else if (mode === "titles") {
+    if ((!draft || draft.trim().length < 20) && (!text || text.trim().length < 20)) return "Write a draft first to suggest titles.";
   } else {
     if (!text || text.trim().length < 20) return "No text to work with.";
     if (mode === "ask" && !question?.trim()) return "Ask a question first.";
