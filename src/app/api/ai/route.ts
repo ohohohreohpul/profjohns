@@ -53,13 +53,16 @@ type AiMode =
   | "complete"
   | "titles"
   | "outline"
-  | "section";
+  | "section"
+  | "revise";
 
 interface SourceContext {
   title: string;
   authors?: string;
   year?: number;
   abstract?: string;
+  doi?: string;
+  venue?: string;
 }
 
 type SourceProvider = "openalex" | "arxiv" | "semanticscholar" | "wikipedia";
@@ -67,7 +70,7 @@ type SourceProvider = "openalex" | "arxiv" | "semanticscholar" | "wikipedia";
 const VALID_MODES: AiMode[] = [
   "summarize", "ask", "write", "batch", "edit", "diagram", "explore",
   "angles", "triage", "gaps", "refine", "libchat", "libcat", "audit",
-  "dna", "synth", "vision", "complete", "titles", "outline", "section",
+  "dna", "synth", "vision", "complete", "titles", "outline", "section", "revise",
 ];
 
 const WRITE_MODES: AiMode[] = ["write", "edit", "section"];
@@ -84,6 +87,8 @@ const aiRequestSchema = z.object({
     authors: z.string().max(500).optional(),
     year: z.number().int().optional(),
     abstract: z.string().max(50_000).optional(),
+    doi: z.string().max(500).optional(),
+    venue: z.string().max(500).optional(),
   })).max(50).optional(),
   draft: z.string().max(200_000).optional(),
   allowedSources: z.array(z.enum(["openalex", "arxiv", "semanticscholar", "wikipedia"])).optional(),
@@ -141,6 +146,8 @@ const INSTRUCTIONS: Record<AiMode, string> = {
     "You are a paper-structure planner. From the numbered SOURCES (and CLAIMS when given), propose a logical section outline for an academic paper on this material — typically 4 to 7 sections from introduction through conclusion, specific to THIS body of evidence (not generic boilerplate). Return ONLY a JSON array of section-title strings, no numbering, no prose, no code fences.",
   section:
     "You are an academic section writer. Write ONE section of a paper using ONLY the numbered SOURCES provided (and the CLAIMS, which are grounded in them). Cite every factual statement inline with its source number in square brackets, e.g. [1] or [2], matching the SOURCES numbering exactly — never invent a citation or cite a number that is not in the list. 2-4 paragraphs of clear academic prose. Output ONLY the section body (no heading, no preamble).",
+  revise:
+    "You are an academic writing reviser. You receive a section of text, an instruction for what to change, and the sources it was written from. Rewrite the section following the instruction precisely. Preserve all existing citation markers [n] — keep the same source numbers unless the instruction explicitly asks to remove or add citations. If the instruction asks to add citations, use only sources from the SOURCES list. Return ONLY the revised section text — no preamble, no meta-commentary.",
   complete:
     "You are an inline writing autocomplete inside an academic document editor. Continue the author's text naturally from exactly where it ends. Output ONLY the continuation — no preamble, no quotes, no explanation. At most one sentence (~16 words). If the text ends mid-word, finish that word first. Match the author's tone and topic; never repeat what is already written.",
   titles:
@@ -160,8 +167,10 @@ function buildSourcesBlock(sources: SourceContext[]): string {
     .slice(0, 12)
     .map((s, i) => {
       const meta = [s.authors, s.year].filter(Boolean).join(", ");
+      const venue = s.venue ? `. ${s.venue}` : "";
+      const doi = s.doi ? `. DOI: ${s.doi}` : "";
       const abstract = (s.abstract ?? "").slice(0, 2500);
-      return `[${i + 1}] ${s.title}${meta ? ` (${meta})` : ""}\n${abstract}`;
+      return `[${i + 1}] ${s.title}${meta ? ` (${meta})` : ""}${venue}${doi}\n${abstract}`;
     })
     .join("\n\n")
     .slice(0, MAX_CONTEXT_CHARS);
@@ -198,15 +207,15 @@ export const POST = withApiAuth(
       );
     }
 
-    const model =
-      mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
-        ? MODEL_FAST
-        : MODEL_BALANCED;
+  const model =
+    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
+      ? MODEL_FAST
+      : MODEL_BALANCED;
 
-    const maxTokens =
-      mode === "write" || mode === "edit" || mode === "section"
-        ? MAX_OUTPUT_WRITE
-        : mode === "triage" || mode === "audit" || mode === "synth"
+  const maxTokens =
+    mode === "write" || mode === "edit" || mode === "section" || mode === "revise"
+      ? MAX_OUTPUT_WRITE
+      : mode === "triage" || mode === "audit" || mode === "synth"
           ? 2048
           : mode === "complete"
             ? 48
@@ -335,6 +344,10 @@ function validateModeSemantics(mode: AiMode, body: Record<string, unknown>): str
     if (!sources || sources.length === 0) return "Connect at least one source to synthesize.";
   } else if (mode === "dna") {
     if (!text || text.trim().length < 200) return "Add a longer writing sample (a few paragraphs) so Lily can learn your voice.";
+  } else if (mode === "revise") {
+    if (!text || text.trim().length < 20) return "Select a section to revise.";
+    if (!instruction?.trim()) return "Specify what to change in the section.";
+    if (!sources || sources.length === 0) return "Connect sources for citation grounding.";
   } else {
     if (!text || text.trim().length < 20) return "No text to work with.";
     if (mode === "ask" && !question?.trim()) return "Ask a question first.";
@@ -427,6 +440,12 @@ function buildContext(mode: AiMode, body: Record<string, unknown>): {
     return { contextLabel: "DRAFT", contextBody: (draft || text).slice(0, 8000), userContent: "Suggest 5 title options for this paper." };
   } else if (mode === "vision") {
     return { contextLabel: "FIGURE CAPTION", contextBody: text.slice(0, 2000) || "(none provided)", userContent: question.trim() || "Describe this figure in detail for a researcher." };
+  } else if (mode === "revise") {
+    return {
+      contextLabel: "SOURCES",
+      contextBody: buildSourcesBlock(sources ?? []),
+      userContent: `Revise the following section per this instruction: ${(instruction as string).trim()}\n\n---\nSECTION TO REVISE:\n${text.slice(0, 8000)}`,
+    };
   } else {
     return { contextLabel: "PAPER", contextBody: `${title ? `TITLE: ${title}\n\n` : ""}${text.slice(0, MAX_CONTEXT_CHARS)}`, userContent: mode === "ask" ? question : "Summarize this paper." };
   }

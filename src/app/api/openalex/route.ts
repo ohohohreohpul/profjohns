@@ -89,6 +89,7 @@ function mapWork(work: OAWork): PaperSource {
     venue: work.primary_location?.source?.display_name?.trim() || "OpenAlex",
     year: work.publication_year ?? new Date().getFullYear(),
     abstract: rebuildAbstract(work.abstract_inverted_index),
+    doi: work.doi?.replace(/^https?:\/\/doi\.org\//i, "") || undefined,
     citations: work.cited_by_count,
     url: work.primary_location?.landing_page_url ?? work.doi ?? work.id,
     concepts: concepts.length > 0 ? concepts : undefined,

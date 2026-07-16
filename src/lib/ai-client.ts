@@ -19,6 +19,8 @@ interface SourceContext {
   authors?: string;
   year?: number;
   abstract?: string;
+  doi?: string;
+  venue?: string;
 }
 
 interface AiRequestBody {
@@ -43,7 +45,8 @@ interface AiRequestBody {
     | "complete"
     | "titles"
     | "outline"
-    | "section";
+    | "section"
+    | "revise";
   text?: string;
   title?: string;
   question?: string;
@@ -95,6 +98,8 @@ function toContext(sources: PaperSource[]): SourceContext[] {
     authors: s.authors,
     year: s.year,
     abstract: s.abstract,
+    doi: s.doi,
+    venue: s.venue,
   }));
 }
 
@@ -294,6 +299,24 @@ export function writeSection(args: {
     directions: args.outline,
     sources: toContext(args.sources),
     text: args.claimsText,
+    style: args.style,
+    persona: args.persona,
+  });
+}
+
+/** Compose — revise a section in-place. Preserves citation markers [n]. */
+export function reviseSection(args: {
+  sectionText: string;
+  instruction: string;
+  sources: PaperSource[];
+  style?: string;
+  persona?: string;
+}): Promise<string> {
+  return callAi({
+    mode: "revise",
+    text: args.sectionText,
+    instruction: args.instruction,
+    sources: toContext(args.sources),
     style: args.style,
     persona: args.persona,
   });

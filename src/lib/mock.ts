@@ -10,6 +10,8 @@ export interface PaperSource {
   venue: string;
   year: number;
   abstract: string;
+  /** Digital Object Identifier — used for citation verification. */
+  doi?: string;
   /** Optional — not returned by every provider (e.g. arXiv). */
   citations?: number;
   /** Link to the source (e.g. arXiv abstract page). */
