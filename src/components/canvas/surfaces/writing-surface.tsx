@@ -35,9 +35,11 @@ import {
   suggestTitles,
   proposeOutline,
   writeSection,
+  reviseSection,
   type AuditFinding,
 } from "@/lib/ai-client";
 import { sectionToContent } from "@/lib/compose";
+import { runDraftPipeline, type PipelineState, type PipelinePhase } from "@/lib/draft-pipeline";
 import type { Synthesis } from "@/lib/ai-client";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
 import { getDocEditor } from "@/components/editor/doc-editor";
@@ -50,6 +52,8 @@ import {
   extractCitedPaperIds,
   paragraphsToContent,
 } from "@/lib/document";
+import { searchProvider, PROVIDER_ORDER } from "@/lib/sources-client";
+import type { PaperSource } from "@/lib/mock";
 
 export function WritingSurface({
   nodeId,
@@ -466,10 +470,14 @@ function ComposePanel({
     return claims.map((c) => `- ${c.claim}`).join("\n").slice(0, 4000);
   }, [nodes, edges, nodeId]);
 
-  const [busy, setBusy] = React.useState<string | null>(null); // "outline" | section title
+  const [busy, setBusy] = React.useState<string | null>(null); // "outline" | section title | "pipeline" | "revise-N"
   const [error, setError] = React.useState<string | null>(null);
   // Per-section deselected paper ids (default = every source selected).
   const [deselected, setDeselected] = React.useState<Record<number, string[]>>({});
+  // Pipeline state for "Generate Full Draft"
+  const [pipelineState, setPipelineState] = React.useState<PipelineState | null>(null);
+  const [reviseInput, setReviseInput] = React.useState<number | null>(null);
+  const [reviseText, setReviseText] = React.useState("");
 
   async function runOutline() {
     if (busy || sources.length === 0) return;
@@ -536,6 +544,119 @@ function ComposePanel({
     }
   }
 
+  async function runFullPipeline() {
+    if (busy || sources.length === 0) return;
+    setBusy("pipeline");
+    setError(null);
+    setPipelineState({
+      phase: "search",
+      currentSection: 0,
+      totalSections: 0,
+      sectionTitle: null,
+      sourcesFound: 0,
+      errors: [],
+      auditFindings: null,
+    });
+
+    try {
+      await runDraftPipeline(
+        {
+          topic: sources[0]?.title ?? "Research Draft",
+          paperType: "research_paper",
+          providers: PROVIDER_ORDER,
+          style: voice,
+          persona,
+          maxSources: 30,
+        },
+        {
+          onStateChange: (state) => setPipelineState(state),
+          onSources: (found) => {
+            // Could update canvas to add these as connected sources
+            // For now, just track in pipeline state
+          },
+          onOutline: (sections) => {
+            setDocOutline(nodeId, sections);
+          },
+          onSectionDrafted: (index, title, prose) => {
+            if (!prose) return;
+            const state = useCanvasStore.getState();
+            const current = state.docs[nodeId]?.content;
+            const cited = extractCitedPaperIds(current);
+            const style = state.docs[nodeId]?.style ?? DEFAULT_STYLE;
+            const papers = sectionPapers(index);
+            const content = sectionToContent(title, prose, papers, style, cited);
+            const editor = getDocEditor(nodeId);
+            if (editor) editor.chain().focus("end").insertContent(content).run();
+            else
+              setDocContent(nodeId, {
+                type: "doc",
+                content: [...(current?.content ?? []), ...content],
+              });
+            onSpend(creditsPerRun);
+          },
+          onAudit: () => {
+            // Audit results handled separately
+          },
+        },
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Pipeline failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runRevise(i: number) {
+    const title = outline[i];
+    if (!title || !reviseText.trim()) return;
+    setBusy(`revise-${i}`);
+    setError(null);
+    try {
+      // Extract the section text from the document
+      const docContent = useCanvasStore.getState().docs[nodeId]?.content;
+      const fullText = extractText(docContent);
+      // Find the section by heading and extract its text
+      const sectionStart = fullText.indexOf(title);
+      const nextHeadingIndex = outline.slice(i + 1).reduce((min, t) => {
+        const idx = fullText.indexOf(t, sectionStart + 1);
+        return idx > 0 && (min < 0 || idx < min) ? idx : min;
+      }, -1);
+      const sectionText = sectionStart >= 0
+        ? fullText.slice(sectionStart, nextHeadingIndex > 0 ? nextHeadingIndex : undefined)
+        : "";
+
+      if (!sectionText.trim()) {
+        setError("Could not find that section's text in the document.");
+        return;
+      }
+
+      const revised = await reviseSection({
+        sectionText,
+        instruction: reviseText,
+        sources: sectionPapers(i),
+        style: voice,
+        persona,
+      });
+
+      // For now, append the revised text with a note
+      // (A proper in-place replace would need TipTap heading-range extraction)
+      const editor = getDocEditor(nodeId);
+      if (editor) {
+        editor.chain().focus("end").insertContent([
+          { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: `${title} (revised)` }] },
+          ...paragraphsToContent(revised),
+        ]).run();
+      }
+      onSpend(creditsPerRun);
+      setReviseInput(null);
+      setReviseText("");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Revision failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto p-3">
@@ -545,6 +666,44 @@ function ComposePanel({
           {claimsText ? " and synthesis claims" : ""}, then draft each section
           from the sources you choose — every citation traces back.
         </p>
+
+        {/* Generate Full Draft — automated pipeline */}
+        <button
+          onClick={runFullPipeline}
+          disabled={busy !== null || sources.length === 0}
+          data-testid="compose-full-draft"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-[var(--color-node-writing)] bg-[var(--color-node-writing)] py-2 text-[12px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-40"
+        >
+          {busy === "pipeline" ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="size-3.5" />
+          )}
+          Generate Full Draft
+        </button>
+
+        {/* Pipeline progress UI */}
+        {pipelineState && busy === "pipeline" && (
+          <div className="mt-2 rounded-lg border border-grey-200 bg-grey-50 p-3">
+            <PipelineProgress state={pipelineState} />
+          </div>
+        )}
+        {pipelineState?.phase === "done" && (
+          <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-[11px] text-emerald-700">
+            Draft complete. {pipelineState.errors.length > 0 ? `${pipelineState.errors.length} errors occurred.` : "All sections drafted."}
+          </div>
+        )}
+        {pipelineState?.phase === "error" && (
+          <div className="mt-2 rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[11px] text-red-600">
+            Pipeline failed. {pipelineState.errors.join("; ")}
+          </div>
+        )}
+
+        <div className="mt-3 flex items-center gap-2">
+          <div className="h-px flex-1 bg-grey-200" />
+          <span className="text-[10px] font-medium text-grey-500">or draft manually</span>
+          <div className="h-px flex-1 bg-grey-200" />
+        </div>
 
         <button
           onClick={runOutline}
@@ -598,7 +757,52 @@ function ComposePanel({
                       )}
                       Draft
                     </button>
+                    <button
+                      onClick={() => setReviseInput(reviseInput === i ? null : i)}
+                      disabled={busy !== null}
+                      className="flex shrink-0 items-center gap-1 rounded-md border border-grey-200 px-2 py-1 text-[11px] font-medium text-grey-700 transition-colors hover:border-grey-400 hover:text-ink disabled:opacity-40"
+                      aria-label={`Revise section ${i + 1}`}
+                    >
+                      {busy === `revise-${i}` ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <PenLine className="size-3" />
+                      )}
+                      Revise
+                    </button>
                   </div>
+
+                  {/* Revise input */}
+                  {reviseInput === i && (
+                    <div className="mt-2 rounded-md border border-grey-200 bg-grey-50 p-2">
+                      <input
+                        type="text"
+                        value={reviseText}
+                        onChange={(e) => setReviseText(e.target.value)}
+                        placeholder="e.g. Make this section longer and add counter-arguments"
+                        className="w-full rounded border border-grey-200 bg-paper px-2 py-1.5 text-[11px] text-ink outline-none focus:border-grey-400"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && reviseText.trim()) runRevise(i);
+                          if (e.key === "Escape") { setReviseInput(null); setReviseText(""); }
+                        }}
+                      />
+                      <div className="mt-1.5 flex gap-1.5">
+                        <button
+                          onClick={() => runRevise(i)}
+                          disabled={!reviseText.trim() || busy !== null}
+                          className="rounded bg-ink px-2.5 py-1 text-[10.5px] font-medium text-paper disabled:opacity-40"
+                        >
+                          Revise section
+                        </button>
+                        <button
+                          onClick={() => { setReviseInput(null); setReviseText(""); }}
+                          className="rounded border border-grey-200 px-2.5 py-1 text-[10.5px] text-grey-600"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <details className="mt-1.5">
                     <summary className="cursor-pointer text-[10.5px] font-medium text-grey-500 hover:text-grey-600">
                       Sources for this section ({papers.length}/{sources.length})
@@ -1080,5 +1284,60 @@ function CountPill({ n, label, cls }: { n: number; label: string; cls: string })
     <span className="rounded-full border border-grey-200 px-2 py-0.5 text-[10.5px] font-medium text-grey-600">
       <span className={`tabular-nums ${cls}`}>{n}</span> {label}
     </span>
+  );
+}
+
+/** Pipeline progress stepper — shows which phase is running. */
+function PipelineProgress({ state }: { state: PipelineState }) {
+  const phases: { key: PipelinePhase; label: string }[] = [
+    { key: "search", label: "Searching sources" },
+    { key: "outline", label: "Building outline" },
+    { key: "draft", label: "Drafting sections" },
+    { key: "verify", label: "Verifying citations" },
+    { key: "done", label: "Complete" },
+  ];
+  const currentIdx = phases.findIndex((p) => p.key === state.phase);
+
+  return (
+    <div className="space-y-1.5">
+      {phases.map((phase, i) => {
+        const isDone = i < currentIdx;
+        const isActive = i === currentIdx;
+        const isPending = i > currentIdx;
+        return (
+          <div key={phase.key} className="flex items-center gap-2">
+            <span
+              className={`grid size-4 shrink-0 place-items-center rounded-full text-[9px] font-semibold ${
+                isDone
+                  ? "bg-emerald-500 text-white"
+                  : isActive
+                    ? "bg-ink text-white"
+                    : "bg-grey-200 text-grey-500"
+              }`}
+            >
+              {isDone ? <CheckCircle className="size-3" /> : i + 1}
+            </span>
+            <span
+              className={`text-[11px] ${
+                isActive ? "font-semibold text-ink" : isDone ? "text-grey-600" : "text-grey-500"
+              }`}
+            >
+              {phase.label}
+              {isActive && state.phase === "draft" && state.sectionTitle
+                ? `: ${state.sectionTitle} (${state.currentSection}/${state.totalSections})`
+                : isActive && state.phase === "search" && state.sourcesFound > 0
+                  ? `: ${state.sourcesFound} found`
+                  : ""}
+            </span>
+            {isActive && <Loader2 className="size-3 animate-spin text-grey-500" />}
+          </div>
+        );
+      })}
+      {state.errors.length > 0 && (
+        <p className="mt-1 text-[10px] text-amber-600">
+          {state.errors.length} warning{state.errors.length > 1 ? "s" : ""}
+        </p>
+      )}
+    </div>
   );
 }
