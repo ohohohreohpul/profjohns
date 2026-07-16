@@ -1,11 +1,13 @@
 import type { NextConfig } from "next";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   turbopack: {
-    root: __dirname,
+    root: dirname(fileURLToPath(import.meta.url)),
   },
   images: {
     remotePatterns: [
