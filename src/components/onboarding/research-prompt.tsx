@@ -39,11 +39,11 @@ export function ResearchPrompt({
       <div className="w-full max-w-2xl">
         <div className="mb-10 flex items-center gap-0 text-grey-500">
           <ProfJohnsLogo size={56} className="shrink-0 -mr-1" />
-          <object
-            data="/profjohns-text.svg"
-            type="image/svg+xml"
+          <img
+            src="/profjohns-text.svg"
+            
             className="h-[26px] w-auto"
-            aria-label="ProfJohns"
+            alt="ProfJohns"
           />
           <span className="text-xs">research canvas</span>
         </div>

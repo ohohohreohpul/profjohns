@@ -90,11 +90,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       {/* Logo */}
       <Link href="/" className="mb-10 flex flex-col items-center gap-3">
         <ProfJohnsLogo size={112} />
-        <object
-          data="/profjohns-text.svg"
-          type="image/svg+xml"
+        <img
+          src="/profjohns-text.svg"
+          
           className="h-[36px] w-auto"
-          aria-label="ProfJohns"
+          alt="ProfJohns"
         />
       </Link>
 

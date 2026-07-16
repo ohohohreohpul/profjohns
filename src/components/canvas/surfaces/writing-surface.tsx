@@ -160,7 +160,7 @@ export function WritingSurface({
 
         {/* One tabbed assistant — AI writer, the sources you can cite, outline. */}
         <aside className="flex w-[340px] shrink-0 flex-col border-l border-grey-200 bg-paper">
-          <div className="flex items-center gap-1 border-b border-grey-100 p-1.5">
+          <div className="flex items-center gap-0.5 overflow-x-auto border-b border-grey-100 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabButton
               active={tab === "ai"}
               onClick={() => setTab("ai")}
@@ -262,7 +262,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11.5px] font-medium transition-colors ${active ? "bg-ink text-paper" : "text-grey-600 hover:bg-grey-100"}`}
+      className={`flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11.5px] font-medium transition-colors ${active ? "bg-ink text-paper" : "text-grey-600 hover:bg-grey-100"}`}
     >
       <Icon className="size-3.5 shrink-0" />
       {label}

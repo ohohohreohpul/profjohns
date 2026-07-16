@@ -191,11 +191,11 @@ export function TopBar({
       <SurfacesMenu projectId={projectId} />
       <Link href="/" className="flex shrink-0 items-center gap-0">
         <ProfJohnsLogo size={48} className="shrink-0 -mr-1" />
-        <object
-          data="/profjohns-text.svg"
-          type="image/svg+xml"
+        <img
+          src="/profjohns-text.svg"
+          
           className="h-[22px] w-auto"
-          aria-label="ProfJohns"
+          alt="ProfJohns"
         />
       </Link>
 

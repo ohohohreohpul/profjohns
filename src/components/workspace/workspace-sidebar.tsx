@@ -80,11 +80,10 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
       <div className="flex h-16 shrink-0 items-center gap-0 px-4">
         <ProfJohnsLogo size={64} className="shrink-0 -mr-1" />
         {!collapsed && (
-          <object
-            data="/profjohns-text.svg"
-            type="image/svg+xml"
+          <img
+            src="/profjohns-text.svg"
+            alt="ProfJohns"
             className="h-[24px] w-auto"
-            aria-label="ProfJohns"
           />
         )}
         <button
