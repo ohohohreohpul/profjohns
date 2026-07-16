@@ -2,7 +2,7 @@
 
 ## Product Overview
 
-ProfJohns is a web-based research canvas with AI-powered source discovery, reading, writing, and citation tools. AI features run through OpenRouter (Claude models). Users can bring their own API key to bypass paid credits entirely.
+ProfJohns is a web-based research canvas with AI-powered source discovery, reading, writing, and citation tools. AI features run through OpenRouter (Claude models). Lifetime license holders can bring their own OpenRouter API key for unlimited AI at zero cost to us.
 
 ---
 
@@ -10,11 +10,11 @@ ProfJohns is a web-based research canvas with AI-powered source discovery, readi
 
 | Plan | Price | AI Requests/mo | Key Benefit |
 |------|-------|---------------|------------|
-| **Free** | $0 | 10 | Try every feature, BYO key for unlimited |
+| **Free** | $0 | 10 | Try every feature |
 | **Starter** | $12/mo | 50 | Light researchers, occasional AI use |
 | **Pro** | $29/mo | 150 | Active writers, daily AI use |
 | **Scholar** | $49/mo | 300 | Heavy users, full papers |
-| **Lifetime** | $89 once | 200 credits + app forever | No subscription, own it |
+| **Lifetime** | $89 once | 200 credits + BYO key | No subscription, own it, unlimited AI with your own key |
 | **Top-up** | $5–$25 | 30–160 credits | Any plan, pay-as-you-go |
 
 ### What every plan includes
@@ -30,12 +30,12 @@ Every AI action consumes credits:
 - **Cheap** (1 credit): summarize, ask, autocomplete, title suggestions, search angles, library chat
 - **Expensive** (counts as ~5–10 credits): write from sources, edit prose, citation audit, synthesis, section drafting
 
-### BYO Key — unlimited, no extra cost
-Any user (free or paid) can paste their own OpenRouter API key in Settings. When active:
-- All AI requests route through the user's key
-- Request caps don't apply
-- We incur zero AI cost
-- This is the recommended path for heavy users
+### BYO Key — Lifetime only
+Lifetime license holders can paste their own OpenRouter API key in Settings. When active:
+- All AI requests route through the user's key (we pay $0 in AI costs)
+- Request caps don't apply — unlimited AI
+- 200 starter credits still included for when BYO key isn't configured
+- This is the key differentiator of the Lifetime plan — it makes $89 a one-time cost for unlimited AI research
 
 ---
 
@@ -48,15 +48,15 @@ Any user (free or paid) can paste their own OpenRouter API key in Settings. When
 - Cloud sync
 - Export
 - 10 AI requests/month (any mode)
-- BYO key for unlimited AI
 
 ### What free users CANNOT do (after 10 AI requests)
 - No AI writing, editing, summarizing, auditing, or autocomplete
 - The app shows "You've used your 10 free AI requests this month" with upgrade options
 - Canvas, search, and reading remain fully functional
+- BYO key is NOT available on free or monthly plans — it's a Lifetime exclusive
 
 ### Paywall UX
-- **Soft wall, not hard wall**: when AI credits run out, the AI panel shows a friendly message with three options: upgrade, buy credits, or paste your own API key
+- **Soft wall, not hard wall**: when AI credits run out, the AI panel shows upgrade options: subscribe to a monthly plan, buy top-up credits, or upgrade to Lifetime for BYO key
 - **Never blocks research**: search, reading, PDF extraction, canvas editing, export always work
 - **Visible usage**: a counter in the writing sidebar shows remaining credits (e.g., "142 / 150 requests this month")
 - **Monthly reset**: credits reset on the 1st of each month
@@ -112,7 +112,7 @@ All plans maintain **100%+ profit margin** on AI credits even in worst case (eve
 | Lifetime | $89 | $15.00 | 493% |
 | Top-up $5 | $5 | $2.25 | 122% |
 | Top-up $25 | $25 | $12.00 | 108% |
-| BYO key | $0 | $0 | Infinite |
+| BYO key (Lifetime) | $0 | $0 | Infinite |
 
 ---
 
