@@ -350,7 +350,18 @@ function validateModeSemantics(mode: AiMode, body: Record<string, unknown>): str
     if (!sources || sources.length === 0) return "Connect sources for citation grounding.";
   } else if (mode === "titles") {
     if ((!draft || draft.trim().length < 20) && (!text || text.trim().length < 20)) return "Write a draft first to suggest titles.";
+  } else if (mode === "vision") {
+    const image = body.image as string | undefined;
+    if (!image?.trim()) return "No image provided.";
+  } else if (mode === "outline") {
+    if (!sources || sources.length === 0) return "Connect at least one source to outline.";
+  } else if (mode === "section") {
+    if (!question?.trim()) return "A section title is required.";
+    if (!sources || sources.length === 0) return "Connect at least one source.";
+  } else if (mode === "complete") {
+    if (!text || text.trim().length < 1) return "No text to continue.";
   } else {
+    // summarize, ask — need text
     if (!text || text.trim().length < 20) return "No text to work with.";
     if (mode === "ask" && !question?.trim()) return "Ask a question first.";
   }
