@@ -8,7 +8,7 @@ import type { PaperSource } from "@/lib/mock";
  * XML parsing stays off the client bundle.
  */
 
-const ARXIV_ENDPOINT = "http://export.arxiv.org/api/query";
+const ARXIV_ENDPOINT = "https://export.arxiv.org/api/query";
 const MAX_RESULTS = 8;
 
 interface ApiResponse<T> {

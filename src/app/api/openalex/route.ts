@@ -12,6 +12,38 @@ const ENDPOINT = "https://api.openalex.org/works";
 const LIMIT = 8;
 const MAILTO = process.env.OPENALEX_MAILTO ?? "research@lattice.app";
 
+/** In-memory response cache — 5 min TTL. Repeat visits and multiple tabs
+ *  served from cache, so we don't hammer OpenAlex and trigger 429s. */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX = 60;
+const cache = new Map<string, { data: PaperSource[]; expiry: number }>();
+
+function readCache(key: string): PaperSource[] | null {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() > hit.expiry) {
+    cache.delete(key);
+    return null;
+  }
+  return hit.data;
+}
+
+function writeCache(key: string, data: PaperSource[]): void {
+  cache.set(key, { data, expiry: Date.now() + CACHE_TTL_MS });
+  if (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+}
+
+/** Stale-while-revalidate: return expired data rather than nothing on 429. */
+function readStaleCache(key: string): PaperSource[] | null {
+  const hit = cache.get(key);
+  return hit?.data ?? null;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 interface ApiResponse<T> {
   success: boolean;
   data: T | null;
@@ -145,11 +177,33 @@ export async function GET(
     `${ENDPOINT}?per_page=${encodeURIComponent(perPage)}${searchPart}${sortParam}${filterParam}` +
     `&mailto=${encodeURIComponent(MAILTO)}`;
 
+  const cacheKey = url;
+
+  // Serve from cache first — repeat visits are instant and rate-limit-safe.
+  const cached = readCache(cacheKey);
+  if (cached) {
+    return NextResponse.json({ success: true, data: cached, error: null });
+  }
+
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       headers: { "User-Agent": `ProfJohns (${MAILTO})` },
     });
+
+    // On 429, wait briefly and retry once before giving up.
+    if (res.status === 429) {
+      await sleep(800);
+      res = await fetch(url, {
+        headers: { "User-Agent": `ProfJohns (${MAILTO})` },
+      });
+    }
+
     if (!res.ok) {
+      // Last resort: return stale cache if we have it.
+      const stale = readStaleCache(cacheKey);
+      if (stale) {
+        return NextResponse.json({ success: true, data: stale, error: null });
+      }
       throw new Error(
         res.status === 429
           ? "OpenAlex is busy. Try again in a moment."
@@ -157,11 +211,18 @@ export async function GET(
       );
     }
     const json = (await res.json()) as { results?: OAWork[] };
+    const maxYear = new Date().getFullYear() + 1;
     const papers = (json.results ?? [])
       .map(mapWork)
-      .filter((p) => p.title.length > 0);
+      .filter((p) => p.title.length > 0 && p.year <= maxYear);
+    writeCache(cacheKey, papers);
     return NextResponse.json({ success: true, data: papers, error: null });
   } catch (error: unknown) {
+    // Return stale cache on any failure rather than a bare 502.
+    const stale = readStaleCache(cacheKey);
+    if (stale) {
+      return NextResponse.json({ success: true, data: stale, error: null });
+    }
     return NextResponse.json(
       { success: false, data: null, error: getErrorMessage(error) },
       { status: 502 },

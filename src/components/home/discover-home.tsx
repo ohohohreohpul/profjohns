@@ -61,6 +61,17 @@ const RANGE_OPTIONS: { value: FeedRange; label: string }[] = [
 
 const FEED_CACHE_PREFIX = "lattice-feed::";
 
+/** Curated example queries — shown below the search bar for first-time
+ *  users and as a fallback when the feed APIs are unavailable. */
+const STARTER_PROMPTS = [
+  "Effects of microplastics on marine ecosystems",
+  "How does sleep deprivation affect memory consolidation?",
+  "Carbon capture technologies and scalability",
+  "The economics of universal basic income",
+  "CRISPR gene therapy ethics and regulation",
+  "Climate adaptation strategies for coastal cities",
+];
+
 function feedCacheKey(q: string, sort: FeedSort, range: FeedRange): string {
   return `${FEED_CACHE_PREFIX}${q}|${sort}|${range}`;
 }
@@ -82,6 +93,44 @@ function writeFeedCache(key: string, papers: PaperSource[]): void {
   } catch {
     // quota / serialization — ignore; cache is a best-effort accelerator.
   }
+}
+
+/** De-duplicate feed results — OpenAlex sometimes returns the same work
+ *  twice (overlapping concept filters, or the same preprint under different
+ *  ids). Dedupe by id first, then by normalized title as a safety net. */
+function dedupeById(papers: PaperSource[]): PaperSource[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  const out: PaperSource[] = [];
+  for (const p of papers) {
+    if (seenIds.has(p.id)) continue;
+    const titleKey = p.title.toLowerCase().replace(/\s+/g, " ").trim();
+    if (seenTitles.has(titleKey)) continue;
+    seenIds.add(p.id);
+    seenTitles.add(titleKey);
+    out.push(p);
+  }
+  return out;
+}
+
+type FeedResponse = { success: boolean; data: PaperSource[] | null; error: string | null };
+
+/** Fetch from OpenAlex first; on failure fall back to arXiv so the feed
+ *  stays populated even when OpenAlex is rate-limiting (429). */
+async function fetchFeed(url: string, fallbackQuery: string): Promise<PaperSource[]> {
+  const res = await fetch(url);
+  const json = (await res.json()) as FeedResponse;
+  if (json.success && json.data) {
+    return dedupeById(json.data);
+  }
+  // Fallback: arXiv (keyless, no rate-limit issues for our volume).
+  const arxivUrl = `/api/arxiv?q=${encodeURIComponent(fallbackQuery)}`;
+  const fallbackRes = await fetch(arxivUrl);
+  const fallbackJson = (await fallbackRes.json()) as FeedResponse;
+  if (fallbackJson.success && fallbackJson.data) {
+    return dedupeById(fallbackJson.data);
+  }
+  throw new Error(json.error ?? fallbackJson.error ?? "Feed unavailable.");
 }
 
 export function DiscoverHome() {
@@ -177,15 +226,14 @@ export function DiscoverHome() {
       }
       setLoading(true);
       setError(null);
-      fetch(
+      fetchFeed(
         `/api/openalex?q=foryou&concepts=${encodeURIComponent(conceptIds.join(","))}` +
           `&sort=${sort}&range=${range}&limit=12`,
+        conceptIds.map((c) => c).join(" "),
       )
-        .then((r) => r.json())
-        .then((json: { success: boolean; data: PaperSource[] | null; error: string | null }) => {
+        .then((data) => {
           if (cancelled) return;
-          if (!json.success || !json.data) throw new Error(json.error ?? "Feed unavailable.");
-          const filtered = json.data.filter(
+          const filtered = data.filter(
             (p) => p.abstract && p.abstract !== "No abstract available.",
           );
           writeFeedCache(cacheKey, filtered);
@@ -221,14 +269,13 @@ export function DiscoverHome() {
 
     setLoading(true);
     setError(null);
-    fetch(
+    fetchFeed(
       `/api/openalex?q=${encodeURIComponent(interest.q)}&sort=${sort}&range=${range}&limit=12`,
+      interest.q,
     )
-      .then((r) => r.json())
-      .then((json: { success: boolean; data: PaperSource[] | null; error: string | null }) => {
+      .then((data) => {
         if (cancelled) return;
-        if (!json.success || !json.data) throw new Error(json.error ?? "Feed unavailable.");
-        const filtered = json.data.filter(
+        const filtered = data.filter(
           (p) => p.abstract && p.abstract !== "No abstract available.",
         );
         writeFeedCache(cacheKey, filtered);
@@ -403,6 +450,21 @@ export function DiscoverHome() {
             </button>
           </div>
         </motion.form>
+
+        {/* Starter prompts — shown for first-time users with no projects. */}
+        {projects.length === 0 && (
+          <motion.div variants={fadeUp} className="mt-4 flex flex-wrap justify-center gap-2">
+            {STARTER_PROMPTS.slice(0, 3).map((prompt) => (
+              <button
+                key={prompt}
+                onClick={() => launch(prompt)}
+                className="rounded-full border border-grey-200 bg-paper px-3 py-1.5 text-[12px] font-medium text-grey-500 transition-colors hover:border-ink hover:text-ink"
+              >
+                {prompt}
+              </button>
+            ))}
+          </motion.div>
+        )}
 
         {/* Discover feed */}
         <motion.div variants={fadeUp} className="mt-12">
@@ -632,9 +694,25 @@ export function DiscoverHome() {
                 ))}
               </div>
             ) : error ? (
-              <p className="rounded-xl border border-grey-200 bg-grey-50 px-4 py-6 text-center text-[13px] text-grey-500">
-                {error}
-              </p>
+              <div className="rounded-2xl border border-grey-200 bg-grey-50/50 px-6 py-8">
+                <p className="text-center text-[13px] font-medium text-ink">
+                  The feed is temporarily unavailable
+                </p>
+                <p className="mt-1 text-center text-[12px] text-grey-500">
+                  You can still research any topic — try one of these:
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {STARTER_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => launch(prompt)}
+                      className="rounded-full border border-grey-300 bg-paper px-3 py-1.5 text-[12px] font-medium text-grey-600 transition-colors hover:border-ink hover:text-ink"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : papers.length === 0 && tabId === FOR_YOU_TAB && !hasForYou ? (
               <div className="rounded-2xl border border-dashed border-grey-200 bg-grey-50/50 px-6 py-10 text-center">
                 <Sparkles className="mx-auto size-5 text-grey-300" />
