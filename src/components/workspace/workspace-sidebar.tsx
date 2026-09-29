@@ -64,11 +64,10 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
     <aside className="flex w-[260px] shrink-0 flex-col border-r border-grey-200 bg-grey-50">
       <div className="flex h-16 shrink-0 items-center gap-0 px-4">
         <ProfJohnsLogo size={64} className="shrink-0 -mr-1" />
-        <object
-          data="/profjohns-text.svg"
-          type="image/svg+xml"
+        <img
+          src="/profjohns-text.svg"
+          alt="ProfJohns"
           className="h-[24px] w-auto"
-          aria-label="ProfJohns"
         />
         <button
           aria-label="Collapse sidebar"

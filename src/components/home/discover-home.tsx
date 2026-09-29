@@ -410,11 +410,10 @@ export function DiscoverHome() {
         {/* hero */}
         <motion.div variants={fadeUp} className="flex items-center justify-center gap-0">
           <ProfJohnsLogo size={160} className="shrink-0 -mr-2" />
-          <object
-            data="/profjohns-text.svg"
-            type="image/svg+xml"
+          <img
+            src="/profjohns-text.svg"
+            alt="ProfJohns"
             className="h-[72px] w-auto"
-            aria-label="ProfJohns"
           />
         </motion.div>
         <motion.p variants={fadeUp} className="mt-3 text-center text-[14px] text-grey-500">
