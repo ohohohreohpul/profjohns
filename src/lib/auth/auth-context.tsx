@@ -18,20 +18,23 @@ const AuthContext = React.createContext<AuthState>({
   enabled: false,
 });
 
+// Initialise `enabled` synchronously from env vars so the very first render
+// (including SSR) knows whether auth is on. Without this, `enabled` starts
+// false and the AuthGuard renders protected content into the server HTML
+// before the client effect corrects it — a flash of the dashboard to
+// unauthenticated visitors.
+const AUTH_ENABLED = isSupabaseEnabled();
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<AuthState>({
     user: null,
-    loading: true,
-    enabled: false,
+    // Loading only matters when auth is enabled — local mode resolves instantly.
+    loading: AUTH_ENABLED,
+    enabled: AUTH_ENABLED,
   });
 
   React.useEffect(() => {
-    const enabled = isSupabaseEnabled();
-
-    if (!enabled) {
-      setState({ user: null, loading: false, enabled: false });
-      return;
-    }
+    if (!AUTH_ENABLED) return;
 
     // Dynamic import so the Supabase SDK isn't loaded when disabled.
     let unsub: (() => void) | undefined;
