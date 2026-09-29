@@ -6,7 +6,7 @@ defines renders wrong (a "floating token" = drift = inconsistency across pages).
 proves theme + components stay in lock-step.
 
 Usage:
-  python3 scripts/validate_theme_refs.py                         # defaults to examples/golden
+  python3 scripts/validate_theme_refs.py                         # defaults to the project theme + src
   python3 scripts/validate_theme_refs.py path/to/theme.css src/  # your theme + your code
 Exit 0 = every referenced var is defined; 1 = a component references an undefined token.
 """
@@ -46,8 +46,8 @@ def main(argv):
         theme_paths = [argv[0]]
         code_paths = argv[1:]
     else:
-        theme_paths = [ROOT / "examples" / "golden" / "theme.css"]
-        code_paths = [ROOT / "examples" / "golden"]
+        theme_paths = [ROOT / "src" / "app" / "globals.css"]
+        code_paths = [ROOT / "src"]
 
     defined = collect_defs(theme_paths)
     # a theme can reference its own vars (aliases) — those are fine; we add them as defined too

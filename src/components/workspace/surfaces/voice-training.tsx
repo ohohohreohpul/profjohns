@@ -89,7 +89,7 @@ export function VoiceTraining() {
           Writing voice
         </h2>
         {styleProfile && (
-          <span className="ml-auto flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+          <span className="ml-auto flex items-center gap-1 rounded-full bg-feedback-success-bg px-2 py-0.5 text-[10px] font-medium text-feedback-success">
             <Check className="size-3" />
             Trained
           </span>
@@ -124,7 +124,7 @@ export function VoiceTraining() {
             <button
               onClick={() => removeSample(s.id)}
               aria-label={`Remove ${s.name}`}
-              className="grid size-6 shrink-0 place-items-center rounded text-grey-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              className="grid size-6 shrink-0 place-items-center rounded text-grey-400 transition-colors hover:bg-feedback-danger-bg hover:text-feedback-danger"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -192,7 +192,7 @@ export function VoiceTraining() {
       )}
 
       {error && (
-        <p className="mt-2 flex items-start gap-1.5 text-[11.5px] text-red-600">
+        <p className="mt-2 flex items-start gap-1.5 text-[11.5px] text-feedback-danger">
           <AlertCircle className="mt-px size-3.5 shrink-0" />
           {error}
         </p>
@@ -219,7 +219,7 @@ export function VoiceTraining() {
             </button>
             <button
               onClick={() => setStyleProfile(null)}
-              className="text-[12px] font-medium text-grey-400 hover:text-red-500"
+              className="text-[12px] font-medium text-grey-400 hover:text-feedback-danger"
             >
               Forget
             </button>

@@ -1,6 +1,9 @@
 /**
- * Mock research data for the prototype. Stands in for results that would
- * eventually come from arXiv / Semantic Scholar APIs and a PDF extractor.
+ * The canonical source type for the whole app. Named `PaperSource` for
+ * historical reasons — this is the production model every provider (OpenAlex,
+ * arXiv, Semantic Scholar, Wikipedia, web links) maps its results onto, NOT a
+ * mock or prototype stand-in. No seed/demo data is injected into real canvases;
+ * users add real sources from the providers above.
  */
 
 export interface PaperSource {
@@ -23,31 +26,4 @@ export interface PaperSource {
   /** Set on web links (Link node) — the date the page was captured. Its
    * presence marks the source as a web reference for citation formatting. */
   accessed?: string;
-}
-
-export interface ReadingAnchor {
-  id: string;
-  paperId: string;
-  page: number;
-  reason: string;
-}
-
-const ANCHOR_PAGES = [3, 5, 8];
-const ANCHOR_REASONS = [
-  "Core method definition — start here.",
-  "Ablation relevant to your research direction.",
-  "Counter-argument worth citing in your review.",
-];
-
-/**
- * Derive reading anchors from the actual source set so the agent's
- * "where to read first" reflects the papers currently on the canvas.
- */
-export function buildAnchors(papers: PaperSource[]): ReadingAnchor[] {
-  return papers.slice(0, ANCHOR_PAGES.length).map((paper, i) => ({
-    id: `anchor-${paper.id}`,
-    paperId: paper.id,
-    page: ANCHOR_PAGES[i],
-    reason: ANCHOR_REASONS[i],
-  }));
 }

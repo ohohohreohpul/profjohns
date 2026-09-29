@@ -148,7 +148,7 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
               <DropdownMenuItem
                 onSelect={() => signOut()}
                 data-testid="menu-sign-out"
-                className="text-red-600 data-[highlighted]:bg-red-50"
+                className="text-feedback-danger data-[highlighted]:bg-feedback-danger-bg"
               >
                 <SignOut className="size-4" />
                 Sign out

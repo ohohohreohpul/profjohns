@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { openrouterIdFor } from "@/lib/models";
 
 /**
  * AI boundary — OpenRouter backend.
@@ -77,6 +78,9 @@ interface AiRequest {
   persona?: string;
   /** A data-URL or https image — sent to a multimodal model in `vision` mode. */
   image?: string;
+  /** L18 — catalog model id from the node's picker. When it resolves to a real
+   *  OpenRouter model id, that model runs instead of the mode-based default. */
+  modelId?: string;
 }
 
 interface ApiResponse<T> {
@@ -92,11 +96,11 @@ const INSTRUCTIONS: Record<AiMode, string> = {
   ask:
     "You are a precise research assistant. Answer using ONLY the provided paper text. If the answer isn't in the text, say so. Quote short phrases when helpful.",
   write:
-    "You are an advanced academic writing assistant embedded in a document editor. Carry out the user's instruction precisely, grounding every claim in the provided sources and citing them inline as (Author, Year). Write in a clear, confident academic tone — avoid hedging, passive voice, and filler. Match the structure and style of any existing draft. Return finished prose only — no preamble, no meta-commentary, no headings unless explicitly asked.",
+    "You are an advanced academic writing assistant embedded in a document editor. Carry out the user's instruction precisely, grounding every claim in the provided SOURCES. Cite every factual statement inline with its source number in square brackets, e.g. [1] or [2], matching the SOURCES numbering exactly — never invent a citation or cite a number that is not in the list. Write in a clear, confident academic tone — avoid hedging, passive voice, and filler. Match the structure and style of any existing draft. Return finished prose only — no preamble, no meta-commentary, no headings unless explicitly asked.",
   batch:
     "You are a precise research assistant. For each paper listed, extract: one-sentence TL;DR and three key claims as '- ' bullets. Format EXACTLY:\n\n--- PAPER: [number] ---\nTL;DR: ...\nKey claims:\n- ...\n- ...\n- ...\n\nBe faithful to the abstracts. Return ONLY the formatted output.",
   edit:
-    "You are an expert academic editor embedded in a document editor. Carry out the user's editing instruction on the provided text. Options include: fix grammar and clarity, adjust tone (more formal / more accessible / more persuasive), expand a point with depth and evidence, tighten prose, improve flow and transitions. Return ONLY the edited text — no preamble, no explanations, no meta-commentary.",
+    "You are an expert academic editor embedded in a document editor. Carry out the user's editing instruction on the provided text. The text uses [n] inline citation markers tied to the SOURCES list — PRESERVE every [n] marker exactly where the cited claim appears, keep each number matched to the same source, and if you add a new factual claim, cite its source as [n]. Never invent a citation number that is not in the SOURCES list. Options include: fix grammar and clarity, adjust tone (more formal / more accessible / more persuasive), expand a point with depth and evidence, tighten prose, improve flow and transitions. Return ONLY the edited text with the [n] markers intact — no preamble, no explanations, no meta-commentary.",
   diagram:
     "You are a precise diagram generator. Analyze the provided content and create a Mermaid.js diagram that visualizes the structure, relationships, or flow. Choose the most appropriate diagram type: flowchart for processes, classDiagram for hierarchies, graph TD for mind-maps, sequenceDiagram for steps, or erDiagram for relationships. Return ONLY valid Mermaid syntax — no markdown fences, no explanations, no preamble. The first line should be the diagram type declaration.",
   explore:
@@ -324,8 +328,13 @@ export async function POST(
     );
   }
 
-  const model =
-    mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
+  // L18 — honor the node's model picker when it resolves to a real OpenRouter
+  // id; otherwise fall back to the mode-appropriate default. This makes the
+  // picker truthful: the model the user selects is the model that runs.
+  const pickedModel = openrouterIdFor(body.modelId);
+  const model = pickedModel
+    ? pickedModel
+    : mode === "summarize" || mode === "ask" || mode === "angles" || mode === "gaps" || mode === "refine" || mode === "libchat" || mode === "libcat" || mode === "complete" || mode === "titles" || mode === "outline"
       ? MODEL_FAST
       : MODEL_BALANCED;
 
@@ -345,9 +354,18 @@ export async function POST(
   let userContent: string;
 
   if (mode === "edit") {
-    contextLabel = "TEXT TO EDIT";
-    contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
-    userContent = (instruction as string).trim();
+    // When sources are connected, the text arrives [n]-indexed and the SOURCES
+    // block lets the LLM keep each marker matched to the right source — so the
+    // edit preserves traceability instead of stripping citation marks.
+    if (sources && sources.length > 0) {
+      contextLabel = "SOURCES";
+      contextBody = buildSourcesBlock(sources);
+      userContent = `TEXT TO EDIT (the [n] markers are citations — preserve them, each matched to SOURCES[n]):\n${(text as string).slice(0, MAX_CONTEXT_CHARS)}\n\n---\nEDIT INSTRUCTION:\n${(instruction as string).trim()}`;
+    } else {
+      contextLabel = "TEXT TO EDIT";
+      contextBody = (text as string).slice(0, MAX_CONTEXT_CHARS);
+      userContent = (instruction as string).trim();
+    }
   } else if (mode === "write") {
     contextLabel = "SOURCES";
     contextBody = buildSourcesBlock(sources as SourceContext[]);
@@ -452,13 +470,17 @@ export async function POST(
 
   // Lily: condition the writer on the author's learned voice profile.
   const voiceBlock =
-    (mode === "write" || mode === "section") && style?.trim()
+    (mode === "write" || mode === "section" || mode === "edit") && style?.trim()
       ? `\n\nAUTHOR VOICE PROFILE — write in this voice (it governs tone/rhythm/diction; never let it override factual accuracy or citations):\n${style.trim()}`
       : "";
   // A bound agent's persona leads the system prompt so it colours behavior
   // without discarding the mode's task-specific instructions.
   const personaBlock = persona?.trim() ? `${persona.trim()}\n\n` : "";
   const systemPrompt = `${personaBlock}${INSTRUCTIONS[mode]}\n\n${contextLabel}:\n${contextBody}${voiceBlock}`;
+
+  const OR_TIMEOUT_MS = 100_000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OR_TIMEOUT_MS);
 
   try {
     const res = await fetch(OR_BASE, {
@@ -485,6 +507,7 @@ export async function POST(
             : { role: "user", content: userContent },
         ],
       }),
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -509,9 +532,20 @@ export async function POST(
       configured: true,
     });
   } catch (error: unknown) {
+    const isAbort =
+      error instanceof DOMException && error.name === "AbortError";
     return NextResponse.json(
-      { success: false, data: null, error: getErrorMessage(error), configured: true },
-      { status: 502 },
+      {
+        success: false,
+        data: null,
+        error: isAbort
+          ? "The model took too long to respond. Please try again."
+          : getErrorMessage(error),
+        configured: true,
+      },
+      { status: isAbort ? 504 : 502 },
     );
+  } finally {
+    clearTimeout(timeout);
   }
 }

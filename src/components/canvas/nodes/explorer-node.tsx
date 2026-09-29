@@ -55,8 +55,8 @@ function isNotConfigured(err: unknown): boolean {
 
 function scoreTone(score?: number): string {
   if (score == null) return "bg-grey-100 text-grey-500";
-  if (score >= 75) return "bg-emerald-50 text-emerald-700";
-  if (score >= 50) return "bg-amber-50 text-amber-700";
+  if (score >= 75) return "bg-feedback-success-bg text-feedback-success";
+  if (score >= 50) return "bg-feedback-warning-bg text-feedback-warning";
   return "bg-grey-100 text-grey-500";
 }
 
@@ -129,7 +129,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
     setGaps([]);
     setBusy("Planning search…");
     try {
-      const proposed = await proposeSearchAngles(t, allowedSources, persona);
+      const proposed = await proposeSearchAngles(t, allowedSources, persona, data.modelId);
       setAngles(proposed.map((a) => ({ ...a, selected: true })));
       setAiOff(false);
     } catch (err: unknown) {
@@ -185,7 +185,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
       setBusy("Screening for relevance…");
       let scored: ScoredSource[];
       try {
-        const verdicts = await triageSources(topic, batch, persona);
+        const verdicts = await triageSources(topic, batch, persona, data.modelId);
         const byN = new Map(verdicts.map((v) => [v.n, v]));
         scored = batch.map((p, i) => {
           const v = byN.get(i + 1);
@@ -215,7 +215,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
     setBusy("Looking for gaps…");
     setError(null);
     try {
-      setGaps(await findGaps(topic, kept, persona));
+      setGaps(await findGaps(topic, kept, persona, data.modelId));
     } catch (err: unknown) {
       setAiOff(isNotConfigured(err));
       setError(aiOff ? null : "Could not analyze gaps.");
@@ -345,7 +345,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
       )}
 
       {error && (
-        <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-2.5 py-2 text-[11px] text-red-600 animate-shake">
+        <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-2.5 py-2 text-[11px] text-feedback-danger animate-shake">
           <AlertCircle className="size-3.5 shrink-0" />
           {error}
         </p>
@@ -562,7 +562,7 @@ function SourceRow({
                 "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                 kept
                   ? "text-grey-400 hover:bg-grey-100 hover:text-grey-700"
-                  : "text-emerald-600 hover:bg-emerald-50",
+                  : "text-feedback-success hover:bg-feedback-success-bg",
               )}
             >
               {kept ? (

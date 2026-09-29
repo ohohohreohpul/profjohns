@@ -74,6 +74,9 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
         ctx,
         `The user asks: "${q}". ${ctx} Respond conversationally. If the user asks you to create something, suggest specific nodes they could add. Keep it concise and actionable.`,
         persona,
+        undefined,
+        undefined,
+        data.modelId,
       );
 
       // Look for actionable suggestions in the response
@@ -175,7 +178,7 @@ export function AssistantNode({ id, data, selected }: CanvasNodeProps) {
               msg.role === "user"
                 ? "ml-8 bg-ink text-paper animate-bubble-in-right"
                 : msg.role === "error"
-                  ? "border border-red-200 bg-red-50/50 text-red-600"
+                  ? "border border-feedback-danger-border bg-feedback-danger-bg/50 text-feedback-danger"
                   : "border border-grey-200 bg-grey-50/50 text-grey-700 animate-bubble-in-left",
             )}
           >

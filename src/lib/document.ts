@@ -75,6 +75,44 @@ export function extractText(content: JSONContent | undefined): string {
   return parts.join("").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/**
+ * Serialize a doc to prose where each citation mark is replaced by its `[n]`
+ * source index (1-based position in `sources`). The inverse of
+ * `sectionToContent`: it lets the edit loop send the LLM marker-indexed text so
+ * it can preserve citations, then `sectionToContent` rebuilds the marks on the
+ * returned prose. Keeps traceability through AI edits — the moat (every
+ * citation traces back) survives an edit instead of being silently stripped.
+ *
+ * Unsupported marks are still emitted as `[n]` (the marker travels); a citation
+ * whose paperId is not in `sources` (a disconnected source) is left as the
+ * literal `[n]` text so it is seen, not laundered — matching `parseSectionParagraph`.
+ */
+export function contentToIndexedProse(
+  content: JSONContent | undefined,
+  sources: ReadonlyArray<{ id: string }>,
+): string {
+  if (!content) return "";
+  const idToIndex = new Map<string, number>();
+  sources.forEach((s, i) => idToIndex.set(s.id, i + 1));
+  const parts: string[] = [];
+  const walk = (node: JSONContent) => {
+    if (node.type === "text" && node.text) {
+      const citation = (node.marks ?? []).find((m) => m.type === "citation");
+      const paperId = citation?.attrs?.paperId;
+      if (citation && typeof paperId === "string") {
+        const n = idToIndex.get(paperId);
+        parts.push(n ? `[${n}]` : `[?]`);
+      } else {
+        parts.push(node.text);
+      }
+    }
+    (node.content ?? []).forEach(walk);
+    if (node.type && BLOCK_NODES.has(node.type)) parts.push("\n\n");
+  };
+  walk(content);
+  return parts.join("").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /** Paper ids cited in the document, in first-seen order — derived from the
  *  citation marks so it can never drift from the actual text. */
 export function extractCitedPaperIds(content: JSONContent | undefined): string[] {

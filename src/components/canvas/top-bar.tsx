@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import {
   Coins,
@@ -98,14 +99,6 @@ function SurfacesMenu({ projectId }: { projectId: string }) {
 }
 
 async function resetBoard(canvasId: string, direction: string) {
-  if (!canvasId) return;
-  if (
-    !confirm(
-      "Reset this board? It clears this canvas's contents and starts fresh. This can't be undone.",
-    )
-  ) {
-    return;
-  }
   clearStoredCanvas(canvasId); // remove the local board blob
   useCanvasStore.getState().reset(direction); // fresh seed in memory
   useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
@@ -119,6 +112,7 @@ function BoardMenu({
   canvasId: string;
   direction: string;
 }) {
+  const [confirming, setConfirming] = React.useState(false);
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -131,17 +125,41 @@ function BoardMenu({
         </button>
       </PopoverTrigger>
       <PopoverContent side="bottom" align="end" className="w-56 p-1">
-        <button
-          onClick={() => void resetBoard(canvasId, direction)}
-          className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] font-medium text-grey-700 transition-colors hover:bg-red-50 hover:text-red-600"
-        >
-          <Eraser className="size-4 shrink-0" />
-          Reset board
-        </button>
-        <p className="px-2 pb-1 pt-0.5 text-[10.5px] leading-snug text-grey-400">
-          Clears this canvas and starts fresh — use if a board shows the wrong
-          contents.
-        </p>
+        {confirming ? (
+          <div className="p-1">
+            <p className="px-1.5 pb-2 text-[11.5px] leading-snug text-grey-600">
+              Clear this canvas and start fresh? This can&apos;t be undone.
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => { void resetBoard(canvasId, direction); }}
+                className="flex-1 rounded-md bg-feedback-danger px-2 py-1.5 text-[12px] font-semibold text-paper transition-colors hover:bg-feedback-danger active:bg-feedback-danger"
+              >
+                Reset
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="flex-1 rounded-md border border-grey-200 px-2 py-1.5 text-[12px] font-medium text-grey-600 transition-colors hover:bg-grey-100"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => setConfirming(true)}
+              className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] font-medium text-grey-700 transition-colors hover:bg-feedback-danger-bg hover:text-feedback-danger"
+            >
+              <Eraser className="size-4 shrink-0" />
+              Reset board
+            </button>
+            <p className="px-2 pb-1 pt-0.5 text-[10.5px] leading-snug text-grey-400">
+              Clears this canvas and starts fresh — use if a board shows the wrong
+              contents.
+            </p>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );

@@ -72,7 +72,7 @@ export function ActionEdge({
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
           }}
           className={cn(
-            "nodrag nopan absolute grid size-5 place-items-center rounded-full border border-grey-200 bg-paper text-grey-500 shadow-[0_4px_12px_-4px_rgba(21,23,28,0.35)] transition-all duration-150 hover:border-red-200 hover:bg-red-50 hover:text-red-500",
+            "nodrag nopan absolute grid size-5 place-items-center rounded-full border border-grey-200 bg-paper text-grey-500 shadow-[0_4px_12px_-4px_rgba(21,23,28,0.35)] transition-all duration-150 hover:border-feedback-danger-border hover:bg-feedback-danger-bg hover:text-feedback-danger",
             active
               ? "pointer-events-auto scale-100 opacity-100"
               : "pointer-events-none scale-75 opacity-0",

@@ -127,7 +127,7 @@ export function LibrarySurface() {
           </button>
         </div>
         {uploadError && (
-          <p className="mb-2 rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[11px] text-red-600">
+          <p className="mb-2 rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-3 py-2 text-[11px] text-feedback-danger">
             {uploadError}
           </p>
         )}
@@ -182,7 +182,7 @@ function SourceRow({ source, first, canvasName }: { source: LibrarySource; first
           onClick={cite}
           className="flex items-center gap-1 rounded-md border border-grey-200 px-2 py-1 text-[10.5px] font-medium text-grey-600 transition-colors hover:bg-grey-50 hover:text-ink"
         >
-          {copied ? <Check className="size-3 text-emerald-600" /> : <Quote className="size-3" />}
+          {copied ? <Check className="size-3 text-feedback-success" /> : <Quote className="size-3" />}
           {copied ? "Copied" : "Cite"}
         </button>
         {source.url && (

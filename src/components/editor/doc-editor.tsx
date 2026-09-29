@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useCanvasStore } from "@/store/canvas-store";
 import { emptyDocContent } from "@/lib/document";
 import { Citation } from "./citation-mark";
+import { Unsupported } from "./unsupported-mark";
 import { Autocomplete } from "./autocomplete";
 import { completeText } from "@/lib/ai-client";
 
@@ -31,6 +32,35 @@ const AUTOCOMPLETE_PREF = "lattice-autocomplete";
 const editors = new Map<string, Editor>();
 export function getDocEditor(nodeId: string): Editor | undefined {
   return editors.get(nodeId);
+}
+
+/**
+ * L03 — find `needle` in the editor's document and scroll the caret to it, so
+ * an audit finding's "jump to claim" action lands the user on the exact text to
+ * fix. Matches the first occurrence (case-insensitive, whitespace-collapsed).
+ * Returns true when the needle was located and focused; false when not found
+ * (e.g. the claim was paraphrased or already edited away).
+ */
+export function scrollEditorToText(editor: Editor, needle: string): boolean {
+  const target = needle.trim().toLowerCase();
+  if (!target) return false;
+  const { doc } = editor.state;
+  let found = false;
+  doc.descendants((node, pos) => {
+    if (found || !node.isText || !node.text) return false;
+    const idx = node.text.toLowerCase().indexOf(target);
+    if (idx === -1) return false;
+    const from = pos + idx;
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to: from + target.length })
+      .scrollIntoView()
+      .run();
+    found = true;
+    return true;
+  });
+  return found;
 }
 
 const SYNC_DEBOUNCE_MS = 150;
@@ -62,6 +92,7 @@ export function DocEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2] } }),
       Citation,
+      Unsupported,
       Autocomplete.configure({ fetchSuggestion: completeText }),
       Placeholder.configure({
         placeholder: compact

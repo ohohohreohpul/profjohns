@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Download, CaretDown as ChevronDown } from "@phosphor-icons/react";
+import { Download, CaretDown as ChevronDown, WarningCircle as AlertCircle } from "@phosphor-icons/react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -28,11 +28,13 @@ export function ExportMenu({
   doc: WritingDoc | undefined;
 }) {
   const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
   const allSources = useNodeInputSources(nodeId);
 
   async function handleExport(format: ExportFormat) {
     if (!doc) return;
     setBusy(true);
+    setError(null);
     try {
       const style = doc.style ?? DEFAULT_STYLE;
       const references = extractCitedPaperIds(doc.content)
@@ -40,6 +42,12 @@ export function ExportMenu({
         .filter((p): p is NonNullable<typeof p> => Boolean(p))
         .map((p, i) => formatReference(p, style, i + 1));
       await exportDocument(doc, format, references);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? `Export failed: ${err.message}`
+          : "Export failed. Please try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -59,6 +67,12 @@ export function ExportMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuLabel>Export draft as</DropdownMenuLabel>
+        {error && (
+          <p className="mx-2 mb-1 flex items-center gap-1.5 rounded-md border border-feedback-danger-border bg-feedback-danger-bg/60 px-2 py-1.5 text-[10px] text-feedback-danger">
+            <AlertCircle className="size-3 shrink-0" />
+            {error}
+          </p>
+        )}
         {FORMATS.map((format) => (
           <DropdownMenuItem
             key={format}

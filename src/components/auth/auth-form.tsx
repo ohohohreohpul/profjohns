@@ -136,13 +136,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </div>
 
           {error && (
-            <p className="rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[12px] text-red-600">
+            <p className="rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-3 py-2 text-[12px] text-feedback-danger">
               {error}
             </p>
           )}
 
           {notice && (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-[12px] text-emerald-700">
+            <p className="rounded-lg border border-feedback-success-border bg-feedback-success-bg/50 px-3 py-2 text-[12px] text-feedback-success">
               {notice}
             </p>
           )}

@@ -17,7 +17,7 @@ import { useCanvasStore } from "@/store/canvas-store";
 import { SUGGESTED_NEXT, NODE_ORDER, type NodeKind } from "@/lib/node-catalog";
 import { DEFAULT_MODEL_ID, getModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
-import { Package as Container } from "@phosphor-icons/react";
+import { Package as Container, ArrowCounterClockwise as Undo } from "@phosphor-icons/react";
 import { ExplorerNode } from "./nodes/explorer-node";
 import { ProcessorNode } from "./nodes/processor-node";
 import { BlockNode } from "./nodes/block-node";
@@ -534,6 +534,7 @@ function CanvasInner() {
         />
       )}
       <FocusOverlay />
+      <DeleteUndoBanner />
     </div>
   );
 }
@@ -543,5 +544,53 @@ export function ResearchCanvas() {
     <ReactFlowProvider>
       <CanvasInner />
     </ReactFlowProvider>
+  );
+}
+
+const UNDO_BANNER_MS = 6000;
+
+/**
+ * L10 — a non-blocking "Deleted — Undo" banner that appears after any node or
+ * edge removal. Deletions are always recoverable via temporal undo (⌘Z); this
+ * surfaces that affordance so an accidental delete isn't a dead-end. The banner
+ * auto-dismisses after `UNDO_BANNER_MS`; a fresh delete re-arms it.
+ */
+function DeleteUndoBanner() {
+  const lastDeletion = useCanvasStore((s) => s.lastDeletion);
+  const [visible, setVisible] = React.useState(false);
+  const ts = lastDeletion?.ts ?? 0;
+
+  React.useEffect(() => {
+    if (!ts) return;
+    setVisible(true);
+    const t = setTimeout(() => setVisible(false), UNDO_BANNER_MS);
+    return () => clearTimeout(t);
+  }, [ts]);
+
+  // The banner only shows after a deletion and auto-hides; it's not focusable
+  // content, so we keep it minimal and let the Undo button own the action.
+  if (!visible || !ts) return null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="animate-float-in pointer-events-auto absolute bottom-6 left-1/2 z-40 -translate-x-1/2"
+    >
+      <div className="flex items-center gap-2 rounded-xl border border-grey-200 bg-paper px-3 py-2 shadow-lift">
+        <span className="text-[12px] text-grey-600">Item deleted</span>
+        <button
+          type="button"
+          onClick={() => {
+            useCanvasStore.temporal.getState().undo();
+            setVisible(false);
+          }}
+          className="flex items-center gap-1 rounded-md bg-ink px-2 py-1 text-[11px] font-medium text-paper transition-colors hover:bg-grey-800"
+        >
+          <Undo className="size-3" />
+          Undo
+        </button>
+      </div>
+    </div>
   );
 }

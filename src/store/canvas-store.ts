@@ -105,6 +105,9 @@ interface CanvasState {
   docs: Record<string, WritingDoc>;
   /** Source results keyed by the source node that fetched them. */
   sources: Record<string, PaperSource[]>;
+  /** L10 — bumped on every removeNode/removeEdge so an undo affordance can
+   *  surface after a deletion (recoverable via temporal undo). */
+  lastDeletion: { count: number; ts: number } | null;
   /** Reader highlights keyed by paper id. */
   highlights: Record<string, Highlight[]>;
   /** Extract results keyed by node id, then paper id. */
@@ -315,6 +318,7 @@ export const useCanvasStore = create<CanvasState>()(
       readerPaper: null,
       docs: {},
       sources: {},
+      lastDeletion: null,
       highlights: {},
       extracts: {},
       hasHydrated: false,
@@ -387,6 +391,7 @@ export const useCanvasStore = create<CanvasState>()(
         edges: state.edges.filter(
           (e) => e.source !== nodeId && e.target !== nodeId,
         ),
+        lastDeletion: { count: 1, ts: Date.now() },
       };
     }),
 
@@ -481,6 +486,7 @@ export const useCanvasStore = create<CanvasState>()(
   removeEdge: (edgeId) =>
     set((state) => ({
       edges: state.edges.filter((e) => e.id !== edgeId),
+      lastDeletion: { count: 1, ts: Date.now() },
     })),
 
   disconnectNode: (nodeId) =>
@@ -623,6 +629,7 @@ reset: (direction) =>
           docs: {},
           extracts: {},
           sources: {},
+          lastDeletion: null,
           nodes: [
             makeNode("n1", "explorer", { x: 100, y: 120 }),
             makeNode("n2", "writing", { x: 540, y: 140 }),
@@ -648,6 +655,7 @@ reset: (direction) =>
           readerPaper: null,
           docs: {},
           sources: {},
+          lastDeletion: null,
           highlights: {},
           extracts: {},
           nodes: [],

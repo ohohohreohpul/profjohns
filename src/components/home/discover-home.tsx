@@ -592,7 +592,7 @@ export function DiscoverHome() {
               </div>
 
               {refineError && (
-                <p className="mt-2 text-[11px] text-red-600">{refineError}</p>
+                <p className="mt-2 text-[11px] text-feedback-danger">{refineError}</p>
               )}
 
               {refineThemes && refineThemes.length > 0 && (
@@ -717,7 +717,7 @@ function FeedCard({
         {paper.openAccess && (
           <span
             title="Open access"
-            className="mt-0.5 flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-700"
+            className="mt-0.5 flex shrink-0 items-center gap-1 rounded-full bg-feedback-success-bg px-1.5 py-0.5 text-[9.5px] font-semibold text-feedback-success"
           >
             <Unlock className="size-2.5" />
             OA
@@ -756,7 +756,7 @@ function FeedCard({
               className={cn(
                 "flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] font-medium transition-colors",
                 savedTo
-                  ? "text-emerald-600"
+                  ? "text-feedback-success"
                   : "text-grey-500 hover:bg-grey-100 hover:text-ink",
               )}
             >
@@ -779,7 +779,7 @@ function FeedCard({
               >
                 <span className="truncate">{proj.name || "Untitled project"}</span>
                 {pinned.has(proj.id) && (
-                  <Check className="size-3 shrink-0 text-emerald-600" />
+                  <Check className="size-3 shrink-0 text-feedback-success" />
                 )}
               </DropdownMenuItem>
             ))}
@@ -811,7 +811,7 @@ function FeedCard({
             className={cn(
               "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors",
               feedbackSignal === "more"
-                ? "bg-emerald-50 text-emerald-700"
+                ? "bg-feedback-success-bg text-feedback-success"
                 : "text-grey-500 hover:bg-grey-100 hover:text-ink",
             )}
           >
@@ -824,7 +824,7 @@ function FeedCard({
             className={cn(
               "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors",
               feedbackSignal === "less"
-                ? "bg-red-50 text-red-600"
+                ? "bg-feedback-danger-bg text-feedback-danger"
                 : "text-grey-500 hover:bg-grey-100 hover:text-ink",
             )}
           >

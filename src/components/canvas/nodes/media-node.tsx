@@ -72,6 +72,8 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
       const desc = await describeImage(
         media.src,
         media.caption || media.alt || undefined,
+        undefined,
+        data.modelId,
       );
       patchMedia({ description: desc });
     } catch (err: unknown) {
@@ -181,7 +183,7 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
           </button>
 
           {describeError && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-[10px] text-red-600">
+            <p className="mt-1.5 flex items-center gap-1.5 text-[10px] text-feedback-danger">
               <AlertCircle className="size-3 shrink-0" />
               {describeError}
             </p>
@@ -222,7 +224,7 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
             </p>
           )}
           {indexState === "error" && (
-            <p className="mt-1 flex items-center gap-1.5 text-[10px] text-red-600">
+            <p className="mt-1 flex items-center gap-1.5 text-[10px] text-feedback-danger">
               <AlertCircle className="size-3 shrink-0" />
               Could not index this figure.
             </p>
@@ -253,7 +255,7 @@ export function MediaNode({ id, data, selected }: CanvasNodeProps) {
           {busy ? (
             <Loader2 className="size-5 animate-spin text-grey-400" />
           ) : error ? (
-            <ImageOff className="size-5 text-red-400" />
+            <ImageOff className="size-5 text-feedback-danger" />
           ) : (
             <Upload className="size-5 text-grey-400" />
           )}

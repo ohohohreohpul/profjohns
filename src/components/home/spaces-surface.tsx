@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash as Trash2, Clock, Stack as Layers, BookmarkSimple as Bookmark } from "@phosphor-icons/react";
+import { Plus, Trash as Trash2, Clock, Stack as Layers, BookmarkSimple as Bookmark, X } from "@phosphor-icons/react";
 import { SurfaceScaffold } from "@/components/workspace/workspace-shell";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { InlineEdit } from "@/components/ui/inline-edit";
@@ -34,6 +34,7 @@ export function SpacesSurface() {
   const removeProject = useWorkspaceStore((s) => s.removeProject);
   const updateProject = useWorkspaceStore((s) => s.updateProject);
   const pinnedSources = useWorkspaceStore((s) => s.pinnedSources);
+  const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
 
   function open(id: string) {
     router.push(`/canvases?project=${id}`);
@@ -80,16 +81,32 @@ export function SpacesSurface() {
               >
                 <Layers className="size-[18px]" />
               </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm("Delete this project?")) removeProject(p.id);
-                }}
-                aria-label="Delete project"
-                className="grid size-6 place-items-center rounded-lg text-grey-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover:opacity-100"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              {confirmingId === p.id ? (
+                <div className="flex items-center gap-1 opacity-100">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeProject(p.id); setConfirmingId(null); }}
+                    aria-label="Confirm delete"
+                    className="grid size-6 place-items-center rounded-lg bg-feedback-danger text-paper transition-colors hover:bg-feedback-danger active:bg-feedback-danger"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmingId(null); }}
+                    aria-label="Cancel delete"
+                    className="grid size-6 place-items-center rounded-lg text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmingId(p.id); }}
+                  aria-label="Delete project"
+                  className="grid size-6 place-items-center rounded-lg text-grey-300 opacity-0 transition-all hover:bg-feedback-danger-bg hover:text-feedback-danger group-hover:opacity-100"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </div>
             <div
               onClick={(e) => e.stopPropagation()}

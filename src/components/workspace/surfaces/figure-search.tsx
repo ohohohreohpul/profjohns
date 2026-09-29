@@ -88,7 +88,7 @@ export function FigureSearch() {
       </div>
 
       {notConfigured && (
-        <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/50 px-2.5 py-2 text-[11.5px] leading-snug text-amber-700">
+        <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-feedback-warning-border bg-feedback-warning-bg/50 px-2.5 py-2 text-[11.5px] leading-snug text-feedback-warning">
           <AlertCircle className="mt-px size-3.5 shrink-0" />
           Figure search isn&apos;t set up. Apply the pgvector schema and add
           <span className="font-mono"> REPLICATE_API_TOKEN</span> to enable CLIP embeddings.

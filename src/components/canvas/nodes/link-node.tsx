@@ -209,7 +209,7 @@ function UrlEntry({ value, onChange, onSubmit, error }: UrlEntryProps) {
         </button>
       </div>
       {error ? (
-        <p className="mt-1.5 flex items-start gap-1 text-[10.5px] leading-relaxed text-red-600">
+        <p className="mt-1.5 flex items-start gap-1 text-[10.5px] leading-relaxed text-feedback-danger">
           <AlertCircle className="mt-px size-3 shrink-0" />
           {error}
         </p>

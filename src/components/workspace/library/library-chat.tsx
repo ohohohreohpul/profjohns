@@ -104,7 +104,7 @@ export function LibraryChat({
             ) : turn.role === "error" ? (
               <p
                 key={turn.id}
-                className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[11.5px] leading-relaxed text-red-600"
+                className="flex items-start gap-1.5 rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-3 py-2 text-[11.5px] leading-relaxed text-feedback-danger"
               >
                 <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
                 {turn.text}

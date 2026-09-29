@@ -51,6 +51,19 @@
   --color-node-media: oklch(58% 0.12 200); /* cyan — visual media */
   --color-node-link: oklch(60% 0.14 25); /* coral — external web link */
 
+  --color-feedback-danger: #dc2626;
+  --color-feedback-danger-bg: #fef2f2;
+  --color-feedback-danger-border: #fecaca;
+  --color-feedback-success: #059669;
+  --color-feedback-success-bg: #ecfdf5;
+  --color-feedback-success-border: #bbf7d0;
+  --color-feedback-warning: #d97706;
+  --color-feedback-warning-bg: #fffbeb;
+  --color-feedback-warning-border: #fde68a;
+
+  /* Per-button accent set inline in toolbar.tsx; this is the default. */
+  --palette-accent: var(--color-ink);
+
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "General Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
@@ -73,6 +86,14 @@
 
 * {
   border-color: var(--border);
+}
+
+/* Global keyboard focus — a visible 2px ink ring on every interactive element
+   by default. :where() keeps specificity at zero so component-level focus styles
+   (button.tsx, textarea.tsx, etc.) still win. WCAG 2.4.7 + 2.4.11. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
 }
 
 html,
@@ -416,13 +437,14 @@ h1, h2, h3 {
 }
 
 /* Palette buttons (left toolbar) — echo each node's accent on hover so the
-   palette and the nodes share one identity language. Reads --a off the button. */
+   palette and the nodes share one identity language. Reads --palette-accent
+   off the button (set inline per palette item in toolbar.tsx). */
 .palette-btn {
   color: var(--color-grey-600);
 }
 .palette-btn:hover {
-  color: var(--a);
-  background: color-mix(in oklab, var(--a) 12%, transparent);
+  color: var(--palette-accent);
+  background: color-mix(in oklab, var(--palette-accent) 12%, transparent);
 }
 
 /* Node surface — Swiss: solid white, crisp 1px border, hairline lift.
@@ -613,4 +635,15 @@ h1, h2, h3 {
   color: var(--color-node-reader);
   font-weight: 500;
   cursor: default;
+}
+
+/* E0.3 — a citation the trust layer judged unsupported. Layered on top of
+   .lattice-citation so the paperId still travels for refs/export, but the
+   text reads visibly flagged: danger color + wavy underline. Never the only
+   indicator (the Audit tab lists the claim + note), but the in-editor signal. */
+.lattice-unsupported {
+  color: var(--color-feedback-danger);
+  text-decoration: underline wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }

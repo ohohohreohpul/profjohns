@@ -135,7 +135,7 @@ export function WatchSurface() {
     >
       <div className="mx-auto flex max-w-3xl flex-col gap-6">
         {error && (
-          <p className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-[12px] text-red-600">
+          <p className="flex items-center gap-1.5 rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-3 py-2 text-[12px] text-feedback-danger">
             <AlertCircle className="size-3.5 shrink-0" />
             {error}
           </p>
@@ -189,7 +189,7 @@ export function WatchSurface() {
                         <span>·</span>
                         <span>{task.sources.map((s) => PROVIDER_LABEL[s]).join(", ") || "all sources"}</span>
                         {count > 0 && (
-                          <span className="rounded-full bg-emerald-50 px-1.5 font-medium text-emerald-700">
+                          <span className="rounded-full bg-feedback-success-bg px-1.5 font-medium text-feedback-success">
                             {count} new
                           </span>
                         )}
@@ -223,7 +223,7 @@ export function WatchSurface() {
                     <button
                       onClick={() => remove(task)}
                       aria-label="Delete task"
-                      className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-feedback-danger-bg hover:text-feedback-danger"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -257,7 +257,7 @@ export function WatchSurface() {
                   className="flex items-start gap-3 rounded-xl border border-grey-200 bg-paper p-3.5 shadow-sm"
                 >
                   {f.score != null && (
-                    <span className="mt-0.5 shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-emerald-700">
+                    <span className="mt-0.5 shrink-0 rounded bg-feedback-success-bg px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-feedback-success">
                       {f.score}
                     </span>
                   )}
@@ -279,7 +279,7 @@ export function WatchSurface() {
                   <button
                     onClick={() => decide(f, "kept")}
                     aria-label="Keep"
-                    className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                    className="grid size-7 shrink-0 place-items-center rounded-md text-grey-400 transition-colors hover:bg-feedback-success-bg hover:text-feedback-success"
                   >
                     <Check className="size-4" />
                   </button>

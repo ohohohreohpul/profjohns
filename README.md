@@ -16,6 +16,9 @@ through the AI model of your choice with a live credit estimate.
 - **React Flow** (`@xyflow/react`) for the canvas
 - **Zustand** for canvas state
 - **lucide-react** icons
+- **Jev** (TypeSafe AI, optional) — typed decisions for search-angle routing
+  and source-relevance scoring via `TYPESAFE_API_KEY`; falls back to the
+  LLM-only path when unset
 
 ## Run
 

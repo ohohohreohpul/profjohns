@@ -224,7 +224,7 @@ function ProfileCard({
         </div>
 
         {error && (
-          <p className="flex items-center gap-1.5 text-[12px] text-red-600">
+          <p className="flex items-center gap-1.5 text-[12px] text-feedback-danger">
             <WarningCircle className="size-3.5 shrink-0" />
             {error}
           </p>
@@ -324,7 +324,7 @@ function SecurityCard({
         </div>
 
         {(mismatch || tooShort || error) && (
-          <p className="flex items-center gap-1.5 text-[12px] text-red-600">
+          <p className="flex items-center gap-1.5 text-[12px] text-feedback-danger">
             <WarningCircle className="size-3.5 shrink-0" />
             {error ?? (tooShort ? "Password must be at least 6 characters." : "Passwords don't match.")}
           </p>
@@ -349,7 +349,7 @@ function SessionCard({ onSignOut }: { onSignOut: () => void }) {
       <button
         onClick={() => onSignOut()}
         data-testid="account-signout"
-        className="inline-flex items-center gap-2 rounded-md border border-grey-200 bg-paper px-3.5 py-2 text-[13px] font-medium text-grey-700 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+        className="inline-flex items-center gap-2 rounded-md border border-grey-200 bg-paper px-3.5 py-2 text-[13px] font-medium text-grey-700 transition-colors hover:border-feedback-danger-border hover:bg-feedback-danger-bg hover:text-feedback-danger"
       >
         <SignOut className="size-4" />
         Sign out

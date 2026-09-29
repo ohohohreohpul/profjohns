@@ -270,7 +270,7 @@ function AgentEditor({
                   onClose();
                 }}
                 data-testid="agent-editor-delete"
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-grey-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-grey-500 transition-colors hover:bg-feedback-danger-bg hover:text-feedback-danger"
               >
                 <Trash2 className="size-3.5" />
                 Delete

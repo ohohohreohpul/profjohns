@@ -20,16 +20,22 @@ interface TextPiece {
   text: string;
   paperId?: string;
   display?: string;
+  /** True when this citation's source was judged unsupported (E0.3). */
+  unsupported?: boolean;
 }
 
 /** Split one paragraph into plain-text and citation pieces.
  *  `citedOrder` tracks first-appearance order of paper ids across the whole
- *  document (existing + new) so numeric styles ([1], [2]…) stay stable. */
+ *  document (existing + new) so numeric styles ([1], [2]…) stay stable.
+ *  `unsupportedIds` (E0.3) flags citation marks whose source was judged
+ *  unsupported — those pieces are marked so the editor renders them visibly
+ *  flagged instead of as clean citations. */
 export function parseSectionParagraph(
   paragraph: string,
   papers: PaperSource[],
   style: CitationStyle,
   citedOrder: string[],
+  unsupportedIds?: ReadonlySet<string>,
 ): TextPiece[] {
   const pieces: TextPiece[] = [];
   let last = 0;
@@ -45,6 +51,7 @@ export function parseSectionParagraph(
       text: formatInText(paper, style, index),
       paperId: paper.id,
       display: formatInText(paper, style, index),
+      unsupported: unsupportedIds?.has(paper.id) ?? false,
     });
     last = start + match[0].length;
   }
@@ -54,13 +61,16 @@ export function parseSectionParagraph(
 
 /** Convert a drafted section into TipTap nodes: an H2 heading + paragraphs
  *  whose [n] markers became citation marks. Mutates nothing; `citedSoFar` is
- *  copied. */
+ *  copied. `unsupportedIds` (E0.3) adds a visible `unsupported` mark to
+ *  citation pieces whose source was judged unsupported, so a fabricated or
+ *  weak citation is seen, never laundered as a clean citation. */
 export function sectionToContent(
   title: string,
   prose: string,
   papers: PaperSource[],
   style: CitationStyle,
   citedSoFar: string[] = [],
+  unsupportedIds?: ReadonlySet<string>,
 ): JSONContent[] {
   const citedOrder = [...citedSoFar];
   const out: JSONContent[] = [];
@@ -77,19 +87,20 @@ export function sectionToContent(
     .map((p) => p.trim())
     .filter(Boolean);
   for (const p of paragraphs) {
-    const pieces = parseSectionParagraph(p, papers, style, citedOrder);
+    const pieces = parseSectionParagraph(p, papers, style, citedOrder, unsupportedIds);
     if (pieces.length === 0) continue;
     out.push({
       type: "paragraph",
-      content: pieces.map((piece) =>
-        piece.paperId
-          ? {
-              type: "text",
-              text: piece.text,
-              marks: [{ type: "citation", attrs: { paperId: piece.paperId } }],
-            }
-          : { type: "text", text: piece.text },
-      ),
+      content: pieces.map((piece) => {
+        if (!piece.paperId) return { type: "text", text: piece.text };
+        const marks: NonNullable<JSONContent["marks"]> = [
+          { type: "citation", attrs: { paperId: piece.paperId } },
+        ];
+        if (piece.unsupported) {
+          marks.push({ type: "unsupported", attrs: { paperId: piece.paperId } });
+        }
+        return { type: "text", text: piece.text, marks };
+      }),
     });
   }
   return out;

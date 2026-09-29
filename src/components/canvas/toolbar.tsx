@@ -98,7 +98,7 @@ export function Toolbar({ onAdd, tool, onToolChange }: ToolbarProps) {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => onAdd(kind)}
-                  style={{ "--a": def.accent } as React.CSSProperties}
+                  style={{ "--palette-accent": def.accent } as React.CSSProperties}
                   className="palette-btn grid size-10 place-items-center rounded-xl transition-colors"
                   aria-label={`Add ${def.label} node`}
                 >

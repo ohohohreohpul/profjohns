@@ -268,7 +268,7 @@ export function AccountLibrarySurface() {
                 </button>
               ))}
               {catError && (
-                <span className="text-[11px] text-red-600">{catError}</span>
+                <span className="text-[11px] text-feedback-danger">{catError}</span>
               )}
             </div>
           )}

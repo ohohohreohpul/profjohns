@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Graph as Network, Plus, Trash as Trash2, Clock, Stack as Layers } from "@phosphor-icons/react";
+import { Graph as Network, Plus, Trash as Trash2, Clock, Stack as Layers, X } from "@phosphor-icons/react";
 import { SpaceLayout } from "../space-layout";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { InlineEdit } from "@/components/ui/inline-edit";
@@ -27,6 +27,7 @@ export function CanvasesSurface() {
   const addCanvas = useWorkspaceStore((s) => s.addCanvas);
   const removeCanvas = useWorkspaceStore((s) => s.removeCanvas);
   const renameCanvas = useWorkspaceStore((s) => s.renameCanvas);
+  const [confirmingId, setConfirmingId] = React.useState<string | null>(null);
 
   const items = canvases
     .filter((c) => c.projectId === projectId)
@@ -69,16 +70,32 @@ export function CanvasesSurface() {
               <span className="grid size-8 place-items-center rounded-xl bg-grey-100 text-grey-600">
                 <Network className="size-4" />
               </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm("Delete this canvas?")) removeCanvas(c.id);
-                }}
-                aria-label="Delete canvas"
-                className="grid size-6 place-items-center rounded-lg text-grey-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-400 group-hover:opacity-100"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              {confirmingId === c.id ? (
+                <div className="flex items-center gap-1 opacity-100">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeCanvas(c.id); setConfirmingId(null); }}
+                    aria-label="Confirm delete"
+                    className="grid size-6 place-items-center rounded-lg bg-feedback-danger text-paper transition-colors hover:bg-feedback-danger active:bg-feedback-danger"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmingId(null); }}
+                    aria-label="Cancel delete"
+                    className="grid size-6 place-items-center rounded-lg text-grey-400 transition-colors hover:bg-grey-100 hover:text-ink"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmingId(c.id); }}
+                  aria-label="Delete canvas"
+                  className="grid size-6 place-items-center rounded-lg text-grey-300 opacity-0 transition-all hover:bg-feedback-danger-bg hover:text-feedback-danger group-hover:opacity-100"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </div>
             <div
               onClick={(e) => e.stopPropagation()}

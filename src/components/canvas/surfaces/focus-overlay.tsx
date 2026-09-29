@@ -56,7 +56,7 @@ export function FocusOverlay() {
           Canvas
         </button>
         <span className="text-xs text-grey-400">/</span>
-        <span className="flex items-center gap-1 rounded-lg bg-amber-100/60 px-2.5 py-1 text-xs font-semibold text-amber-900">
+        <span className="flex items-center gap-1 rounded-lg bg-feedback-warning-bg/60 px-2.5 py-1 text-xs font-semibold text-feedback-warning">
           {label ?? "Untitled section"}
         </span>
         <div className="flex-1" />

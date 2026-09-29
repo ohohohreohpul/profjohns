@@ -41,6 +41,7 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
       const result = await synthesizeSources(
         sources,
         agent ? agentSystemPrompt(agent) : undefined,
+        (data.modelId as string) ?? undefined,
       );
       updateNodeData(id, { synthesis: result });
       spendCredits(getModel((data.modelId as string) ?? "").creditsPerRun);
@@ -100,7 +101,7 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
       </button>
 
       {error && (
-        <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50/50 px-2.5 py-2 text-[10px] text-red-600 animate-shake">
+        <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-2.5 py-2 text-[10px] text-feedback-danger animate-shake">
           <AlertCircle className="size-3 shrink-0" />
           {error}
         </p>
@@ -127,10 +128,10 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
               icon={GitCompare}
               label="Contradictions"
               count={synthesis.contradictions.length}
-              accent="text-amber-600"
+              accent="text-feedback-warning"
             >
               {synthesis.contradictions.map((c, i) => (
-                <div key={i} className="rounded-lg border border-amber-200/70 bg-amber-50/40 p-2">
+                <div key={i} className="rounded-lg border border-feedback-warning-border/70 bg-feedback-warning-bg/40 p-2">
                   <p className="text-[11.5px] leading-snug text-ink">{c.claim}</p>
                   {c.note && (
                     <p className="mt-1 text-[10px] leading-snug text-grey-500">{c.note}</p>

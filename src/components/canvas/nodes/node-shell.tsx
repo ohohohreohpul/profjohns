@@ -48,7 +48,7 @@ function RailButton({
       className={cn(
         "nodrag grid size-[34px] place-items-center rounded-lg border border-grey-200 bg-paper text-grey-500 shadow-sm transition-colors",
         danger
-          ? "hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+          ? "hover:border-feedback-danger-border hover:bg-feedback-danger-bg hover:text-feedback-danger"
           : "hover:border-grey-300 hover:text-ink",
       )}
     >

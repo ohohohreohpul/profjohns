@@ -125,7 +125,7 @@ export function LibraryCard({ item }: { item: AccountLibraryItem }) {
               className="flex items-center gap-1 rounded-md border border-grey-200 px-2 py-1 text-[10.5px] font-medium text-grey-600 transition-colors hover:bg-grey-50 hover:text-ink"
             >
               {copied ? (
-                <Check className="size-3 text-emerald-600" />
+                <Check className="size-3 text-feedback-success" />
               ) : (
                 <Quote className="size-3" />
               )}
