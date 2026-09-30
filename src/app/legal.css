@@ -1,0 +1,50 @@
+/* Legal pages (Terms, Privacy) — long-form prose styling. */
+
+.prose-legal {
+  color: var(--color-grey-700);
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+.prose-legal h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.prose-legal h3 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.25rem;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.prose-legal p {
+  margin-bottom: 0.75rem;
+}
+
+.prose-legal ul {
+  margin: 0.5rem 0 0.75rem 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.prose-legal li {
+  margin-bottom: 0.25rem;
+}
+
+.prose-legal a {
+  color: var(--color-ink);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-legal a:hover {
+  color: var(--color-grey-600);
+}

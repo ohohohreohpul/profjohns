@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/auth/auth-context";
 import { AuthGuard } from "@/lib/auth/auth-guard";
 import { PersistenceSync } from "@/components/sync/persistence-sync";
 import "./globals.css";
+import "./legal.css";
 
 export const metadata: Metadata = {
   title: "ProfJohns — research canvas",

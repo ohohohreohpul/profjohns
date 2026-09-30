@@ -10,7 +10,7 @@ import { PageLoader } from "@/components/brand/page-loader";
  *  login so the product is auth-gated for paying users. When auth is
  *  disabled (no Supabase env vars), the guard does nothing and local mode
  *  still works for development. */
-const PUBLIC_ROUTES = ["/login", "/signup"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/pricing", "/terms", "/privacy"];
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, enabled } = useAuth();

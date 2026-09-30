@@ -63,6 +63,11 @@ export default function PricingPage() {
             Prices in USD. Billed monthly through Stripe. Secure payment
             processing — we never see your card details.
           </p>
+          <p className="mt-3 text-[12px] text-grey-400">
+            <Link href="/terms" className="hover:text-grey-600">Terms</Link>
+            <span className="mx-2">·</span>
+            <Link href="/privacy" className="hover:text-grey-600">Privacy</Link>
+          </p>
         </div>
       </main>
     </div>
