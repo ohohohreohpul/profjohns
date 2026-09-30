@@ -14,7 +14,7 @@ import {
   ArrowRight,
   ArrowUpRight,
 } from "@phosphor-icons/react";
-import { useUpdateNodeInternals } from "@xyflow/react";
+import { useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
 import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
 import { agentSystemPrompt } from "@/lib/agents";
@@ -48,6 +48,13 @@ interface ScoredSource extends PaperSource {
 const RESULTS_PER_ANGLE = 6;
 const TRIAGE_BATCH = 12;
 const KEEP_THRESHOLD = 70;
+/** Matches the `w-[840px]` wide layout below. */
+const WIDE_WIDTH = 840;
+const POP_OUT_GAP = 48;
+/** Wait for the 320→840px width animation before measuring overflow. */
+const WIDEN_SETTLE_MS = 360;
+const REVEAL_DURATION_MS = 300;
+const REVEAL_PADDING = 0.08;
 
 function isNotConfigured(err: unknown): boolean {
   return err instanceof Error && /not configured/i.test(err.message);
@@ -64,6 +71,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
   const setNodeSources = useCanvasStore((s) => s.setNodeSources);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const addNode = useCanvasStore((s) => s.addNode);
+  const notePopOut = useCanvasStore((s) => s.notePopOut);
   const nodes = useCanvasStore((s) => s.nodes);
 
   // This node runs from the Scout agent (overridable) — its persona shapes
@@ -232,12 +240,16 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
   function popOut(paper: PaperSource) {
     const self = nodes.find((n) => n.id === id);
     const base = self?.position ?? { x: 0, y: 0 };
+    // Land just right of this node's real width — the node widens to 840px
+    // once results exist, so a fixed offset would drop the paper underneath it.
+    const selfWidth = self?.measured?.width ?? WIDE_WIDTH;
     const newId = addNode(
       "paper",
-      { x: base.x + 520, y: base.y + 40 },
+      { x: base.x + selfWidth + POP_OUT_GAP, y: base.y },
       { paper, label: paper.title },
     );
     setNodeSources(newId, [paper]);
+    notePopOut(newId, paper.title);
   }
 
   const keptCount = candidates.filter((c) => c.status === "kept").length;
@@ -251,6 +263,33 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
   // stale position ("from the back"). Re-measure across the transition so the
   // edge re-anchors to the moving handle.
   const updateNodeInternals = useUpdateNodeInternals();
+  const makeRoomRight = useCanvasStore((s) => s.makeRoomRight);
+  const { fitView } = useReactFlow();
+  // Only a widen that happens now (the user just searched) should move the
+  // view; a board reopened with results already has the right viewport.
+  const wasWide = React.useRef(wide);
+  React.useEffect(() => {
+    if (!wide || wasWide.current) {
+      wasWide.current = wide;
+      return;
+    }
+    wasWide.current = true;
+    makeRoomRight(id, WIDE_WIDTH);
+    // The wide layout often runs past the visible canvas, hiding Drop and
+    // Find gaps off-screen. Bring the whole node into view when it does.
+    const t = setTimeout(() => {
+      const el = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+      const pane = el?.closest(".react-flow")?.getBoundingClientRect();
+      const box = el?.getBoundingClientRect();
+      if (!pane || !box) return;
+      const overflows =
+        box.right > pane.right || box.bottom > pane.bottom || box.left < pane.left;
+      if (overflows) {
+        void fitView({ nodes: [{ id }], duration: REVEAL_DURATION_MS, padding: REVEAL_PADDING, maxZoom: 1 });
+      }
+    }, WIDEN_SETTLE_MS);
+    return () => clearTimeout(t);
+  }, [wide, id, makeRoomRight, fitView]);
   React.useEffect(() => {
     updateNodeInternals(id);
     const timers = [120, 240, 340].map((ms) =>
@@ -456,6 +495,11 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-[11px] font-medium text-grey-600">
                 {hasResults ? `${keptCount} kept · ${candidates.length} found` : "Results"}
+                {hasResults && keptCount > 0 && (
+                  <span className="ml-1.5 font-normal text-grey-500">
+                    — kept papers feed every node this connects to
+                  </span>
+                )}
               </span>
               {hasResults && (
                 <button

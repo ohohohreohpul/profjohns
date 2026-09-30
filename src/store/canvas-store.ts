@@ -108,6 +108,13 @@ interface CanvasState {
   /** L10 — bumped on every removeNode/removeEdge so an undo affordance can
    *  surface after a deletion (recoverable via temporal undo). */
   lastDeletion: { count: number; ts: number } | null;
+  /** Bumped when a source is popped out as a Paper node, so the canvas can
+   *  confirm it and offer to jump there. Transient — never persisted. */
+  lastPopOut: { nodeId: string; title: string; ts: number } | null;
+  notePopOut: (nodeId: string, title: string) => void;
+  /** A node is growing to `width`: shift top-level nodes it would now cover
+   *  to the right so nothing ends up hidden underneath it. */
+  makeRoomRight: (nodeId: string, width: number) => void;
   /** Reader highlights keyed by paper id. */
   highlights: Record<string, Highlight[]>;
   /** Extract results keyed by node id, then paper id. */
@@ -319,6 +326,7 @@ export const useCanvasStore = create<CanvasState>()(
       docs: {},
       sources: {},
       lastDeletion: null,
+      lastPopOut: null,
       highlights: {},
       extracts: {},
       hasHydrated: false,
@@ -366,6 +374,27 @@ export const useCanvasStore = create<CanvasState>()(
     }));
     return id;
   },
+
+  notePopOut: (nodeId, title) =>
+    set({ lastPopOut: { nodeId, title, ts: Date.now() } }),
+
+  makeRoomRight: (nodeId, width) =>
+    set((state) => {
+      const grower = state.nodes.find((n) => n.id === nodeId);
+      if (!grower || grower.parentId) return {};
+      const grown: Box = { ...nodeBox(grower), w: width };
+      const growerRight = grown.x + grown.w;
+      let moved = false;
+      const nodes = state.nodes.map((n) => {
+        if (n.id === nodeId || n.parentId) return n;
+        const box = nodeBox(n);
+        // Only nodes that start to the grower's right and now overlap it.
+        if (box.x <= grower.position.x || !overlaps(grown, box)) return n;
+        moved = true;
+        return { ...n, position: { ...n.position, x: growerRight + GAP * 2 } };
+      });
+      return moved ? { nodes } : {};
+    }),
 
   removeNode: (nodeId) =>
     set((state) => {
@@ -629,9 +658,12 @@ reset: (direction) =>
           docs: {},
           extracts: {},
           sources: {},
+          highlights: {},
           lastDeletion: null,
           nodes: [
             makeNode("n1", "explorer", { x: 100, y: 120 }),
+            // Sits beside the slim Sources node; when Sources widens with
+            // results, makeRoomRight() shifts this aside instead of covering it.
             makeNode("n2", "writing", { x: 540, y: 140 }),
           ],
           edges: [

@@ -20,6 +20,46 @@ interface ReadableResult {
   resolvedUrl: string;
 }
 
+/** Shown in the Reader (above the abstract) when the publisher won't serve text. */
+const BLOCKED_MESSAGE =
+  "This publisher blocks automated reading, so only the abstract is shown. Open the original to read the full paper.";
+
+/** HTTP statuses publishers use for bot walls and rate limits. */
+const BLOCKED_STATUSES = new Set([401, 403, 429, 503]);
+
+/** Phrases from bot-check / JS-challenge / access-denied interstitials. */
+const CHALLENGE_MARKERS = [
+  /client challenge/i,
+  /enable javascript (?:and cookies )?to (?:proceed|continue)/i,
+  /javascript is (?:disabled|required)/i,
+  /just a moment\.\.\./i,
+  /checking (?:if the site connection is secure|your browser)/i,
+  /verify(?:ing)? (?:you are|that you're) (?:a )?human/i,
+  /are you a robot/i,
+  /captcha/i,
+  /access denied/i,
+];
+
+/** Interstitials are short; a real article is not. */
+const CHALLENGE_MAX_CHARS = 2000;
+const MIN_READABLE_CHARS = 400;
+
+class BlockedSourceError extends Error {
+  constructor() {
+    super(BLOCKED_MESSAGE);
+    this.name = "BlockedSourceError";
+  }
+}
+
+/** True when stripped page text is a bot wall or too thin to be the paper. */
+function isUnreadable(text: string): boolean {
+  if (text.length < MIN_READABLE_CHARS) return true;
+  return (
+    text.length < CHALLENGE_MAX_CHARS &&
+    CHALLENGE_MARKERS.some((marker) => marker.test(text))
+  );
+}
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
 }
@@ -67,6 +107,9 @@ export async function GET(
     const res = await fetch(target, {
       headers: { "User-Agent": "ProfJohns/0.1 (research canvas prototype)" },
     });
+    if (BLOCKED_STATUSES.has(res.status)) {
+      throw new BlockedSourceError();
+    }
     if (!res.ok) {
       throw new Error(`Source responded with ${res.status}`);
     }
@@ -90,16 +133,20 @@ export async function GET(
       });
     }
 
-    const html = await res.text();
+    const text = stripHtml(await res.text());
+    if (isUnreadable(text)) {
+      throw new BlockedSourceError();
+    }
     return NextResponse.json({
       success: true,
-      data: { kind: "html", text: stripHtml(html), resolvedUrl: target },
+      data: { kind: "html", text, resolvedUrl: target },
       error: null,
     });
   } catch (error: unknown) {
     return NextResponse.json(
       { success: false, data: null, error: getErrorMessage(error) },
-      { status: 502 },
+      // 422: we reached the source but it wouldn't give us readable text.
+      { status: error instanceof BlockedSourceError ? 422 : 502 },
     );
   }
 }

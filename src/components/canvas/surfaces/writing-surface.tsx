@@ -55,6 +55,7 @@ import {
   contentToIndexedProse,
   paragraphsToContent,
 } from "@/lib/document";
+import { MIN_TITLE_DRAFT_CHARS } from "@/lib/ai-limits";
 
 export function WritingSurface({
   nodeId,
@@ -209,7 +210,9 @@ export function WritingSurface({
 
         {/* One tabbed assistant — AI writer, the sources you can cite, outline. */}
         <aside className="flex w-[340px] shrink-0 flex-col border-l border-grey-200 bg-paper">
-          <div className="flex items-center gap-1 border-b border-grey-100 p-1.5">
+          {/* Six tabs don't fit one 340px row (Audit clipped, Refs hidden) —
+              a 3x2 grid keeps every tab visible and reachable. */}
+          <div role="tablist" className="grid grid-cols-3 gap-1 border-b border-grey-100 p-1.5">
             <TabButton
               active={tab === "ai"}
               onClick={() => setTab("ai")}
@@ -328,6 +331,9 @@ function TabButton({
 }) {
   return (
     <button
+      type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
       className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11.5px] font-medium transition-colors ${active ? "bg-ink text-paper" : "text-grey-600 hover:bg-grey-100"}`}
     >
@@ -817,7 +823,7 @@ function AiPanel({
 
         <TitleSuggestions
           draftText={draftText}
-          disabled={draftEmpty}
+          disabled={draftText.trim().length < MIN_TITLE_DRAFT_CHARS}
           onPick={onPickTitle}
           modelId={model.id}
         />

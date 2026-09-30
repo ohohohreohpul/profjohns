@@ -68,9 +68,12 @@ const SYNC_DEBOUNCE_MS = 150;
 export function DocEditor({
   nodeId,
   compact = false,
+  showToolbar = true,
 }: {
   nodeId: string;
   compact?: boolean;
+  /** The canvas card shows formatting tools only while selected. */
+  showToolbar?: boolean;
 }) {
   const setDocContent = useCanvasStore((s) => s.setDocContent);
   const storeContent = useCanvasStore((s) => s.docs[nodeId]?.content);
@@ -96,7 +99,7 @@ export function DocEditor({
       Autocomplete.configure({ fetchSuggestion: completeText }),
       Placeholder.configure({
         placeholder: compact
-          ? "Just start typing — ⌘B bold, ⌘I italic, Enter for a new paragraph"
+          ? "Start writing, or open the editor to draft from your sources."
           : "Write… draft from your sources with the AI writer, or type here.",
       }),
     ],
@@ -107,7 +110,7 @@ export function DocEditor({
         // doesn't consume the pointerdown (which steals focus from the caret).
         class: cn(
           "tiptap-doc nodrag nopan max-w-none outline-none",
-          compact ? "min-h-[180px] text-[13.5px] leading-[1.7]" : "min-h-[320px]",
+          compact ? "min-h-[120px] text-[15px] leading-[1.7]" : "min-h-[320px]",
         ),
       },
     },
@@ -157,7 +160,7 @@ export function DocEditor({
       // Keep clicks for the caret from reaching React Flow's node handlers.
       onPointerDownCapture={(e) => e.stopPropagation()}
     >
-      {editor && <Toolbar editor={editor} />}
+      {editor && showToolbar && <Toolbar editor={editor} />}
       <EditorContent editor={editor} />
     </div>
   );
@@ -192,7 +195,18 @@ function ToolButton({
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+/**
+ * Formatting tools for a document's live editor, rendered outside the editor
+ * (e.g. in a canvas node's floating toolbar). Renders nothing until the
+ * editor for `nodeId` has mounted.
+ */
+export function DocFormatBar({ nodeId }: { nodeId: string }) {
+  const editor = getDocEditor(nodeId);
+  if (!editor) return null;
+  return <Toolbar editor={editor} bare />;
+}
+
+function Toolbar({ editor, bare = false }: { editor: Editor; bare?: boolean }) {
   // Re-render on selection/content change so active states stay accurate.
   const [, force] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => {
@@ -206,7 +220,12 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   const c = () => editor.chain().focus();
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-0.5 rounded-lg border border-grey-200 bg-paper/80 p-1">
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-0.5",
+        !bare && "mb-2 rounded-lg border border-grey-200 bg-paper/80 p-1",
+      )}
+    >
       <ToolButton label="Bold" active={editor.isActive("bold")} onClick={() => c().toggleBold().run()}>
         <Bold className="size-4" />
       </ToolButton>

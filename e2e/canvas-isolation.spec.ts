@@ -66,3 +66,50 @@ test("boards survive a hard reload and a cold home-page visit", async ({ page })
   await gotoCanvas(page, "cv-e2e-keep");
   await expect(page.locator(NODE)).toHaveCount(3);
 });
+
+/** Deterministic search results so the test never depends on OpenAlex. */
+const STUB_PAPERS = [
+  {
+    id: "stub-alpha-1",
+    title: "Alpha-only paper that must never appear on another canvas",
+    authors: "A. Tester",
+    venue: "E2E Journal",
+    year: 2024,
+    abstract: "Fixture abstract.",
+    url: "https://example.org/alpha-1",
+  },
+];
+
+test("a new canvas created in-app never inherits the previous canvas's sources", async ({ page }) => {
+  // Stub providers + AI: with AI unavailable the scout keeps every result,
+  // which commits them to the store — the exact state that used to leak.
+  await page.route("**/api/openalex**", (route) =>
+    route.fulfill({ json: { success: true, data: STUB_PAPERS, error: null } }),
+  );
+  await page.route("**/api/ai**", (route) =>
+    route.fulfill({ status: 502, json: { success: false, data: null, error: "AI off in e2e" } }),
+  );
+
+  // Create canvas A from the Canvases surface — client-side navigation,
+  // exactly as a user does it (no hard reload between boards).
+  await page.goto("/canvases?project=p-e2e-leak");
+  await page.getByRole("button", { name: "New canvas" }).click();
+  await expect(page.locator(NODE)).toHaveCount(2, { timeout: 20_000 });
+
+  // Run a search in canvas A's Sources node until its results are kept.
+  const topic = page.getByPlaceholder("What are you researching?");
+  await topic.fill("alpha leak probe");
+  await topic.press("Enter");
+  await page.getByRole("button", { name: /Search \d+ angle/ }).click();
+  await expect(page.getByText(STUB_PAPERS[0].title)).toBeVisible({ timeout: 20_000 });
+
+  // Back to the Canvases list (SPA), then create canvas B.
+  await page.goBack();
+  await page.getByRole("button", { name: "New canvas" }).click();
+  await expect(page.locator(NODE)).toHaveCount(2, { timeout: 20_000 });
+
+  // Canvas B must be a clean seed: empty topic, no results from A.
+  await expect(page.getByPlaceholder("What are you researching?")).toHaveValue("");
+  await expect(page.getByText(STUB_PAPERS[0].title)).toHaveCount(0);
+  await expect(page.getByText(/\d+ kept/)).toHaveCount(0);
+});

@@ -8,6 +8,8 @@ import {
   Lightbulb,
   GitDiff as GitCompare,
   Tag,
+  ArrowRight,
+  PlugsConnected,
 } from "@phosphor-icons/react";
 import { NodeShell, type CanvasNodeProps } from "./node-shell";
 import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
@@ -22,6 +24,15 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
   const spendCredits = useCanvasStore((s) => s.spendCredits);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const synthesis = data.synthesis as Synthesis | undefined;
+  // Claims only reach a Draft wired directly from this node (Compose reads
+  // its direct incomers), so tell the user whether that link exists.
+  const feedsDraft = useCanvasStore((s) =>
+    s.edges.some(
+      (e) =>
+        e.source === id &&
+        s.nodes.find((n) => n.id === e.target)?.data.kind === "writing",
+    ),
+  );
 
   // Runs from the Synthesizer agent (overridable).
   const agent = useNodeAgent(id, "synthesizer");
@@ -74,13 +85,21 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
         <AgentPicker nodeId={id} archetype="synthesizer" />
       </div>
 
-      <div className="flex items-center gap-2 rounded-lg border border-grey-200 bg-grey-50/50 px-3 py-2">
-        <span className="text-[11px] text-grey-500">
-          {sources.length > 0
-            ? `${sources.length} source${sources.length > 1 ? "s" : ""} connected`
-            : "Connect sources above"}
-        </span>
-      </div>
+      {sources.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-grey-300 px-3 py-2.5">
+          <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-ink">
+            <PlugsConnected className="size-3.5 shrink-0" />
+            Connect sources to this node
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-grey-600">
+            Drag from the dot on the right of a Sources or Paper node to the dot
+            on this node&apos;s left. Synthesize reads them together and pulls out
+            shared claims, contradictions, and themes.
+          </p>
+        </div>
+      ) : (
+        <SourceList sources={sources} />
+      )}
 
       <button
         onClick={run}
@@ -104,6 +123,15 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
         <p className="mt-2 flex items-center gap-1.5 rounded-lg border border-feedback-danger-border bg-feedback-danger-bg/50 px-2.5 py-2 text-[10px] text-feedback-danger animate-shake">
           <AlertCircle className="size-3 shrink-0" />
           {error}
+        </p>
+      )}
+
+      {synthesis && hasResult && (
+        <p className="mt-2.5 flex items-center gap-1.5 text-[11px] text-grey-600">
+          <ArrowRight className="size-3.5 shrink-0" />
+          {feedsDraft
+            ? "These claims feed the connected Draft."
+            : "Connect this node to a Draft to write from these claims."}
         </p>
       )}
 
@@ -159,6 +187,29 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
         </div>
       )}
     </NodeShell>
+  );
+}
+
+const SOURCE_PREVIEW_COUNT = 3;
+
+/** The papers this node will read — titles, not just a count. */
+function SourceList({ sources }: { sources: ReturnType<typeof useNodeInputSources> }) {
+  const shown = sources.slice(0, SOURCE_PREVIEW_COUNT);
+  const rest = sources.length - shown.length;
+  return (
+    <div className="rounded-lg border border-grey-200 px-3 py-2">
+      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-grey-500">
+        Reading {sources.length} source{sources.length === 1 ? "" : "s"}
+      </p>
+      <ul className="space-y-0.5">
+        {shown.map((s) => (
+          <li key={s.id} className="truncate text-[11px] text-grey-700" title={s.title}>
+            {s.title}
+          </li>
+        ))}
+      </ul>
+      {rest > 0 && <p className="mt-0.5 text-[10.5px] text-grey-500">and {rest} more</p>}
+    </div>
   );
 }
 

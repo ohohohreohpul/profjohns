@@ -50,7 +50,10 @@ function BlankCta() {
 
 function CanvasWorkspace() {
   const searchParams = useSearchParams();
-  const direction = searchParams.get("direction") ?? "";
+  // Launching from the home page passes the research question as `topic`;
+  // it is also the project's direction unless one is given explicitly.
+  const direction =
+    searchParams.get("direction") ?? searchParams.get("topic") ?? "";
   const projectId = searchParams.get("project") ?? "";
   const canvasId = searchParams.get("canvas") ?? "";
   const launchTopic = searchParams.get("topic") ?? "";
@@ -67,6 +70,10 @@ function CanvasWorkspace() {
   const storedDirection = useCanvasStore((s) => s.direction);
   const creditsUsed = useCanvasStore((s) => s.creditsUsed);
   const hasHydrated = useCanvasStore((s) => s.hasHydrated);
+  // The URL's canvas id changes instantly; the store only holds that board
+  // once loadBoard() resolves. Until then `nodes` still belong to the PREVIOUS
+  // board, so nothing may render or write counts from them.
+  const isBoardReady = useCanvasStore((s) => s.boardCanvasId === canvasId);
   const seeded = useCanvasStore((s) => s.seeded);
   const nodes = useCanvasStore((s) => s.nodes);
   const openSurfaceNodeId = useCanvasStore((s) => s.openSurfaceNodeId);
@@ -97,14 +104,14 @@ function CanvasWorkspace() {
 
   // Update item counts when nodes change
   React.useEffect(() => {
-    if (!wsHydrated) return;
+    if (!wsHydrated || !isBoardReady) return;
     if (projectId && nodes.length > 0) {
       updateProject(projectId, { itemCount: nodes.length, updatedAt: Date.now() });
     }
     if (canvasId) {
       updateCanvas(canvasId, { itemCount: nodes.length });
     }
-  }, [wsHydrated, projectId, canvasId, nodes.length, updateProject, updateCanvas]);
+  }, [wsHydrated, isBoardReady, projectId, canvasId, nodes.length, updateProject, updateCanvas]);
 
   // Load this canvas's board via the ONE lifecycle function — it owns
   // set-active → rehydrate/seed → mark-loaded → clear-undo, so no page can
@@ -130,7 +137,7 @@ function CanvasWorkspace() {
 
   // Clean up old canvas data from previous versions — resets if stale node types found
   React.useEffect(() => {
-    if (!hasHydrated) return;
+    if (!hasHydrated || !isBoardReady) return;
     const state = useCanvasStore.getState();
     const validKinds = ["explorer", "processor", "block", "text", "shell", "writing", "assistant", "paper", "media", "library", "link"];
     const hasStale = state.nodes.some(
@@ -141,17 +148,17 @@ function CanvasWorkspace() {
       localStorage.removeItem("lattice-canvas-v1");
       reset(direction || state.direction);
     }
-  }, [hasHydrated, direction, reset]);
+  }, [hasHydrated, isBoardReady, direction, reset]);
 
   React.useEffect(() => {
     const state = useCanvasStore.getState();
-    if (hasHydrated && !state.seeded && state.nodes.length === 0) {
+    if (hasHydrated && isBoardReady && !state.seeded && state.nodes.length === 0) {
       reset(direction);
       if (projectId && direction) {
         updateProject(projectId, { direction, updatedAt: Date.now() });
       }
     }
-  }, [hasHydrated, direction, reset, projectId, updateProject]);
+  }, [hasHydrated, isBoardReady, direction, reset, projectId, updateProject]);
 
   React.useEffect(() => {
     if (!hasHydrated) return;
@@ -189,7 +196,7 @@ function CanvasWorkspace() {
     );
   }
 
-  if (!hasHydrated) {
+  if (!hasHydrated || !isBoardReady) {
     return <Loader />;
   }
 
@@ -212,7 +219,9 @@ function CanvasWorkspace() {
       >
         {/* Key by canvas id so switching boards remounts the flow + nodes —
             no leftover per-node local state (e.g. a typed search term) leaks
-            from the previous canvas. */}
+            from the previous canvas. Safe only because of the isBoardReady
+            gate above: without it the remount happened while the store still
+            held the old board, and nodes seeded their local state from it. */}
         <ResearchCanvas key={canvasId} />
         {isBlank && <BlankCta />}
       </div>

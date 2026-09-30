@@ -132,6 +132,7 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
     let cancelled = false;
     setState("loading");
     setError(null);
+    setRawText("");
     setThread([]);
     fetchReadable(paper.url)
       .then((result) => {

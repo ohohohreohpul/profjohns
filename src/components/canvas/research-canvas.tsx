@@ -97,7 +97,7 @@ function CanvasInner() {
   const selectedCount = nodes.filter((n) => n.selected).length;
   const isPanning = isSpaceHeld || tool === "hand";
 
-  // "Wrap with Shell" — group the current selection. All the bounding-box,
+  // "Group into section" — group the current selection. All the bounding-box,
   // reparenting, and parent-ordering work lives in the store's groupNodes.
   function handleWrapSelection() {
     const selected = getNodes().filter(
@@ -460,10 +460,11 @@ function CanvasInner() {
             <div className="mx-1 h-4 w-px bg-grey-200" />
             <button
               onClick={handleWrapSelection}
+              title="Put the selected nodes in a named section you can move and focus together"
               className="flex items-center gap-1 rounded-lg bg-ink px-2.5 py-1 text-[11px] font-medium text-paper transition-colors hover:bg-grey-800"
             >
               <Container className="size-3" />
-              Wrap with Shell
+              Group into section
             </button>
           </div>
         </div>
@@ -499,7 +500,9 @@ function CanvasInner() {
         panOnScroll
         zoomOnScroll={false}
         zoomOnPinch
-        selectionMode={SelectionMode.Partial}
+        // Full: a node joins the box selection only when fully enclosed, so
+        // grazing a neighbour's edge doesn't silently add it to the count.
+        selectionMode={SelectionMode.Full}
         snapToGrid
         snapGrid={[16, 16]}
         fitView
@@ -535,6 +538,7 @@ function CanvasInner() {
       )}
       <FocusOverlay />
       <DeleteUndoBanner />
+      <PopOutBanner />
     </div>
   );
 }
@@ -548,6 +552,65 @@ export function ResearchCanvas() {
 }
 
 const UNDO_BANNER_MS = 6000;
+const POP_OUT_BANNER_MS = UNDO_BANNER_MS;
+const FOCUS_ZOOM = 1;
+const FOCUS_DURATION_MS = 400;
+
+/**
+ * Confirms a "Pop out" — the new Paper node usually lands off-screen, so this
+ * says where it went and offers to jump there (without yanking the viewport
+ * away while the user is still triaging sources).
+ */
+function PopOutBanner() {
+  const lastPopOut = useCanvasStore((s) => s.lastPopOut);
+  const { getNode, setCenter, setNodes } = useReactFlow();
+  const [visible, setVisible] = React.useState(false);
+  const ts = lastPopOut?.ts ?? 0;
+
+  React.useEffect(() => {
+    if (!ts) return;
+    setVisible(true);
+    const t = setTimeout(() => setVisible(false), POP_OUT_BANNER_MS);
+    return () => clearTimeout(t);
+  }, [ts]);
+
+  if (!visible || !lastPopOut) return null;
+
+  function showNode() {
+    if (!lastPopOut) return;
+    const node = getNode(lastPopOut.nodeId);
+    setVisible(false);
+    if (!node) return;
+    const w = node.measured?.width ?? 0;
+    const h = node.measured?.height ?? 0;
+    setCenter(node.position.x + w / 2, node.position.y + h / 2, {
+      zoom: FOCUS_ZOOM,
+      duration: FOCUS_DURATION_MS,
+    });
+    setNodes((all) => all.map((n) => ({ ...n, selected: n.id === node.id })));
+  }
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="animate-float-in pointer-events-auto absolute bottom-6 left-1/2 z-40 -translate-x-1/2"
+    >
+      <div className="flex max-w-[min(90vw,420px)] items-center gap-2 rounded-xl border border-grey-200 bg-paper px-3 py-2 shadow-lift">
+        <span className="min-w-0 truncate text-[12px] text-grey-600">
+          Added to canvas: {lastPopOut.title}
+        </span>
+        <button
+          type="button"
+          onClick={showNode}
+          className="flex shrink-0 items-center gap-1 rounded-md bg-ink px-2 py-1 text-[11px] font-medium text-paper transition-colors hover:bg-grey-800"
+        >
+          Show
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * L10 — a non-blocking "Deleted — Undo" banner that appears after any node or

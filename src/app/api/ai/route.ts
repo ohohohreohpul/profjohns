@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openrouterIdFor } from "@/lib/models";
+import { MIN_TITLE_DRAFT_CHARS } from "@/lib/ai-limits";
 
 /**
  * AI boundary — OpenRouter backend.
@@ -134,6 +135,18 @@ const INSTRUCTIONS: Record<AiMode, string> = {
   audit:
     "You are a meticulous citation auditor. You are given a draft and a numbered list of the SOURCES available to the author. Identify the draft's distinct factual/empirical CLAIMS (skip the author's own framing, transitions, and opinions) and judge whether each is backed by the provided sources. Return ONLY a JSON array, no prose or code fences: [{\"claim\": string, \"status\": \"supported\" | \"weak\" | \"unsupported\", \"source\": number | null, \"note\": string}]. claim = the claim quoted or closely paraphrased (<=160 chars); status = 'supported' if a source clearly backs it, 'weak' if a source is only tangentially related or partially supports it, 'unsupported' if no provided source backs it; source = the 1-based number of the best supporting source, or null when unsupported; note = at most 16 words on why. Be strict — never credit a source that does not actually contain the claim. Cover the most important claims (up to ~12).",
 };
+
+/** Provider failures users can act on (or wait out) — never raw API text. */
+const PROVIDER_ACCOUNT_STATUSES = new Set([401, 402, 403]);
+const RATE_LIMITED_STATUS = 429;
+
+function providerErrorMessage(status: number): string {
+  if (status === RATE_LIMITED_STATUS) return "Rate limited. Try again in a moment.";
+  if (PROVIDER_ACCOUNT_STATUSES.has(status)) {
+    return "AI is unavailable right now because of a service account problem. We've logged it — please try again later.";
+  }
+  return "The AI service had a problem answering. Please try again.";
+}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error";
@@ -282,6 +295,16 @@ export async function POST(
     if (!sources || sources.length === 0) {
       return NextResponse.json(
         { success: false, data: null, error: "Connect sources to audit the draft against.", configured: true },
+        { status: 400 },
+      );
+    }
+  } else if (mode === "titles") {
+    // Titles read the draft from `draft` (the client never sends `text` here);
+    // falling through to the generic `text` check made every request fail
+    // with "No text to work with."
+    if (((draft ?? text ?? "") as string).trim().length < MIN_TITLE_DRAFT_CHARS) {
+      return NextResponse.json(
+        { success: false, data: null, error: "Write a few sentences first, then get title ideas.", configured: true },
         { status: 400 },
       );
     }
@@ -512,11 +535,10 @@ export async function POST(
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(
-        res.status === 429
-          ? "Rate limited. Try again in a moment."
-          : `OpenRouter: ${res.status} ${err.slice(0, 200)}`,
-      );
+      // Full provider detail goes to the server log only; users get a
+      // message about what happened and what to do.
+      console.error(`[ai] OpenRouter ${res.status} (mode=${mode}): ${err.slice(0, 500)}`);
+      throw new Error(providerErrorMessage(res.status));
     }
 
     const json = (await res.json()) as {

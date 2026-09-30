@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { PaperSource } from "@/lib/mock";
+import { toOpenAlexSearch } from "@/lib/openalex-query";
 
 /**
  * Proxies the OpenAlex Works API — keyless, covers ALL fields (sciences,
@@ -131,7 +132,10 @@ function mapWork(work: OAWork): PaperSource {
 export async function GET(
   request: NextRequest,
 ): Promise<NextResponse<ApiResponse<PaperSource[]>>> {
-  const query = request.nextUrl.searchParams.get("q")?.trim();
+  const rawQuery = request.nextUrl.searchParams.get("q")?.trim();
+  // Cleaned before the emptiness check: "?" alone must not become an empty
+  // search (which OpenAlex answers with every work in the index).
+  const query = rawQuery ? toOpenAlexSearch(rawQuery) : "";
   if (!query) {
     return NextResponse.json(
       { success: false, data: null, error: "Missing query." },

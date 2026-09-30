@@ -134,7 +134,7 @@ export function NodeShell({
             type="target"
             position={Position.Left}
             id="in"
-            className="!-left-[4px] !size-[8px] !border !border-grey-200 !bg-grey-100 transition-all duration-150 hover:!size-[12px] hover:!-left-[6px] hover:!border-ink hover:!bg-ink"
+            className={cn("!-left-[4px]", HANDLE_CLASS, "hover:!-left-[6px]")}
           />
         )}
 
@@ -177,13 +177,19 @@ export function NodeShell({
             type="source"
             position={Position.Right}
             id="out"
-            className="!-right-[4px] !size-[8px] !border !border-grey-200 !bg-grey-100 transition-all duration-150 hover:!size-[12px] hover:!-right-[6px] hover:!border-ink hover:!bg-ink"
+            className={cn("!-right-[4px]", HANDLE_CLASS, "hover:!-right-[6px]")}
           />
         )}
       </div>
     </div>
   );
 }
+
+/** Handle look: a paper dot with a visible ring that picks up the node's
+ *  accent when the node is hovered, and fills ink on hover and for the whole
+ *  drag-to-connect gesture (`connectingfrom`). */
+const HANDLE_CLASS =
+  "!size-[8px] !border-[1.5px] !border-grey-400 !bg-paper transition-all duration-150 group-hover/node:!border-[var(--accent)] hover:!size-[12px] hover:!border-ink hover:!bg-ink [&.connectingfrom]:!border-ink [&.connectingfrom]:!bg-ink";
 
 /** Narrows React Flow's generic NodeProps to our data shape. */
 export type CanvasNodeProps = NodeProps & {
