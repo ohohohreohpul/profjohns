@@ -23,7 +23,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Gear, SignOut } from "@phosphor-icons/react";
+import { Gear, SignOut, CreditCard } from "@phosphor-icons/react";
 import Image from "next/image";
 
 export type SurfaceKey =
@@ -36,7 +36,8 @@ export type SurfaceKey =
   | "agents"
   | "mcp"
   | "watch"
-  | "account";
+  | "account"
+  | "billing";
 
 interface NavItem {
   key: SurfaceKey;
@@ -142,6 +143,12 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
                 <Link href="/account" data-testid="menu-account-settings">
                   <Gear className="size-4 text-grey-500" />
                   Account settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/billing" data-testid="menu-billing">
+                  <CreditCard className="size-4 text-grey-500" />
+                  Billing
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem

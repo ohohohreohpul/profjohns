@@ -169,6 +169,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             {isLogin ? "Sign up" : "Sign in"}
           </Link>
         </p>
+
+        <p className="mt-3 text-center text-[12px] text-grey-400">
+          <Link href="/pricing" className="hover:text-grey-600">
+            See pricing
+          </Link>
+        </p>
       </div>
     </div>
   );
