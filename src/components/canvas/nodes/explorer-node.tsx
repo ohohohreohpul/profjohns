@@ -35,6 +35,7 @@ import {
 import type { PaperSource } from "@/lib/mock";
 import { PAPER_DND_MIME } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
+import { decideKeeps } from "@/lib/keep-policy";
 
 type Status = "kept" | "rejected";
 
@@ -47,7 +48,6 @@ interface ScoredSource extends PaperSource {
 
 const RESULTS_PER_ANGLE = 6;
 const TRIAGE_BATCH = 12;
-const KEEP_THRESHOLD = 70;
 /** Matches the `w-[840px]` wide layout below. */
 const WIDE_WIDTH = 840;
 const POP_OUT_GAP = 48;
@@ -108,6 +108,8 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
 
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  // Set when no result was a strong match and the closest few were kept.
+  const [weakMatchNote, setWeakMatchNote] = React.useState<string | null>(null);
   const [aiOff, setAiOff] = React.useState(false);
 
   // Seed kept set from previously committed sources (survives reopen).
@@ -195,6 +197,13 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
       try {
         const verdicts = await triageSources(topic, batch, persona, data.modelId);
         const byN = new Map(verdicts.map((v) => [v.n, v]));
+        const decision = decideKeeps(batch.map((_, i) => byN.get(i + 1)?.score));
+        const keptN = decision.kept.filter(Boolean).length;
+        setWeakMatchNote(
+          decision.isFallback
+            ? `No strong matches for this question, so the ${keptN} closest paper${keptN === 1 ? " was" : "s were"} kept. Narrow or edit the angles for better results.`
+            : null,
+        );
         scored = batch.map((p, i) => {
           const v = byN.get(i + 1);
           return {
@@ -202,7 +211,7 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
             score: v?.score,
             why: v?.why,
             cluster: v?.cluster ?? "Results",
-            status: (v && v.score >= KEEP_THRESHOLD ? "kept" : "rejected") as Status,
+            status: (decision.kept[i] ? "kept" : "rejected") as Status,
           };
         });
       } catch (err: unknown) {
@@ -380,6 +389,13 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
               {PROVIDER_LABEL[s]}
             </span>
           ))}
+        </p>
+      )}
+
+      {weakMatchNote && !error && (
+        <p role="status" className="mt-2 flex items-start gap-1.5 rounded-lg border border-grey-200 bg-grey-50 px-2.5 py-2 text-[11px] leading-snug text-grey-700">
+          <AlertCircle className="mt-px size-3.5 shrink-0 text-grey-500" />
+          {weakMatchNote}
         </p>
       )}
 
