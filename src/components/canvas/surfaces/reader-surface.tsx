@@ -144,9 +144,16 @@ export function ReaderSurface() {
     if (!paper) return;
     flash("Making insight…");
     const type = await classifyInsightType(passage, paper.title);
+    const label = INSIGHT_LABELS[type] ?? "Quote";
+    const sink = useCanvasStore.getState().insightSink;
+    if (sink) {
+      sink({ type, passage, page, paper });
+      flash(`${label} insight added to Insights`);
+      return;
+    }
     const id = addNode("text", { x: 80, y: 80 }, { text: formatInsightNote(type, passage, paper, page) });
-    notePopOut(id, `${INSIGHT_LABELS[type] ?? "Quote"} from p. ${page}`);
-    flash(`${INSIGHT_LABELS[type] ?? "Quote"} insight added to the canvas`);
+    notePopOut(id, `${label} from p. ${page}`);
+    flash(`${label} insight added to the canvas`);
   }
 
   async function handlePdfCite(passage: string, page: number) {

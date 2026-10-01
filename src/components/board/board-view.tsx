@@ -2,8 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, WarningCircle, X } from "@phosphor-icons/react";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { useCanvasStore, type ReaderInsight } from "@/store/canvas-store";
+import { ReaderSurface } from "@/components/canvas/surfaces/reader-surface";
+import type { Card } from "@/lib/board/schema";
+import type { PaperSource } from "@/lib/mock";
+import type { ScreenedPaper } from "@/lib/scout";
 import { useBoard } from "./use-board";
 import { WallColumn } from "./wall-column";
 
@@ -18,8 +23,59 @@ export function BoardView({ projectId, boardId }: BoardViewProps) {
   const canvas = useWorkspaceStore((s) => s.canvases.find((c) => c.id === boardId));
   const projectName = project?.name ?? "Untitled project";
   const boardName = canvas?.name ?? "Board";
-
   const board = useBoard({ boardId, projectId, boardName, projectName });
+  const openReader = useCanvasStore((s) => s.openReader);
+
+  const snapshot = board.status === "ready" ? board.snapshot : null;
+  const wallOf = React.useCallback(
+    (kind: string) => snapshot?.walls.find((w) => w.kind === kind),
+    [snapshot],
+  );
+  const papers = React.useMemo(
+    () => (snapshot?.cards ?? []).filter((c): c is Card<"paper"> => c.kind === "paper").map((c) => c.data.paper),
+    [snapshot],
+  );
+  const papersById = React.useMemo(() => new Map(papers.map((p) => [p.id, p])), [papers]);
+  const question =
+    (snapshot?.cards.find((c) => c.kind === "question") as Card<"question"> | undefined)?.data.text ??
+    project?.direction ??
+    "";
+
+  const { actions } = board;
+
+  // Reader "Make insight" -> an Insight card in the Insights wall.
+  React.useEffect(() => {
+    const insights = wallOf("insights");
+    if (!insights) return;
+    const sink = (i: ReaderInsight) =>
+      void actions.addCard(insights.id, "insight", {
+        type: i.type,
+        statement: i.passage,
+        quote: { text: i.passage, ...(i.page ? { page: i.page } : {}) },
+        source: { paperId: i.paper.id, title: i.paper.title, authors: i.paper.authors, year: i.paper.year },
+        origin: "study",
+      });
+    useCanvasStore.getState().setInsightSink(sink);
+    return () => useCanvasStore.getState().setInsightSink(null);
+  }, [wallOf, actions]);
+
+  const addSearchResults = React.useCallback(
+    async (screened: readonly ScreenedPaper[]) => {
+      const sources = wallOf("sources");
+      if (!sources) return;
+      // Kept first so the most relevant papers sit at the top of the wall.
+      const ordered = [...screened].sort((a, b) => Number(b.kept) - Number(a.kept) || (b.score ?? 0) - (a.score ?? 0));
+      for (const { kept, score, why, cluster: _cluster, ...paper } of ordered) {
+        await actions.addCard(sources.id, "paper", {
+          paper,
+          status: kept ? "kept" : "new",
+          ...(score !== undefined ? { score: Math.round(score) } : {}),
+          ...(why ? { why } : {}),
+        });
+      }
+    },
+    [wallOf, actions],
+  );
 
   return (
     <main className="flex h-dvh flex-col bg-canvas">
@@ -59,17 +115,36 @@ export function BoardView({ projectId, boardId }: BoardViewProps) {
         </div>
       )}
 
-      {board.status === "ready" && (
+      {snapshot && (
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto px-6 py-5">
-          {board.snapshot.walls.map((wall) => (
+          {snapshot.walls.map((wall) => (
             <WallColumn
               key={wall.id}
               wall={wall}
-              cards={board.snapshot.cards.filter((c) => c.wallId === wall.id)}
+              walls={snapshot.walls}
+              cards={snapshot.cards.filter((c) => c.wallId === wall.id).sort((a, b) => a.position - b.position)}
+              actions={actions}
+              onRead={(paper: PaperSource) => openReader(paper)}
+              papersById={papersById}
+              question={question}
+              knownPapers={papers}
+              onSearchResults={addSearchResults}
             />
           ))}
         </div>
       )}
+
+      {board.saveError && (
+        <div role="alert" className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-feedback-danger-border bg-feedback-danger-bg px-3 py-2 text-sm text-feedback-danger shadow-lift">
+          <WarningCircle className="size-4 shrink-0" />
+          {board.saveError}
+          <button type="button" aria-label="Dismiss" onClick={board.dismissSaveError} className="ml-1 rounded p-0.5 hover:bg-paper/60">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      <ReaderSurface />
     </main>
   );
 }

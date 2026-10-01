@@ -65,7 +65,15 @@ const InsightCardSchema = z.object({
   type: z.enum(INSIGHT_TYPES),
   statement: z.string().trim().min(1),
   /** Verbatim text from the paper — selected, never generated. */
-  quote: z.object({ text: z.string().min(1), paraIndex: z.number().int().min(0).optional() }).optional(),
+  quote: z
+    .object({
+      text: z.string().min(1),
+      /** 1-based PDF page, when the quote came from the PDF view. */
+      page: z.number().int().min(1).optional(),
+      /** Paragraph in the extracted-text view. */
+      paraIndex: z.number().int().min(0).optional(),
+    })
+    .optional(),
   source: SourceRefSchema.optional(),
   /** Theme card this insight is clustered under, if any. */
   themeId: z.string().optional(),

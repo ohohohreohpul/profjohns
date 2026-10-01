@@ -24,6 +24,14 @@ import type { PaperSource } from "@/lib/mock";
 import { nextHighlightId, type Highlight } from "@/lib/highlight";
 import { layoutLeftToRight } from "@/lib/auto-layout";
 
+/** An insight made in the Reader from a selected passage. */
+export interface ReaderInsight {
+  readonly type: string;
+  readonly passage: string;
+  readonly page?: number;
+  readonly paper: PaperSource;
+}
+
 export interface ExtractResult {
   paperId: string;
   summary: string;
@@ -113,6 +121,13 @@ interface CanvasState {
    *  confirm it and offer to jump there. Transient — never persisted. */
   lastPopOut: { nodeId: string; title: string; ts: number } | null;
   notePopOut: (nodeId: string, title: string) => void;
+  /**
+   * Where Reader insights go. The v2 board registers a handler that creates
+   * Insight cards; when unset (the canvas), insights become Text nodes.
+   * Transient — never persisted.
+   */
+  insightSink: ((insight: ReaderInsight) => void) | null;
+  setInsightSink: (sink: ((insight: ReaderInsight) => void) | null) => void;
   /** Re-lay the board left-to-right along its connections (one undo step). */
   tidyLayout: () => void;
   /** A node is growing to `width`: shift top-level nodes it would now cover
@@ -333,6 +348,7 @@ export const useCanvasStore = create<CanvasState>()(
       sources: {},
       lastDeletion: null,
       lastPopOut: null,
+      insightSink: null,
       highlights: {},
       extracts: {},
       hasHydrated: false,
@@ -394,6 +410,8 @@ export const useCanvasStore = create<CanvasState>()(
     }));
     return id;
   },
+
+  setInsightSink: (sink) => set({ insightSink: sink }),
 
   notePopOut: (nodeId, title) =>
     set({ lastPopOut: { nodeId, title, ts: Date.now() } }),

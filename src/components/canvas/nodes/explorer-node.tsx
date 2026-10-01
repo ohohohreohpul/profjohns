@@ -20,15 +20,11 @@ import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
 import { agentSystemPrompt } from "@/lib/agents";
 import { useCanvasStore } from "@/store/canvas-store";
 import {
-  searchProvider,
   PROVIDER_LABEL,
   PROVIDER_ORDER,
   type SourceProvider,
 } from "@/lib/sources-client";
 import {
-  proposeSearchAngles,
-  triageSources,
-  rankSourcesByRelevance,
   findGaps,
   type SearchAngle,
   type CoverageGap,
@@ -36,8 +32,7 @@ import {
 import type { PaperSource } from "@/lib/mock";
 import { PAPER_DND_MIME } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
-import { decideKeeps, type KeepDecision } from "@/lib/keep-policy";
-import { interleave, rankByScore } from "@/lib/source-pool";
+import { planScoutAngles, searchAndScreen, isNotConfigured } from "@/lib/scout";
 
 type Status = "kept" | "rejected";
 
@@ -48,11 +43,6 @@ interface ScoredSource extends PaperSource {
   status: Status;
 }
 
-const RESULTS_PER_ANGLE = 8;
-/** Papers sent to the full AI screen (writes the why + cluster per paper). */
-const TRIAGE_BATCH = 12;
-/** Papers pre-ranked by Jev before screening — must stay <= the /api/jev cap. */
-const PRE_RANK_POOL = 40;
 /** Matches the `w-[840px]` wide layout below. */
 const WIDE_WIDTH = 840;
 const POP_OUT_GAP = 48;
@@ -60,17 +50,6 @@ const POP_OUT_GAP = 48;
 const WIDEN_SETTLE_MS = 360;
 const REVEAL_DURATION_MS = 300;
 const REVEAL_PADDING = 0.08;
-
-function isNotConfigured(err: unknown): boolean {
-  return err instanceof Error && /not configured/i.test(err.message);
-}
-
-/** Honest notice when the kept papers are only the closest available. */
-function weakMatchMessage(decision: KeepDecision): string | null {
-  if (!decision.isFallback) return null;
-  const n = decision.kept.filter(Boolean).length;
-  return `No strong matches for this question, so the ${n} closest paper${n === 1 ? " was" : "s were"} kept. Narrow or edit the angles for better results.`;
-}
 
 function scoreTone(score?: number): string {
   if (score == null) return "bg-grey-100 text-grey-500";
@@ -151,16 +130,9 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
     setGaps([]);
     setBusy("Planning search…");
     try {
-      const proposed = await proposeSearchAngles(t, allowedSources, persona, data.modelId);
+      const { angles: proposed, aiOff: off } = await planScoutAngles(t, { allowedSources, persona, modelId: data.modelId });
       setAngles(proposed.map((a) => ({ ...a, selected: true })));
-      setAiOff(false);
-    } catch (err: unknown) {
-      // Degrade gracefully — search the topic directly.
-      setAiOff(isNotConfigured(err));
-      const fallbackSource = allowedSources?.[0] ?? "openalex";
-      setAngles([
-        { query: t, rationale: "Direct search", source: fallbackSource, selected: true },
-      ]);
+      setAiOff(off);
     } finally {
       setBusy(null);
     }
@@ -171,84 +143,16 @@ export function ExplorerNode({ id, data, selected }: CanvasNodeProps) {
     if (items.length === 0 || busy) return;
     setError(null);
     setBusy("Searching…");
-    // Dedupe across indexes by id AND normalized title (the same paper shows
-    // up in OpenAlex, arXiv, and Semantic Scholar with different ids).
-    const titleKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    const knownIds = new Set(candidates.map((c) => c.id));
-    const knownTitles = new Set(candidates.map((c) => titleKey(c.title)));
-    const perAngle: PaperSource[][] = [];
-    let anyOk = false;
     try {
-      for (let i = 0; i < items.length; i++) {
-        const { query, source } = items[i];
-        setBusy(items.length > 1 ? `Searching angle ${i + 1} of ${items.length}…` : "Searching…");
-        if (i > 0) await new Promise((r) => setTimeout(r, 350)); // be polite to public APIs
-        const mine: PaperSource[] = [];
-        try {
-          const found = await searchProvider(source, query);
-          anyOk = true;
-          for (const p of found.slice(0, RESULTS_PER_ANGLE)) {
-            const tk = titleKey(p.title);
-            if (!knownIds.has(p.id) && !knownTitles.has(tk)) {
-              knownIds.add(p.id);
-              knownTitles.add(tk);
-              mine.push(p);
-            }
-          }
-        } catch {
-          // one angle failing shouldn't abort the rest
-        }
-        perAngle.push(mine);
-      }
-      if (!anyOk) throw new Error("Search failed. Please try again.");
-      // Round-robin so every angle is represented, then let relevance decide
-      // which papers get the full screen — not whichever angle ran first.
-      const pool = interleave(perAngle).slice(0, PRE_RANK_POOL);
-      if (pool.length === 0) {
-        setError("No new sources found for those angles.");
-        return;
-      }
-
-      setBusy(`Ranking ${pool.length} papers by relevance…`);
-      const preScores = await rankSourcesByRelevance(topic, pool);
-      const top = rankByScore(pool, preScores ?? []).slice(0, TRIAGE_BATCH);
-      const batch = top.map((r) => r.item);
-      const knownScores = preScores ? top.map((r) => r.score) : undefined;
-
-      setBusy("Screening for relevance…");
-      let scored: ScoredSource[];
-      try {
-        const verdicts = await triageSources(topic, batch, persona, data.modelId, knownScores);
-        const byN = new Map(verdicts.map((v) => [v.n, v]));
-        const decision = decideKeeps(batch.map((_, i) => byN.get(i + 1)?.score));
-        setWeakMatchNote(weakMatchMessage(decision));
-        scored = batch.map((p, i) => {
-          const v = byN.get(i + 1);
-          return {
-            ...p,
-            score: v?.score,
-            why: v?.why,
-            cluster: v?.cluster ?? "Results",
-            status: (decision.kept[i] ? "kept" : "rejected") as Status,
-          };
-        });
-      } catch (err: unknown) {
-        setAiOff(isNotConfigured(err));
-        // The writing model failed, but Jev's relevance still decides keeps
-        // when it ran; only with no scores at all is everything kept.
-        if (knownScores) {
-          const decision = decideKeeps(knownScores.map((x) => x ?? undefined));
-          setWeakMatchNote(weakMatchMessage(decision));
-          scored = batch.map((p, i) => ({
-            ...p,
-            score: knownScores[i] ?? undefined,
-            cluster: "Results",
-            status: (decision.kept[i] ? "kept" : "rejected") as Status,
-          }));
-        } else {
-          scored = batch.map((p) => ({ ...p, cluster: "Results", status: "kept" as Status }));
-        }
-      }
+      const { screened, weakMatchNote: note, aiOff: off } = await searchAndScreen(topic, items, {
+        persona,
+        modelId: data.modelId,
+        known: candidates,
+        onProgress: setBusy,
+      });
+      setWeakMatchNote(note);
+      if (off) setAiOff(true);
+      const scored: ScoredSource[] = screened.map(({ kept, ...p }) => ({ ...p, status: kept ? "kept" : "rejected" }));
       commit([...candidates, ...scored]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Search failed.");
