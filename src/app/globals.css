@@ -778,3 +778,8 @@ h1, h2, h3 {
   cursor: default;
   user-select: none;
 }
+/* A saved highlight in the PDF view (pages stay white in both themes). */
+.pdf-text-layer.textLayer .pdf-hl {
+  background: rgb(250 204 21 / 0.4);
+  border-radius: 2px;
+}

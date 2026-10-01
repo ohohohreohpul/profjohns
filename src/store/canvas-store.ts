@@ -173,7 +173,7 @@ interface CanvasState {
   closeSurface: () => void;
   openReader: (paper: PaperSource) => void;
   closeReader: () => void;
-  addHighlight: (paperId: string, text: string, paraIndex: number) => void;
+  addHighlight: (paperId: string, text: string, paraIndex: number, page?: number) => void;
   removeHighlight: (paperId: string, highlightId: string) => void;
   setNodeExtracts: (nodeId: string, extracts: Record<string, ExtractResult>) => void;
 
@@ -626,10 +626,10 @@ export const useCanvasStore = create<CanvasState>()(
 
   closeReader: () => set({ readerPaper: null }),
 
-  addHighlight: (paperId, text, paraIndex) =>
+  addHighlight: (paperId, text, paraIndex, page) =>
     set((state) => {
       const existing = state.highlights[paperId] ?? [];
-      const highlight: Highlight = { id: nextHighlightId(), text, paraIndex };
+      const highlight: Highlight = { id: nextHighlightId(), text, paraIndex, ...(page ? { page } : {}) };
       return {
         highlights: {
           ...state.highlights,

@@ -30,6 +30,7 @@ import { MediaNode } from "./nodes/media-node";
 import { LibraryNode } from "./nodes/library-node";
 import { LinkNode } from "./nodes/link-node";
 import { processImageFile } from "@/lib/image";
+import { isPdfFile, uploadPdf, PdfUploadError } from "@/lib/pdf-upload";
 import { ActionEdge } from "./edges/action-edge";
 import { Toolbar } from "./toolbar";
 import { ConnectionMenu, type SpawnRequest } from "./connection-menu";
@@ -398,6 +399,33 @@ function CanvasInner() {
     }
   }, []);
 
+  // PDF upload (drop or toolbar): upload, add a Paper node, open it to read.
+  const [uploadNote, setUploadNote] = React.useState<{ text: string; error: boolean } | null>(null);
+  const pdfInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handlePdfFile = React.useCallback(
+    async (file: File, at?: { x: number; y: number }) => {
+      setUploadNote({ text: `Uploading ${file.name}…`, error: false });
+      try {
+        const paper = await uploadPdf(file);
+        const pos =
+          at ?? screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        const newId = addNode("paper", { x: pos.x - 144, y: pos.y - 40 }, { paper, label: paper.title });
+        setNodeSources(newId, [paper]);
+        useCanvasStore.getState().notePopOut(newId, paper.title);
+        useCanvasStore.getState().openReader(paper);
+        setUploadNote(null);
+      } catch (err: unknown) {
+        setUploadNote({
+          text: err instanceof PdfUploadError ? err.message : "Couldn't add that PDF. Try again.",
+          error: true,
+        });
+        window.setTimeout(() => setUploadNote(null), UPLOAD_ERROR_MS);
+      }
+    },
+    [addNode, screenToFlowPosition, setNodeSources],
+  );
+
   const handleDrop = React.useCallback(
     (event: React.DragEvent) => {
       // 1) A source dragged out of the Sources node → Paper node.
@@ -420,7 +448,15 @@ function CanvasInner() {
         return;
       }
 
-      // 2) An image file dropped from the OS → Media node.
+      // 2) A PDF dropped from the OS → uploaded Paper node, opened to read.
+      const pdf = Array.from(event.dataTransfer.files ?? []).find(isPdfFile);
+      if (pdf) {
+        event.preventDefault();
+        void handlePdfFile(pdf, screenToFlowPosition({ x: event.clientX, y: event.clientY }));
+        return;
+      }
+
+      // 3) An image file dropped from the OS → Media node.
       const file = Array.from(event.dataTransfer.files ?? []).find((f) =>
         f.type.startsWith("image/"),
       );
@@ -488,7 +524,39 @@ function CanvasInner() {
           </linearGradient>
         </defs>
       </svg>
-      <Toolbar onAdd={handleToolbarAdd} tool={tool} onToolChange={setTool} onTidy={handleTidy} />
+      <Toolbar
+        onAdd={handleToolbarAdd}
+        tool={tool}
+        onToolChange={setTool}
+        onTidy={handleTidy}
+        onUploadPdf={() => pdfInputRef.current?.click()}
+      />
+      <input
+        ref={pdfInputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        aria-hidden
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void handlePdfFile(file);
+        }}
+      />
+      {uploadNote && (
+        <div
+          role={uploadNote.error ? "alert" : "status"}
+          className={cn(
+            "animate-float-in absolute bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-xl border px-3 py-2 text-xs shadow-lift",
+            uploadNote.error
+              ? "border-feedback-danger-border bg-feedback-danger-bg text-feedback-danger"
+              : "border-grey-200 bg-paper text-grey-700",
+          )}
+        >
+          {uploadNote.text}
+        </div>
+      )}
       <OutlineSidebar />
       {selectedCount >= 2 && (
         <div className="absolute left-1/2 top-4 z-30 -translate-x-1/2 animate-float-in">
@@ -593,6 +661,7 @@ export function ResearchCanvas() {
 const UNDO_BANNER_MS = 6000;
 /** Let a newly added node mount and measure before checking visibility. */
 const ADD_REVEAL_DELAY_MS = 120;
+const UPLOAD_ERROR_MS = 5000;
 const TIDY_FIT_PADDING = 0.12;
 const POP_OUT_BANNER_MS = UNDO_BANNER_MS;
 const FOCUS_ZOOM = 1;

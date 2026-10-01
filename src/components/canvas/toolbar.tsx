@@ -19,7 +19,7 @@ import {
 } from "@/lib/node-catalog";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { Plus, Cursor as MousePointer2, Hand, TreeStructure } from "@phosphor-icons/react";
+import { Plus, Cursor as MousePointer2, Hand, TreeStructure, FilePdf } from "@phosphor-icons/react";
 
 type Tool = "select" | "hand";
 
@@ -29,9 +29,11 @@ interface ToolbarProps {
   onToolChange: (tool: Tool) => void;
   /** Re-lay the board left-to-right along its connections. */
   onTidy: () => void;
+  /** Pick a PDF from disk to add as a paper. */
+  onUploadPdf: () => void;
 }
 
-export function Toolbar({ onAdd, tool, onToolChange, onTidy }: ToolbarProps) {
+export function Toolbar({ onAdd, tool, onToolChange, onTidy, onUploadPdf }: ToolbarProps) {
   const [moreOpen, setMoreOpen] = React.useState(false);
 
   return (
@@ -103,6 +105,22 @@ export function Toolbar({ onAdd, tool, onToolChange, onTidy }: ToolbarProps) {
             <p className="font-medium">Tidy up</p>
             <p className="text-grey-300">Line nodes up left to right, following their connections</p>
             <p className="text-grey-400 mt-0.5">Undo with Cmd+Z</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              aria-label="Upload PDF"
+              onClick={onUploadPdf}
+              className="grid size-10 place-items-center rounded-lg text-grey-500 transition-colors hover:bg-grey-100 hover:text-ink"
+            >
+              <FilePdf className="size-[18px]" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p className="font-medium">Upload PDF</p>
+            <p className="text-grey-300">Add a paper from your computer, or drop a PDF anywhere</p>
           </TooltipContent>
         </Tooltip>
 

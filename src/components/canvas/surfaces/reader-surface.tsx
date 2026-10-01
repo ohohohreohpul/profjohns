@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { fetchReadable } from "@/lib/reader-client";
 import { PdfViewer } from "@/components/reader/pdf-viewer";
 import { pdfLinkFor } from "@/lib/pdf-url";
+import { PDF_PARA_INDEX } from "@/lib/highlight";
+import { classifyInsightType, formatInsightNote, INSIGHT_LABELS } from "@/lib/insight";
 import { summarizePaper, askPaper } from "@/lib/ai-client";
 import { formatReference, DEFAULT_STYLE } from "@/lib/citation";
 import { useCanvasStore } from "@/store/canvas-store";
@@ -47,6 +49,8 @@ interface ThreadItem {
 const TARGET_PARAGRAPH = 600;
 /** Longest selected passage pre-filled into the question box. */
 const MAX_QUOTED_PASSAGE = 400;
+/** How long a PDF action confirmation stays visible. */
+const PDF_NOTICE_MS = 2600;
 const EMPTY_HIGHLIGHTS: never[] = [];
 
 function paragraphize(text: string): string[] {
@@ -119,6 +123,36 @@ export function ReaderSurface() {
     setParagraphs((current) => (current.length === 0 ? paragraphize(text) : current));
     setPages((current) => current ?? pageCount);
     setState((current) => (current === "error" ? "ready" : current));
+  }
+
+  const notePopOut = useCanvasStore((s) => s.notePopOut);
+  const [pdfNotice, setPdfNotice] = React.useState<string | null>(null);
+
+  function flash(message: string) {
+    setPdfNotice(message);
+    window.setTimeout(() => setPdfNotice(null), PDF_NOTICE_MS);
+  }
+
+  function handlePdfHighlight(passage: string, page: number) {
+    if (!paper) return;
+    addHighlight(paper.id, passage, PDF_PARA_INDEX, page);
+    flash(`Highlighted on page ${page}`);
+  }
+
+  /** Verbatim quote + paper + page -> an insight on the canvas, typed by Jev. */
+  async function handlePdfInsight(passage: string, page: number) {
+    if (!paper) return;
+    flash("Making insight…");
+    const type = await classifyInsightType(passage, paper.title);
+    const id = addNode("text", { x: 80, y: 80 }, { text: formatInsightNote(type, passage, paper, page) });
+    notePopOut(id, `${INSIGHT_LABELS[type] ?? "Quote"} from p. ${page}`);
+    flash(`${INSIGHT_LABELS[type] ?? "Quote"} insight added to the canvas`);
+  }
+
+  async function handlePdfCite(passage: string, page: number) {
+    if (!paper) return;
+    await navigator.clipboard?.writeText(`"${passage}" — ${formatReference(paper, DEFAULT_STYLE, 1)}, p. ${page}`);
+    flash("Quote and reference copied");
   }
 
   function handlePdfAsk(passage: string, page: number) {
@@ -371,11 +405,20 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
           </div>
         )}
         {showPdf && pdfLink ? (
-          <div className="flex min-w-0 flex-1 flex-col pt-10">
+          <div className="relative flex min-w-0 flex-1 flex-col pt-10">
+            {pdfNotice && (
+              <p role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-paper shadow-lift">
+                {pdfNotice}
+              </p>
+            )}
             <PdfViewer
               pdfUrl={pdfLink}
               onText={handlePdfText}
               onAsk={handlePdfAsk}
+              onHighlight={handlePdfHighlight}
+              onInsight={handlePdfInsight}
+              onCite={handlePdfCite}
+              highlights={highlights}
               onError={() => {
                 setPdfFailed(true);
                 setView("text");
@@ -654,7 +697,7 @@ function HighlightsList({
   onSaveNote,
   savedNote,
 }: {
-  highlights: { id: string; text: string }[];
+  highlights: { id: string; text: string; page?: number }[];
   onRemove: (id: string) => void;
   onSaveNote: () => void;
   savedNote: boolean;
@@ -676,10 +719,11 @@ function HighlightsList({
                 <p className="text-[11px] leading-snug text-grey-700">
                   {h.text}
                 </p>
+                {h.page && <p className="mt-1 text-[10px] tabular-nums text-grey-500">Page {h.page}</p>}
                 <button
                   onClick={() => onRemove(h.id)}
                   aria-label="Remove highlight"
-                  className="mt-1.5 text-grey-300 opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+                  className="mt-1.5 text-grey-500 opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
                 >
                   <Trash2 className="size-3.5" />
                 </button>

@@ -5,6 +5,7 @@ import {
   JevError,
   judgeClaimSupport,
   routeAnglesToSources,
+  classifyInsight,
   scoreSourcesRelevance,
   type AngleRoutingInput,
   type ClaimSupportInput,
@@ -67,7 +68,14 @@ type VerifyRefsBody = {
   sources: PaperSource[];
 };
 
+type ClassifyInsightBody = {
+  op: "classify-insight";
+  passage: string;
+  paperTitle: string;
+};
+
 type JevRequestBody =
+  | ClassifyInsightBody
   | RouteAnglesBody
   | ScoreSourcesBody
   | AuditClaimsBody
@@ -116,6 +124,17 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse<unkno
   // All remaining ops require a Jev key.
   if (!isJevConfigured()) {
     return notConfigured("Jev is not configured. Set TYPESAFE_API_KEY.");
+  }
+
+  if (body.op === "classify-insight") {
+    if (typeof body.passage !== "string" || body.passage.trim().length < 3) {
+      return fail("classify-insight requires a `passage`.", 400);
+    }
+    try {
+      return ok(await classifyInsight(body.passage, String(body.paperTitle ?? "")));
+    } catch (err: unknown) {
+      return fail(err instanceof JevError ? err.message : "Jev classification failed.");
+    }
   }
 
   if (body.op === "route-angles") {

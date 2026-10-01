@@ -21,7 +21,8 @@ const cspHeader = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
   "font-src 'self' https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  // blob: = files the page itself created (a just-picked PDF before upload).
+  "connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co",
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",

@@ -8,8 +8,13 @@ import {
   ArrowsInLineHorizontal,
   ChatCircleText,
   WarningCircle,
+  Highlighter,
+  Lightbulb,
+  Quotes,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { STORAGE_PDF_PREFIX } from "@/lib/pdf-url";
 
 /**
  * In-app PDF reader: real pages (figures, tables, equations) with a
@@ -46,8 +51,13 @@ interface PdfViewerProps {
   readonly pdfUrl: string;
   /** Full plain text once extracted, so the assistant can answer from the PDF. */
   readonly onText?: (text: string, pages: number) => void;
-  /** User selected a passage and asked about it. */
+  /** Actions offered on a selected passage (each gets the text and page). */
   readonly onAsk?: (passage: string, page: number) => void;
+  readonly onHighlight?: (passage: string, page: number) => void;
+  readonly onInsight?: (passage: string, page: number) => void;
+  readonly onCite?: (passage: string, page: number) => void;
+  /** Saved highlights to mark on the pages. */
+  readonly highlights?: readonly { text: string; page?: number }[];
   /** The PDF couldn't be opened (dead link, paywall); caller can fall back. */
   readonly onError?: (message: string) => void;
 }
@@ -57,20 +67,35 @@ type LoadState =
   | { status: "error"; message: string }
   | { status: "ready"; doc: PdfDoc; pdfjs: PdfJs; sizes: { width: number; height: number }[] };
 
-async function loadPdf(pdfUrl: string): Promise<{ doc: PdfDoc; pdfjs: PdfJs }> {
-  const res = await fetch(`/api/pdf/file?url=${encodeURIComponent(pdfUrl)}`);
+/** Bytes for a PDF reference: the user's private storage, a local file not
+ *  yet uploaded (blob:), or a public link fetched through the proxy. */
+async function fetchPdfBytes(pdfUrl: string): Promise<Uint8Array> {
+  if (pdfUrl.startsWith(STORAGE_PDF_PREFIX)) {
+    const sb = createClient();
+    if (!sb) throw new Error("Sign in to open your uploaded PDFs.");
+    const { data, error } = await sb.storage.from("media").download(pdfUrl.slice(STORAGE_PDF_PREFIX.length));
+    if (error || !data) throw new Error("Couldn't open your uploaded PDF. Try again.");
+    return new Uint8Array(await data.arrayBuffer());
+  }
+  const res = pdfUrl.startsWith("blob:")
+    ? await fetch(pdfUrl)
+    : await fetch(`/api/pdf/file?url=${encodeURIComponent(pdfUrl)}`);
   if (!res.ok) {
     const json = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(json?.error ?? "Couldn't open this PDF.");
   }
-  const data = new Uint8Array(await res.arrayBuffer());
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function loadPdf(pdfUrl: string): Promise<{ doc: PdfDoc; pdfjs: PdfJs }> {
+  const data = await fetchPdfBytes(pdfUrl);
   const { getResolvedPDFJS } = await import("unpdf");
   const pdfjs = (await getResolvedPDFJS()) as unknown as PdfJs;
   const doc = await pdfjs.getDocument({ data, isEvalSupported: false, useSystemFonts: true }).promise;
   return { doc, pdfjs };
 }
 
-export function PdfViewer({ pdfUrl, onText, onAsk, onError }: PdfViewerProps) {
+export function PdfViewer({ pdfUrl, onText, onAsk, onHighlight, onInsight, onCite, onError, highlights = [] }: PdfViewerProps) {
   const [state, setState] = React.useState<LoadState>({ status: "loading" });
   const [zoom, setZoom] = React.useState(1);
   const [fitWidth, setFitWidth] = React.useState(0);
@@ -200,24 +225,44 @@ export function PdfViewer({ pdfUrl, onText, onAsk, onError }: PdfViewerProps) {
             scale={scale}
             root={scrollRef}
             onVisible={setCurrentPage}
+            highlights={highlights}
           />
         ))}
 
-        {selection && onAsk && (
-          <button
-            type="button"
+        {selection && (
+          <div
+            role="toolbar"
+            aria-label="Selection actions"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              onAsk(selection.text, selection.page);
-              setSelection(null);
-              window.getSelection()?.removeAllRanges();
-            }}
             style={{ top: Math.max(0, selection.top), left: selection.left }}
-            className="absolute z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-lg bg-ink px-2.5 py-1.5 text-xs font-medium text-paper shadow-lift"
+            className="absolute z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-grey-200 bg-paper p-1 shadow-lift"
           >
-            <ChatCircleText className="size-3.5" />
-            Ask about this (p. {selection.page})
-          </button>
+            {(
+              [
+                { label: "Highlight", icon: Highlighter, run: onHighlight },
+                { label: "Make insight", icon: Lightbulb, run: onInsight },
+                { label: "Cite", icon: Quotes, run: onCite },
+                { label: "Ask", icon: ChatCircleText, run: onAsk },
+              ] as const
+            )
+              .filter((a) => a.run)
+              .map(({ label, icon: Icon, run }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    run?.(selection.text, selection.page);
+                    setSelection(null);
+                    window.getSelection()?.removeAllRanges();
+                  }}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink transition-colors hover:bg-grey-100"
+                >
+                  <Icon className="size-3.5" />
+                  {label}
+                </button>
+              ))}
+            <span className="px-1.5 text-xs tabular-nums text-grey-500">p. {selection.page}</span>
+          </div>
         )}
       </div>
     </div>
@@ -248,10 +293,23 @@ interface PdfPageViewProps {
   readonly scale: number;
   readonly root: React.RefObject<HTMLDivElement | null>;
   readonly onVisible: (page: number) => void;
+  readonly highlights: readonly { text: string; page?: number }[];
+}
+
+const MIN_MARK_CHARS = 3;
+const normalise = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** Mark text-layer spans that fall inside one of this page's highlights. */
+function markHighlights(textEl: HTMLElement, passages: readonly string[]): void {
+  const targets = passages.map(normalise).filter(Boolean);
+  for (const span of textEl.querySelectorAll("span")) {
+    const t = normalise(span.textContent ?? "");
+    span.classList.toggle("pdf-hl", t.length >= MIN_MARK_CHARS && targets.some((p) => p.includes(t)));
+  }
 }
 
 /** One page: a placeholder of the right size until it nears the viewport. */
-function PdfPageView({ pageNumber, doc, pdfjs, width, height, scale, root, onVisible }: PdfPageViewProps) {
+function PdfPageView({ pageNumber, doc, pdfjs, width, height, scale, root, onVisible, highlights }: PdfPageViewProps) {
   const holderRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const textRef = React.useRef<HTMLDivElement>(null);
@@ -317,6 +375,15 @@ function PdfPageView({ pageNumber, doc, pdfjs, width, height, scale, root, onVis
       textTask?.cancel();
     };
   }, [near, doc, pdfjs, pageNumber, scale]);
+
+  // Re-mark whenever this page's highlights change or the text layer redraws.
+  const pagePassages = React.useMemo(
+    () => highlights.filter((h) => h.page === pageNumber).map((h) => h.text),
+    [highlights, pageNumber],
+  );
+  React.useEffect(() => {
+    if (!rendering && textRef.current) markHighlights(textRef.current, pagePassages);
+  }, [rendering, pagePassages]);
 
   return (
     <div

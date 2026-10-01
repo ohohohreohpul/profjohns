@@ -1,3 +1,6 @@
+/** pdfUrl prefix for a PDF the user uploaded to their private storage. */
+export const STORAGE_PDF_PREFIX = "storage://media/";
+
 /** Map a paper link to a direct PDF link where one is known (arXiv). */
 export function toPdfUrl(url: string): string {
   const arxiv = url.match(/arxiv\.org\/(?:abs|pdf|html)\/([^?#]+)/i);

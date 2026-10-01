@@ -270,6 +270,45 @@ export async function routeAnglesToSources(
   });
 }
 
+/** What each insight type means — Jev picks one for a quoted passage. */
+const INSIGHT_TYPE_CRITERIA: Record<string, string> = {
+  finding: "Reports a result the authors observed or measured (an effect, a number, an outcome).",
+  claim: "States an argument, interpretation or position the authors put forward, not a measured result.",
+  method: "Describes how the study was done: design, data, sample, procedure, model or analysis.",
+  limitation: "Admits a weakness, boundary, threat to validity, or something the study cannot show.",
+  gap: "Points to something unknown, unstudied, or needing future research.",
+  definition: "Defines or explains a term, concept or construct.",
+  quote: "None of the above fits well; it is worth keeping as a quotation.",
+};
+
+const MAX_INSIGHT_PASSAGE = 2000;
+
+/**
+ * Classify a passage the user selected into an insight type (Jev Choice).
+ * Returns the type and Jev's confidence. Throws `JevError` on any failure.
+ */
+export async function classifyInsight(
+  passage: string,
+  paperTitle: string,
+): Promise<{ type: string; confidence: number }> {
+  const res = await callJev(
+    { paper_title: paperTitle, passage: passage.slice(0, MAX_INSIGHT_PASSAGE) },
+    {
+      insight_type: {
+        type: "choice",
+        instructions:
+          "A researcher selected `passage` from the paper `paper_title` to keep as an insight. What kind of insight is it?",
+        criteria: INSIGHT_TYPE_CRITERIA,
+      },
+    },
+  );
+  const answer = res.answers.insight_type;
+  if (answer?.type !== "choice" || !(answer.choice in INSIGHT_TYPE_CRITERIA)) {
+    throw new JevError("Jev returned no usable insight type.");
+  }
+  return { type: answer.choice, confidence: answer.confidence };
+}
+
 /**
  * Score each candidate source's relevance to the topic via one Jev Score
  * question per source. Returns one 0–100 integer per source, in input order,
