@@ -417,7 +417,8 @@ export function DiscoverHome() {
           />
         </motion.div>
         <motion.p variants={fadeUp} className="mt-3 text-center text-[14px] text-grey-500">
-          Research anything — find sources, synthesize, and write.
+          Start with your research question. We find and screen papers, pull out
+          shared claims, and help you write with citations.
         </motion.p>
 
         <motion.form
@@ -435,9 +436,12 @@ export function DiscoverHome() {
           />
           <div className="mt-2 flex items-center gap-2">
             <HeroSourcesPopover selected={sources} onChange={setSources} />
-            <span className="flex items-center gap-1.5 rounded-lg border border-grey-200 px-2.5 py-1 text-[12px] font-medium text-grey-500">
+            <span
+              title="Scout is the research agent that plans search angles and screens each paper for relevance."
+              className="flex items-center gap-1.5 px-1 text-[12px] text-grey-500"
+            >
               <Sparkles className="size-3.5" />
-              Scout
+              Scout plans the searches
             </span>
             <button
               type="submit"
@@ -445,7 +449,7 @@ export function DiscoverHome() {
               className="ml-auto flex items-center gap-1.5 rounded-lg bg-ink px-3.5 py-1.5 text-[13px] font-semibold text-paper transition-colors hover:bg-grey-800 disabled:opacity-30"
             >
               <Search className="size-4" />
-              Research
+              Start research
             </button>
           </div>
         </motion.form>
@@ -468,7 +472,7 @@ export function DiscoverHome() {
         {/* Discover feed */}
         <motion.div variants={fadeUp} className="mt-12">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-[15px] font-semibold tracking-tight text-ink">Discover</h2>
+            <h2 className="text-[15px] font-semibold tracking-tight text-ink">Or browse new papers</h2>
             <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-medium text-grey-500">
               {sort === "cited" ? "Most-cited" : "Recent research"}
             </span>

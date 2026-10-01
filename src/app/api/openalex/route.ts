@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { PaperSource } from "@/lib/mock";
-import { toOpenAlexSearch } from "@/lib/openalex-query";
+import { toOpenAlexSearch, toTitleAbstractFilter, mergeUnique } from "@/lib/openalex-query";
+import { interleave } from "@/lib/source-pool";
 
 /**
  * Proxies the OpenAlex Works API — keyless, covers ALL fields (sciences,
@@ -43,6 +44,7 @@ function readStaleCache(key: string): PaperSource[] | null {
   return hit?.data ?? null;
 }
 
+const RETRY_DELAY_MS = 800;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface ApiResponse<T> {
@@ -173,15 +175,29 @@ export async function GET(
     // OpenAlex OR-syntax inside a single filter: concepts.id:C1|C2|C3
     filters.push(`concepts.id:${conceptIds.join("|")}`);
   }
-  const filterParam = filters.length > 0 ? `&filter=${encodeURIComponent(filters.join(","))}` : "";
-
-  // Concept queries use the filter path (no search=); text queries use search=.
-  const searchPart = conceptIds.length > 0 ? "" : `&search=${encodeURIComponent(query)}`;
-  const url =
-    `${ENDPOINT}?per_page=${encodeURIComponent(perPage)}${searchPart}${sortParam}${filterParam}` +
+  const base =
+    `${ENDPOINT}?per_page=${encodeURIComponent(perPage)}${sortParam}` +
     `&mailto=${encodeURIComponent(MAILTO)}`;
+  const filterParam = (extra: string[] = []): string => {
+    const all = [...filters, ...extra];
+    return all.length > 0 ? `&filter=${encodeURIComponent(all.join(","))}` : "";
+  };
 
-  const cacheKey = url;
+  // Concept queries ("For You") and explicitly sorted feeds (Discover) keep
+  // their single request. Typed searches go precise-first (see
+  // toTitleAbstractFilter) and top up from the broad search when the precise
+  // one is too strict — a full natural-language question matches nothing
+  // there, because every word must appear.
+  const isTypedSearch = conceptIds.length === 0 && !sortParam;
+  const broadUrl =
+    conceptIds.length > 0
+      ? `${base}${filterParam()}`
+      : `${base}&search=${encodeURIComponent(query)}${filterParam()}`;
+  const preciseFilter = isTypedSearch ? toTitleAbstractFilter(query) : null;
+  const preciseUrl = preciseFilter ? `${base}${filterParam([preciseFilter])}` : null;
+  const limit = Number(perPage) || LIMIT;
+
+  const cacheKey = preciseUrl ? `precise+broad|${broadUrl}` : broadUrl;
 
   // Serve from cache first — repeat visits are instant and rate-limit-safe.
   const cached = readCache(cacheKey);
@@ -190,35 +206,15 @@ export async function GET(
   }
 
   try {
-    let res = await fetch(url, {
-      headers: { "User-Agent": `ProfJohns (${MAILTO})` },
-    });
-
-    // On 429, wait briefly and retry once before giving up.
-    if (res.status === 429) {
-      await sleep(800);
-      res = await fetch(url, {
-        headers: { "User-Agent": `ProfJohns (${MAILTO})` },
-      });
-    }
-
-    if (!res.ok) {
-      // Last resort: return stale cache if we have it.
-      const stale = readStaleCache(cacheKey);
-      if (stale) {
-        return NextResponse.json({ success: true, data: stale, error: null });
-      }
-      throw new Error(
-        res.status === 429
-          ? "OpenAlex is busy. Try again in a moment."
-          : `OpenAlex returned ${res.status}.`,
-      );
-    }
-    const json = (await res.json()) as { results?: OAWork[] };
-    const maxYear = new Date().getFullYear() + 1;
-    const papers = (json.results ?? [])
-      .map(mapWork)
-      .filter((p) => p.title.length > 0 && p.year <= maxYear);
+    // Alternate precise and broad results: precise surfaces the specific
+    // recent papers, broad covers queries the precise filter mangles, and the
+    // relevance screen downstream sorts out which is which. A failed precise
+    // request is not fatal; the broad search still runs.
+    const [precise, broad] = await Promise.all([
+      preciseUrl ? fetchPapers(preciseUrl).catch(() => []) : Promise.resolve([]),
+      fetchPapers(broadUrl),
+    ]);
+    const papers = mergeUnique(interleave([precise, broad]), [], limit);
     writeCache(cacheKey, papers);
     return NextResponse.json({ success: true, data: papers, error: null });
   } catch (error: unknown) {
@@ -232,4 +228,26 @@ export async function GET(
       { status: 502 },
     );
   }
+}
+
+/** One OpenAlex request with a single 429 retry, mapped to PaperSource. */
+async function fetchPapers(url: string): Promise<PaperSource[]> {
+  const headers = { "User-Agent": `ProfJohns (${MAILTO})` };
+  let res = await fetch(url, { headers });
+  if (res.status === 429) {
+    await sleep(RETRY_DELAY_MS);
+    res = await fetch(url, { headers });
+  }
+  if (!res.ok) {
+    throw new Error(
+      res.status === 429
+        ? "OpenAlex is busy. Try again in a moment."
+        : `OpenAlex returned ${res.status}.`,
+    );
+  }
+  const json = (await res.json()) as { results?: OAWork[] };
+  const maxYear = new Date().getFullYear() + 1;
+  return (json.results ?? [])
+    .map(mapWork)
+    .filter((p) => p.title.length > 0 && p.year <= maxYear);
 }

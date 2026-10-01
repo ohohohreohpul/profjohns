@@ -18,6 +18,11 @@ import { useCanvasStore } from "@/store/canvas-store";
 import { useNodeInputSources } from "@/store/use-sources";
 import { synthesizeSources, type Synthesis } from "@/lib/ai-client";
 import { getModel } from "@/lib/models";
+import { useShallow } from "zustand/react/shallow";
+
+/** Matches the node's `w-80`. */
+const SYNTH_WIDTH = 320;
+const DRAFT_GAP = 80;
 
 export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
   const sources = useNodeInputSources(id);
@@ -26,6 +31,44 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
   const synthesis = data.synthesis as Synthesis | undefined;
   // Claims only reach a Draft wired directly from this node (Compose reads
   // its direct incomers), so tell the user whether that link exists.
+  const connectMany = useCanvasStore((s) => s.connectMany);
+  const addNode = useCanvasStore((s) => s.addNode);
+  // Sources / Paper nodes holding kept papers that aren't wired in yet — the
+  // one-click alternative to dragging a connection by hand.
+  const unwiredProducers = useCanvasStore(
+    useShallow((s) => {
+      const wired = new Set(s.edges.filter((e) => e.target === id).map((e) => e.source));
+      return s.nodes
+        .filter(
+          (n) =>
+            (n.data.kind === "explorer" || n.data.kind === "paper") &&
+            !wired.has(n.id) &&
+            (s.sources[n.id]?.length ?? 0) > 0,
+        )
+        .map((n) => n.id);
+    }),
+  );
+  const draftIds = useCanvasStore(
+    useShallow((s) => s.nodes.filter((n) => n.data.kind === "writing").map((n) => n.id)),
+  );
+
+  function connectSources() {
+    connectMany(unwiredProducers.map((source) => ({ source, target: id })));
+  }
+
+  /** Wire into the Draft (creating one beside this node if there is none). */
+  function sendToDraft() {
+    const target =
+      draftIds[0] ??
+      (() => {
+        const self = useCanvasStore.getState().nodes.find((n) => n.id === id);
+        const pos = self?.position ?? { x: 0, y: 0 };
+        const w = self?.measured?.width ?? SYNTH_WIDTH;
+        return addNode("writing", { x: pos.x + w + DRAFT_GAP, y: pos.y });
+      })();
+    connectMany([{ source: id, target }]);
+  }
+
   const feedsDraft = useCanvasStore((s) =>
     s.edges.some(
       (e) =>
@@ -92,10 +135,24 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
             Connect sources to this node
           </p>
           <p className="mt-1 text-[11px] leading-snug text-grey-600">
-            Drag from the dot on the right of a Sources or Paper node to the dot
-            on this node&apos;s left. Synthesize reads them together and pulls out
-            shared claims, contradictions, and themes.
+            Synthesize reads your kept papers together and pulls out shared
+            claims, contradictions, and themes.
           </p>
+          {unwiredProducers.length > 0 ? (
+            <button
+              type="button"
+              onClick={connectSources}
+              className="nodrag mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-grey-300 py-1.5 text-[11px] font-medium text-ink transition-colors hover:border-grey-500 hover:bg-grey-50"
+            >
+              <PlugsConnected className="size-3.5" />
+              Connect {unwiredProducers.length} source node{unwiredProducers.length === 1 ? "" : "s"}
+            </button>
+          ) : (
+            <p className="mt-1.5 text-[11px] leading-snug text-grey-600">
+              Keep some papers in a Sources node first, or drag a connection from
+              any node&apos;s right dot to this node&apos;s left dot.
+            </p>
+          )}
         </div>
       ) : (
         <SourceList sources={sources} />
@@ -129,9 +186,20 @@ export function ProcessorNode({ id, data, selected }: CanvasNodeProps) {
       {synthesis && hasResult && (
         <p className="mt-2.5 flex items-center gap-1.5 text-[11px] text-grey-600">
           <ArrowRight className="size-3.5 shrink-0" />
-          {feedsDraft
-            ? "These claims feed the connected Draft."
-            : "Connect this node to a Draft to write from these claims."}
+          {feedsDraft ? (
+            "These claims feed the connected Draft."
+          ) : (
+            <>
+              <span>Not feeding a Draft yet.</span>
+              <button
+                type="button"
+                onClick={sendToDraft}
+                className="nodrag ml-auto shrink-0 rounded-md border border-grey-300 px-2 py-0.5 text-[11px] font-medium text-ink transition-colors hover:border-grey-500 hover:bg-grey-50"
+              >
+                {draftIds.length > 0 ? "Send to Draft" : "Start a Draft"}
+              </button>
+            </>
+          )}
         </p>
       )}
 

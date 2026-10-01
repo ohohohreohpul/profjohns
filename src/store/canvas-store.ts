@@ -141,6 +141,9 @@ interface CanvasState {
   onNodesChange: (changes: NodeChange<CanvasNode>[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
+  /** Wire several node pairs (out → in) in one update / one undo step.
+   *  Pairs that are already connected are skipped. */
+  connectMany: (pairs: readonly { source: string; target: string }[]) => void;
   addNode: (
     kind: NodeKind,
     position: { x: number; y: number },
@@ -358,6 +361,20 @@ export const useCanvasStore = create<CanvasState>()(
         state.edges,
       ),
     })),
+
+  connectMany: (pairs) =>
+    set((state) => {
+      let edges = state.edges;
+      for (const { source, target } of pairs) {
+        if (source === target) continue;
+        if (edges.some((e) => e.source === source && e.target === target)) continue;
+        edges = addEdge(
+          { source, target, sourceHandle: SOURCE_HANDLE, targetHandle: "in", type: "action", animated: true },
+          edges,
+        );
+      }
+      return edges === state.edges ? {} : { edges };
+    }),
 
   addNode: (kind, position, data) => {
     const id = `n${get().nextId}`;

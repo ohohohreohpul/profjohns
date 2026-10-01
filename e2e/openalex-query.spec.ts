@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { toOpenAlexSearch } from "../src/lib/openalex-query";
+import { toOpenAlexSearch, toTitleAbstractFilter, mergeUnique } from "../src/lib/openalex-query";
 
 /**
  * Regression: a research QUESTION typed on the home page ("...A/B tests?")
@@ -23,5 +23,25 @@ test.describe("toOpenAlexSearch", () => {
 
   test("returns an empty string when only wildcards remain", () => {
     expect(toOpenAlexSearch(" ?* ")).toBe("");
+  });
+});
+
+test.describe("toTitleAbstractFilter", () => {
+  test("builds the precise filter and strips filter separators", () => {
+    expect(toTitleAbstractFilter("creative testing, scale | ads?")).toBe(
+      "title_and_abstract.search:creative testing scale ads",
+    );
+  });
+
+  test("returns null when nothing searchable remains", () => {
+    expect(toTitleAbstractFilter(" ,|? ")).toBeNull();
+  });
+});
+
+test.describe("mergeUnique", () => {
+  test("keeps precise results first, drops duplicates, caps the count", () => {
+    const a = [{ id: "1" }, { id: "2" }];
+    const b = [{ id: "2" }, { id: "3" }, { id: "4" }];
+    expect(mergeUnique(a, b, 3).map((p) => p.id)).toEqual(["1", "2", "3"]);
   });
 });

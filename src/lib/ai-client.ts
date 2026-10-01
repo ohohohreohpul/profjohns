@@ -175,12 +175,47 @@ async function refineAngleSources(
 /** Refine the `score` field of each verdict with a Jev Score judgment.
  *  Non-throwing: on any failure the caller's LLM-derived verdicts are returned
  *  unchanged. Verdicts are matched by their `n` (1-based) field. */
+/**
+ * Jev relevance (0-100) per source, in input order; null entries where Jev
+ * gave no usable answer. Returns null when Jev is unavailable (not configured,
+ * timeout, error) so callers fall back to their existing path.
+ */
+export async function rankSourcesByRelevance(
+  topic: string,
+  sources: PaperSource[],
+): Promise<(number | null)[] | null> {
+  if (sources.length === 0) return [];
+  try {
+    const res = await fetchWithTimeout(
+      "/api/jev",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "score-sources", topic, sources: toContext(sources) }),
+      },
+      JEV_TIMEOUT_MS,
+    );
+    const json = (await res.json()) as JevResponse<(number | null)[]>;
+    return json.success && Array.isArray(json.data) ? json.data : null;
+  } catch {
+    return null;
+  }
+}
+
 async function refineVerdictScores(
   verdicts: SourceVerdict[],
   topic: string,
   sources: PaperSource[],
+  knownScores?: readonly (number | null)[],
 ): Promise<SourceVerdict[]> {
   if (verdicts.length === 0) return verdicts;
+  // Already ranked by Jev for this exact batch — don't ask twice.
+  if (knownScores) {
+    return verdicts.map((v) => {
+      const known = knownScores[v.n - 1];
+      return typeof known === "number" ? { ...v, score: Math.round(known) } : v;
+    });
+  }
   try {
     const res = await fetchWithTimeout(
       "/api/jev",
@@ -534,6 +569,8 @@ export async function triageSources(
   sources: PaperSource[],
   persona?: string,
   modelId?: string,
+  /** Jev scores for `sources` (same order), when already computed. */
+  knownScores?: readonly (number | null)[],
 ): Promise<SourceVerdict[]> {
   const raw = await callAi({
     mode: "triage",
@@ -547,7 +584,7 @@ export async function triageSources(
   );
   // Jev refines the relevance score when configured; LLM keeps the why/cluster
   // text. Falls back silently to `llmVerdicts` on any failure.
-  return refineVerdictScores(llmVerdicts, topic, sources);
+  return refineVerdictScores(llmVerdicts, topic, sources, knownScores);
 }
 
 /** Identify coverage gaps in the gathered sources. */

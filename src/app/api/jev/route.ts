@@ -14,6 +14,9 @@ import { verifyReferences, type ReferenceVerification } from "@/lib/verify-refs"
 import type { PaperSource } from "@/lib/mock";
 import type { SourceProvider } from "@/lib/sources-client";
 
+/** Caps one request's Jev cost (~500 tokens per source). */
+const MAX_SCORE_SOURCES = 40;
+
 export const runtime = "nodejs";
 
 /**
@@ -135,6 +138,9 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse<unkno
   if (body.op === "score-sources") {
     if (!Array.isArray(body.sources)) {
       return fail("score-sources requires a `sources` array.", 400);
+    }
+    if (body.sources.length > MAX_SCORE_SOURCES) {
+      return fail(`score-sources accepts at most ${MAX_SCORE_SOURCES} sources.`, 400);
     }
     try {
       const scores = await scoreSourcesRelevance(body.topic ?? "", body.sources);
