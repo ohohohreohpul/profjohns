@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Gear, SignOut, CreditCard } from "@phosphor-icons/react";
 import Image from "next/image";
+import { ThemeSwitch } from "@/components/brand/theme-switch";
 
 export type SurfaceKey =
   | "discover"
@@ -151,6 +152,9 @@ export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {
                   Billing
                 </Link>
               </DropdownMenuItem>
+              <div className="px-1.5 py-1.5">
+                <ThemeSwitch />
+              </div>
               <DropdownMenuItem
                 onSelect={() => signOut()}
                 data-testid="menu-sign-out"

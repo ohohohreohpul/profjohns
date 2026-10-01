@@ -5,6 +5,8 @@ import { RouteOverlay } from "@/components/brand/route-overlay";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { AuthGuard } from "@/lib/auth/auth-guard";
 import { PersistenceSync } from "@/components/sync/persistence-sync";
+import { ThemeSync } from "@/components/brand/theme-sync";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 import "./legal.css";
 
@@ -18,8 +20,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the pre-paint theme script sets data-theme
+    // on <html> before React hydrates, which React would otherwise flag.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* Swiss type system — loaded via <link> (not CSS @import, which
             Tailwind v4 hoists past its own output and invalidates). If a CDN
             is unreachable, text falls back to the system stack; nothing blocks. */}
@@ -36,6 +41,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <ThemeSync />
         <AuthProvider>
           <PersistenceSync />
           <AuthGuard>
