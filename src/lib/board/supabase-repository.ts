@@ -50,6 +50,8 @@ interface LinkRow {
 const WALL_COLUMNS = "id, board_id, kind, title, position, collapsed";
 const CARD_COLUMNS = "id, board_id, wall_id, kind, position, data, updated_at";
 const LINK_COLUMNS = "id, board_id, from_card, to_card, relation";
+/** Postgres unique_violation. */
+const UNIQUE_VIOLATION = "23505";
 
 function toWall(r: WallRow): Wall | null {
   if (!(WALL_KINDS as readonly string[]).includes(r.kind)) return null;
@@ -122,6 +124,12 @@ export class SupabaseBoardRepository implements BoardRepository {
       board_id: boardId, project_id: projectId, user_id: userId, kind: w.kind, title: w.title, position: positions[i],
     }));
     const inserted = await this.sb.from("walls").insert(rows).select(WALL_COLUMNS);
+    if (inserted.error?.code === UNIQUE_VIOLATION) {
+      // Another load created them first (walls_board_kind_unique): use theirs.
+      const winner = await this.sb.from("walls").select(WALL_COLUMNS).eq("board_id", boardId).order("position");
+      if (winner.error) throw new BoardRepositoryError("Couldn't load this board's columns.", winner.error);
+      return (winner.data as WallRow[]).map(toWall).filter((x): x is Wall => x !== null);
+    }
     if (inserted.error) throw new BoardRepositoryError("Couldn't set up this board's columns.", inserted.error);
     return (inserted.data as WallRow[]).map(toWall).filter((x): x is Wall => x !== null).sort((a, b) => a.position - b.position);
   }
@@ -138,6 +146,35 @@ export class SupabaseBoardRepository implements BoardRepository {
       .single();
     if (res.error) throw new BoardRepositoryError("Couldn't add that card.", res.error);
     return toCard(res.data as CardRow) as Card<K>;
+  }
+
+  async addCards(inputs: readonly NewCard[]): Promise<readonly Card[]> {
+    if (inputs.length === 0) return [];
+    const userId = await this.userId();
+    const rows = inputs.map((input) => ({
+      board_id: input.boardId, project_id: input.projectId, wall_id: input.wallId,
+      user_id: userId, kind: input.kind, position: input.position, data: parseCardData(input.kind, input.data),
+    }));
+    const res = await this.sb.from("cards").insert(rows).select(CARD_COLUMNS);
+    if (res.error) throw new BoardRepositoryError("Couldn't move your existing board over.", res.error);
+    return (res.data as CardRow[]).map(toCard).filter((c): c is Card => c !== null);
+  }
+
+  async releaseConversion(boardId: string): Promise<void> {
+    const res = await this.sb.from("canvases").update({ board_version: 1 }).eq("id", boardId);
+    if (res.error) throw new BoardRepositoryError("Couldn't reset this board's conversion.", res.error);
+  }
+
+  async claimConversion(boardId: string): Promise<boolean> {
+    // Conditional update: only the caller that sees version 1 flips it.
+    const res = await this.sb
+      .from("canvases")
+      .update({ board_version: 2 })
+      .eq("id", boardId)
+      .eq("board_version", 1)
+      .select("id");
+    if (res.error) throw new BoardRepositoryError("Couldn't prepare this board.", res.error);
+    return res.data.length === 1;
   }
 
   async updateCard(id: string, patch: CardPatch): Promise<Card> {

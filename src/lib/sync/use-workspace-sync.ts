@@ -7,10 +7,13 @@ import {
   loadWorkspace,
   reconcileProjects,
   reconcileCanvases,
+  deleteProjects,
+  deleteCanvases,
   reconcilePinned,
   saveSettings,
 } from "@/lib/db/repo";
 import { mergeById, mergePinned } from "@/lib/sync/merge-workspace";
+import { removedIds } from "./removed-ids";
 
 const WRITE_DEBOUNCE_MS = 1200;
 
@@ -89,9 +92,14 @@ export function useWorkspaceSync(): void {
   React.useEffect(() => {
     if (!enabled || !user) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // What the user removed on this device since the last write.
+    const removedProjects = new Set<string>();
+    const removedCanvases = new Set<string>();
 
     const unsub = useWorkspaceStore.subscribe((state, prev) => {
       if (suppress.current || !ready.current) return;
+      for (const id of removedIds(prev.projects, state.projects)) removedProjects.add(id);
+      for (const id of removedIds(prev.canvases, state.canvases)) removedCanvases.add(id);
       const changed =
         state.projects !== prev.projects ||
         state.canvases !== prev.canvases ||
@@ -102,8 +110,15 @@ export function useWorkspaceSync(): void {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         const s = useWorkspaceStore.getState();
+        // Re-added since removal (e.g. undo)? Then it isn't removed.
+        const dropProjects = [...removedProjects].filter((id) => !s.projects.some((p) => p.id === id));
+        const dropCanvases = [...removedCanvases].filter((id) => !s.canvases.some((c) => c.id === id));
+        removedProjects.clear();
+        removedCanvases.clear();
         void reconcileProjects(s.projects);
         void reconcileCanvases(s.canvases);
+        void deleteCanvases(dropCanvases).catch((err: unknown) => console.error("[sync] board delete failed", err));
+        void deleteProjects(dropProjects).catch((err: unknown) => console.error("[sync] project delete failed", err));
         void reconcilePinned(s.pinnedSources);
         void saveSettings({
           styleProfile: s.styleProfile,

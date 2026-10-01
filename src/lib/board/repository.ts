@@ -33,6 +33,15 @@ export interface BoardRepository {
   /** Create the default walls if the board has none; returns the walls. */
   ensureDefaultWalls(boardId: string, projectId: string | null): Promise<readonly Wall[]>;
   addCard<K extends CardKind>(input: NewCard<K>): Promise<Card<K>>;
+  /** Insert many cards in one request (used by the one-time converter). */
+  addCards(inputs: readonly NewCard[]): Promise<readonly Card[]>;
+  /**
+   * Claim the one-time v1 -> v2 conversion: flips board_version 1 -> 2 and
+   * returns true only for the caller that flipped it.
+   */
+  claimConversion(boardId: string): Promise<boolean>;
+  /** Undo a claim when the conversion itself failed, so it can retry. */
+  releaseConversion(boardId: string): Promise<void>;
   updateCard(id: string, patch: CardPatch): Promise<Card>;
   deleteCard(id: string): Promise<void>;
   addLink(boardId: string, fromCard: string, toCard: string, relation: LinkRelation): Promise<CardLink>;

@@ -4,11 +4,15 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { BoardView } from "@/components/board/board-view";
 import { useWorkspaceStore } from "@/store/workspace-store";
+import { parseSourcesParam } from "@/components/home/hero-sources-popover";
 
 function BoardPage() {
   const params = useSearchParams();
   const projectId = params.get("project") ?? "";
   const boardId = params.get("canvas") ?? "";
+  // From the home page's "Start research": becomes the Question, searched once.
+  const launchTopic = params.get("topic") ?? "";
+  const launchSources = parseSourcesParam(params.get("sources"));
 
   // Names for the header come from the workspace store.
   React.useEffect(() => {
@@ -22,7 +26,7 @@ function BoardPage() {
       </main>
     );
   }
-  return <BoardView projectId={projectId} boardId={boardId} />;
+  return <BoardView projectId={projectId} boardId={boardId} launchTopic={launchTopic} launchSources={launchSources} />;
 }
 
 export default function Page() {

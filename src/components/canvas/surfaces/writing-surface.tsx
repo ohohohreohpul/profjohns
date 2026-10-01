@@ -57,6 +57,9 @@ import {
 } from "@/lib/document";
 import { MIN_TITLE_DRAFT_CHARS } from "@/lib/ai-limits";
 
+/** Claims text passed to outline + section drafting. */
+const MAX_CLAIMS_CHARS = 4000;
+
 export function WritingSurface({
   nodeId,
   direction,
@@ -537,14 +540,17 @@ function ComposePanel({
   // Synthesis claims from processor nodes wired directly into this draft.
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
+  // On the v2 board, claims are the board's insights grouped by theme.
+  const boardClaims = useCanvasStore((s) => (s.boardDraftContext?.nodeId === nodeId ? s.boardDraftContext.claims : null));
   const claimsText = React.useMemo(() => {
+    if (boardClaims !== null) return boardClaims.trim() ? boardClaims.slice(0, MAX_CLAIMS_CHARS) : undefined;
     const incomerIds = edges.filter((e) => e.target === nodeId).map((e) => e.source);
     const claims = nodes
       .filter((n) => incomerIds.includes(n.id) && n.data.kind === "processor")
       .flatMap((n) => (n.data.synthesis as Synthesis | undefined)?.claims ?? []);
     if (claims.length === 0) return undefined;
-    return claims.map((c) => `- ${c.claim}`).join("\n").slice(0, 4000);
-  }, [nodes, edges, nodeId]);
+    return claims.map((c) => `- ${c.claim}`).join("\n").slice(0, MAX_CLAIMS_CHARS);
+  }, [nodes, edges, nodeId, boardClaims]);
 
   const [busy, setBusy] = React.useState<string | null>(null); // "outline" | section title
   const [error, setError] = React.useState<string | null>(null);

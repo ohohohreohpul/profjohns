@@ -24,6 +24,13 @@ import type { PaperSource } from "@/lib/mock";
 import { nextHighlightId, type Highlight } from "@/lib/highlight";
 import { layoutLeftToRight } from "@/lib/auto-layout";
 
+export interface BoardDraftContext {
+  readonly nodeId: string;
+  readonly sources: PaperSource[];
+  /** Insight statements grouped by theme, for outline + section drafting. */
+  readonly claims: string;
+}
+
 /** An insight made in the Reader from a selected passage. */
 export interface ReaderInsight {
   readonly type: string;
@@ -127,6 +134,13 @@ interface CanvasState {
    * Transient — never persisted.
    */
   insightSink: ((insight: ReaderInsight) => void) | null;
+  /**
+   * The v2 board's Draft: which document id is the board's draft, plus the
+   * papers and insight claims it writes from (instead of canvas wiring).
+   * Transient — never persisted.
+   */
+  boardDraftContext: BoardDraftContext | null;
+  setBoardDraftContext: (ctx: BoardDraftContext | null) => void;
   setInsightSink: (sink: ((insight: ReaderInsight) => void) | null) => void;
   /** Re-lay the board left-to-right along its connections (one undo step). */
   tidyLayout: () => void;
@@ -349,6 +363,7 @@ export const useCanvasStore = create<CanvasState>()(
       lastDeletion: null,
       lastPopOut: null,
       insightSink: null,
+      boardDraftContext: null,
       highlights: {},
       extracts: {},
       hasHydrated: false,
@@ -412,6 +427,7 @@ export const useCanvasStore = create<CanvasState>()(
   },
 
   setInsightSink: (sink) => set({ insightSink: sink }),
+  setBoardDraftContext: (ctx) => set({ boardDraftContext: ctx }),
 
   notePopOut: (nodeId, title) =>
     set({ lastPopOut: { nodeId, title, ts: Date.now() } }),

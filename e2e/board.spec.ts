@@ -74,3 +74,32 @@ test("question -> search -> keep -> move to Reading -> note", async ({ page }) =
   await wall(page, "Insights").getByRole("button", { name: "Add note" }).click();
   await expect(wall(page, "Insights").getByRole("textbox", { name: "Note" })).toBeVisible();
 });
+
+test("theme -> start draft (outline from themes) -> write in the editor -> saved to the card", async ({ page }) => {
+  await page.getByRole("button", { name: "Write your research question" }).click();
+  const q = page.getByRole("textbox", { name: "Research question" });
+  await q.fill("Do bandit experiments beat A/B tests?");
+  await q.blur();
+
+  await wall(page, "Themes").getByRole("button", { name: "New theme" }).click();
+  const themeName = wall(page, "Themes").getByRole("textbox", { name: "Theme name" });
+  await themeName.fill("Bandits learn faster");
+  await themeName.blur();
+  await expect(wall(page, "Themes")).toContainText("Drop insights here");
+
+  await wall(page, "Draft").getByRole("button", { name: "Start the draft" }).click();
+  const draft = wall(page, "Draft").getByRole("article");
+  await expect(draft).toContainText("Do bandit experiments beat A/B tests?");
+  await expect(draft).toContainText("Bandits learn faster");
+  await expect(draft).toContainText("Empty draft");
+
+  await draft.getByRole("button", { name: "Open editor" }).click();
+  const editor = page.locator(".ProseMirror").last();
+  await expect(editor).toBeVisible({ timeout: 15_000 });
+  await editor.click();
+  await page.keyboard.type("Bandit allocation shifts traffic toward winners during the test.");
+  await page.waitForTimeout(1500);
+  await page.getByRole("button", { name: /close/i }).last().click();
+
+  await expect(draft).toContainText("9 words", { timeout: 10_000 });
+});

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CircleNotch as Loader2, MagnifyingGlass, Info } from "@phosphor-icons/react";
 import { planScoutAngles, searchAndScreen, type ScreenedPaper } from "@/lib/scout";
+import type { SourceProvider } from "@/lib/sources-client";
 import type { PaperSource } from "@/lib/mock";
 
 interface SourcesSearchProps {
@@ -11,28 +12,41 @@ interface SourcesSearchProps {
   /** Papers already on the board, so they are not added twice. */
   readonly known: readonly Pick<PaperSource, "id" | "title">[];
   readonly onResults: (papers: readonly ScreenedPaper[]) => Promise<void> | void;
+  /** Indexes to search (from the home page's source picker); all when unset. */
+  readonly allowedSources?: SourceProvider[];
+  /** Search this topic once, right away (launch from the home page). */
+  readonly autoRunTopic?: string;
 }
 
 /** Find papers for the question: plan angles, search, rank, screen. */
-export function SourcesSearch({ question, known, onResults }: SourcesSearchProps) {
+export function SourcesSearch({ question, known, onResults, allowedSources, autoRunTopic }: SourcesSearchProps) {
   const [query, setQuery] = React.useState(question);
   const [touched, setTouched] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [note, setNote] = React.useState<{ text: string; error: boolean } | null>(null);
+
+  const autoRan = React.useRef(false);
+  React.useEffect(() => {
+    if (!autoRunTopic || autoRan.current) return;
+    autoRan.current = true;
+    setQuery(autoRunTopic);
+    void run(autoRunTopic);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunTopic]);
 
   // Follow the Question card until the user edits the search themselves.
   React.useEffect(() => {
     if (!touched) setQuery(question);
   }, [question, touched]);
 
-  async function run() {
-    const topic = query.trim();
+  async function run(override?: string) {
+    const topic = (override ?? query).trim();
     if (!topic || busy) return;
     setNote(null);
     setBusy("Planning searches…");
     try {
-      const { angles } = await planScoutAngles(topic, {});
-      const { screened, weakMatchNote } = await searchAndScreen(topic, angles, { known, onProgress: setBusy });
+      const { angles } = await planScoutAngles(topic, { allowedSources });
+      const { screened, weakMatchNote } = await searchAndScreen(topic, angles, { known, onProgress: setBusy, allowedSources });
       await onResults(screened);
       const kept = screened.filter((p) => p.kept).length;
       setNote({

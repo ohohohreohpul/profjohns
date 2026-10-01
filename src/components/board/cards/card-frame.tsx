@@ -25,6 +25,10 @@ interface CardFrameProps {
   readonly onDelete: () => void;
   readonly deleteLabel?: string;
   readonly dimmed?: boolean;
+  /** Extra menu items above Move to (e.g. Add to theme). */
+  readonly menuItems?: readonly { label: string; onSelect: () => void }[];
+  /** Small chip after the type label (e.g. the insight's theme). */
+  readonly tag?: string;
   readonly children: React.ReactNode;
 }
 
@@ -39,6 +43,8 @@ export function CardFrame({
   onDelete,
   deleteLabel = "Delete",
   dimmed,
+  menuItems = [],
+  tag,
   children,
 }: CardFrameProps) {
   const [dragging, setDragging] = React.useState(false);
@@ -63,6 +69,7 @@ export function CardFrame({
           <span aria-hidden className="size-1.5 rounded-full" style={{ background: accent }} />
           {label}
         </span>
+        {tag && <span className="min-w-0 truncate rounded bg-grey-100 px-1.5 py-0.5 text-xs text-grey-700">{tag}</span>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -73,7 +80,13 @@ export function CardFrame({
               <DotsThree className="size-4" weight="bold" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-52">
+            {menuItems.map((m) => (
+              <DropdownMenuItem key={m.label} onSelect={m.onSelect}>
+                <ArrowRight className="size-4 text-grey-500" />
+                {m.label}
+              </DropdownMenuItem>
+            ))}
             {walls
               .filter((w) => w.id !== currentWallId)
               .map((w) => (

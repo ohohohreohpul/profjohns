@@ -18,6 +18,13 @@ function contract(name: string, make: () => BoardRepository) {
       expect(again.map((w) => w.id)).toEqual(first.map((w) => w.id));
     });
 
+    test("concurrent loads create the default walls once", async () => {
+      const repo = make();
+      const [a, b] = await Promise.all([repo.ensureDefaultWalls("b1", "p1"), repo.ensureDefaultWalls("b1", "p1")]);
+      expect((await repo.load("b1")).walls).toHaveLength(6);
+      expect(a.map((w) => w.id)).toEqual(b.map((w) => w.id));
+    });
+
     test("boards are isolated", async () => {
       const repo = make();
       const [q] = await repo.ensureDefaultWalls("b1", "p1");
@@ -66,3 +73,34 @@ function contract(name: string, make: () => BoardRepository) {
 }
 
 contract("MemoryBoardRepository", () => new MemoryBoardRepository());
+
+test.describe("one-time conversion", () => {
+  const v1 = {
+    direction: "Do bandits beat A/B tests?",
+    nodes: [{ id: "n1", data: { kind: "explorer" } }, { id: "n2", data: { kind: "block", text: "a note" } }],
+    sources: { n1: [{ id: "W1", title: "Kept", authors: "A", venue: "V", year: 2020, abstract: "" }] },
+  };
+
+  test("moves a v1 board onto the walls once, never twice", async () => {
+    const { convertBoardOnce } = await import("../src/lib/board/run-conversion");
+    const repo = new MemoryBoardRepository();
+    await repo.ensureDefaultWalls("b1", "p1");
+    const first = await convertBoardOnce(repo, { boardId: "b1", projectId: "p1" }, async () => v1);
+    const second = await convertBoardOnce(repo, { boardId: "b1", projectId: "p1" }, async () => v1);
+    expect(first.moved).toBe(3);
+    expect(second.moved).toBe(0);
+    const { cards, walls } = await repo.load("b1");
+    expect(cards).toHaveLength(3);
+    const wallKind = (id: string | null) => walls.find((w) => w.id === id)?.kind;
+    expect(cards.map((c) => `${wallKind(c.wallId)}:${c.kind}`).sort()).toEqual(["insights:note", "question:question", "sources:paper"]);
+  });
+
+  test("a failed conversion releases its claim so it can retry", async () => {
+    const { convertBoardOnce } = await import("../src/lib/board/run-conversion");
+    const repo = new MemoryBoardRepository();
+    await repo.ensureDefaultWalls("b1", "p1");
+    await expect(convertBoardOnce(repo, { boardId: "b1", projectId: "p1" }, async () => { throw new Error("offline"); })).rejects.toThrow();
+    const retry = await convertBoardOnce(repo, { boardId: "b1", projectId: "p1" }, async () => v1);
+    expect(retry.moved).toBe(3);
+  });
+});

@@ -71,7 +71,7 @@ export function SpaceLayout({
         </nav>
         {latestCanvas && (
           <Link
-            href={`/canvas?project=${projectId}&canvas=${latestCanvas.id}`}
+            href={`/board?project=${projectId}&canvas=${latestCanvas.id}`}
             className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-[12px] font-semibold text-paper transition-colors hover:bg-grey-800"
           >
             Open board

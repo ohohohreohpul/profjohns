@@ -8,6 +8,20 @@ import { SupabaseBoardRepository } from "@/lib/board/supabase-repository";
 import { BoardRepositoryError, type BoardRepository } from "@/lib/board/repository";
 import { parseCardData, type BoardSnapshot, type Card, type CardKind } from "@/lib/board/schema";
 import { positionBetween } from "@/lib/board/position";
+import { convertBoardOnce } from "@/lib/board/run-conversion";
+import { loadCanvasState } from "@/lib/db/repo";
+
+/** The v1 board blob: this browser's copy first (it was authoritative), else the server's. */
+async function readV1Board(boardId: string): Promise<unknown> {
+  try {
+    const raw = localStorage.getItem(`lattice-canvas-v1::${boardId}`);
+    const local = raw ? (JSON.parse(raw) as { state?: { nodes?: unknown[] } }).state : undefined;
+    if (local?.nodes?.length) return local;
+  } catch {
+    /* unreadable local copy: fall back to the server's */
+  }
+  return loadCanvasState(boardId);
+}
 
 /** One in-memory board store per page session (signed-out local dev/tests). */
 let memoryRepo: MemoryBoardRepository | null = null;
@@ -55,8 +69,14 @@ export function useBoard(ref: BoardRef) {
   const [state, setState] = React.useState<BoardState>({ status: "loading" });
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [nonce, setNonce] = React.useState(0);
+  /** Cards moved over from the old canvas board on this open (0 = none). */
+  const [converted, setConverted] = React.useState(0);
   const snapshotRef = React.useRef<BoardSnapshot | null>(null);
-  const { boardId, projectId, boardName, projectName } = ref;
+  const { boardId, projectId } = ref;
+  // Names only label new rows; they arrive from the workspace store a moment
+  // after mount and must not re-run the load (that raced into duplicates).
+  const names = React.useRef({ boardName: ref.boardName, projectName: ref.projectName });
+  names.current = { boardName: ref.boardName, projectName: ref.projectName };
 
   const setSnapshot = React.useCallback((next: BoardSnapshot) => {
     snapshotRef.current = next;
@@ -69,8 +89,10 @@ export function useBoard(ref: BoardRef) {
     setState({ status: "loading" });
     (async () => {
       try {
-        await repo.ensureBoard({ boardId, projectId, boardName, projectName });
+        await repo.ensureBoard({ boardId, projectId, ...names.current });
         await repo.ensureDefaultWalls(boardId, projectId);
+        const { moved } = await convertBoardOnce(repo, { boardId, projectId }, () => readV1Board(boardId));
+        if (!cancelled && moved > 0) setConverted(moved);
         const snapshot = await repo.load(boardId);
         if (!cancelled) setSnapshot(snapshot);
       } catch (err: unknown) {
@@ -80,7 +102,7 @@ export function useBoard(ref: BoardRef) {
     return () => {
       cancelled = true;
     };
-  }, [repo, boardId, projectId, boardName, projectName, nonce, setSnapshot]);
+  }, [repo, boardId, projectId, nonce, setSnapshot]);
 
   /** Apply `change` now; run `save`; restore the previous board if it fails. */
   const optimistic = React.useCallback(
@@ -186,6 +208,8 @@ export function useBoard(ref: BoardRef) {
     actions,
     saveError,
     dismissSaveError: () => setSaveError(null),
+    converted,
+    dismissConverted: () => setConverted(0),
     reload: () => setNonce((n) => n + 1),
   };
 }

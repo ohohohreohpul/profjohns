@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { Card, Wall } from "@/lib/board/schema";
 import type { PaperSource } from "@/lib/mock";
 import type { ScreenedPaper } from "@/lib/scout";
+import type { SourceProvider } from "@/lib/sources-client";
 import { WALL_META } from "./wall-meta";
 import { BoardCard } from "./board-card";
 import { CARD_DND_MIME } from "./cards/card-frame";
@@ -23,10 +24,15 @@ interface WallColumnProps {
   readonly question: string;
   readonly knownPapers: readonly PaperSource[];
   readonly onSearchResults: (papers: readonly ScreenedPaper[]) => Promise<void>;
+  readonly themes: readonly Card<"theme">[];
+  readonly insightsByTheme: ReadonlyMap<string, readonly Card<"insight">[]>;
+  readonly cardsById: ReadonlyMap<string, Card>;
+  readonly onOpenDraft: (cardId: string) => void;
+  /** Create the board's Draft (Draft wall starter). */
+  readonly onStartDraft: () => void;
+  readonly allowedSources?: SourceProvider[];
+  readonly autoRunTopic?: string;
 }
-
-/** Walls whose cards arrive in a later phase (docs/REBUILD.md §10). */
-const COMING_NEXT: ReadonlySet<Wall["kind"]> = new Set(["themes", "draft"]);
 
 /** One titled column: its cards, its starting action, and a drop target. */
 export function WallColumn(props: WallColumnProps) {
@@ -49,6 +55,7 @@ export function WallColumn(props: WallColumnProps) {
 
   const hasStarter = wall.kind === "question" || wall.kind === "sources";
   const showEmpty = cards.length === 0 && wall.kind !== "sources";
+  const hasDraft = cards.some((c) => c.kind === "draft");
 
   return (
     <section
@@ -89,7 +96,13 @@ export function WallColumn(props: WallColumnProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {wall.kind === "sources" && (
-          <SourcesSearch question={props.question} known={props.knownPapers} onResults={props.onSearchResults} />
+          <SourcesSearch
+            question={props.question}
+            known={props.knownPapers}
+            onResults={props.onSearchResults}
+            allowedSources={props.allowedSources}
+            autoRunTopic={props.autoRunTopic}
+          />
         )}
 
         {wall.kind === "question" && cards.length === 0 && (
@@ -103,11 +116,33 @@ export function WallColumn(props: WallColumnProps) {
           </button>
         )}
 
+        {wall.kind === "themes" && (
+          <button
+            type="button"
+            onClick={() => void actions.addCard(wall.id, "theme", { name: "" })}
+            className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-grey-300 px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-grey-500 hover:bg-grey-50"
+          >
+            <Plus className="size-4" />
+            New theme
+          </button>
+        )}
+
+        {wall.kind === "draft" && !hasDraft && (
+          <button
+            type="button"
+            onClick={props.onStartDraft}
+            className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-sm font-medium text-paper transition-colors hover:bg-grey-800"
+          >
+            <Plus className="size-4" />
+            Start the draft
+          </button>
+        )}
+
         {showEmpty && (
           <div className="rounded-lg border border-dashed border-grey-300 px-3 py-4">
             <p className="text-sm font-medium text-ink">{meta.empty.what}</p>
             <p className="mt-1 text-xs leading-relaxed text-grey-600">
-              {COMING_NEXT.has(wall.kind) ? "Arrives in the next update." : meta.empty.start}
+              {meta.empty.start}
             </p>
           </div>
         )}
@@ -116,7 +151,17 @@ export function WallColumn(props: WallColumnProps) {
           {cards.map((card, i) => (
             <li key={card.id} className="relative">
               {dropAt === i && <DropLine />}
-              <BoardCard card={card} walls={walls} actions={actions} onRead={onRead} papersById={papersById} />
+              <BoardCard
+                card={card}
+                walls={walls}
+                actions={actions}
+                onRead={onRead}
+                papersById={papersById}
+                themes={props.themes}
+                insightsByTheme={props.insightsByTheme}
+                cardsById={props.cardsById}
+                onOpenDraft={props.onOpenDraft}
+              />
             </li>
           ))}
           {dropAt === cards.length && cards.length > 0 && (
@@ -126,7 +171,7 @@ export function WallColumn(props: WallColumnProps) {
           )}
         </ul>
 
-        {!COMING_NEXT.has(wall.kind) && wall.kind !== "question" && (
+        {wall.kind !== "question" && wall.kind !== "draft" && (
           <button
             type="button"
             onClick={() => void actions.addCard(wall.id, "note", { text: "" })}

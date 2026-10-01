@@ -108,8 +108,10 @@ export function useNodeInputSources(nodeId: string): PaperSource[] {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
   const sources = useCanvasStore((s) => s.sources);
+  // On the v2 board the Draft's papers come from the board, not from wiring.
+  const boardCtx = useCanvasStore((s) => (s.boardDraftContext?.nodeId === nodeId ? s.boardDraftContext : null));
   return useMemo(
-    () => buildResolver(nodes, edges, sources).inputsOf(nodeId),
-    [nodeId, nodes, edges, sources],
+    () => boardCtx?.sources ?? buildResolver(nodes, edges, sources).inputsOf(nodeId),
+    [boardCtx, nodeId, nodes, edges, sources],
   );
 }

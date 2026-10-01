@@ -9,6 +9,8 @@ import { CardFrame } from "./cards/card-frame";
 import { PaperCardBody } from "./cards/paper-card";
 import { InsightCardBody } from "./cards/insight-card";
 import { TextCardBody } from "./cards/text-card";
+import { ThemeCardBody } from "./cards/theme-card";
+import { DraftCardBody } from "./cards/draft-card";
 
 const KIND_ACCENT: Record<Card["kind"], string> = {
   paper: "var(--color-node-explorer)",
@@ -26,10 +28,15 @@ interface BoardCardProps {
   readonly onRead: (paper: PaperSource) => void;
   /** Papers on the board by paper id, so insights can open their source. */
   readonly papersById: ReadonlyMap<string, PaperSource>;
+  readonly themes: readonly Card<"theme">[];
+  readonly insightsByTheme: ReadonlyMap<string, readonly Card<"insight">[]>;
+  /** All cards by id (to validate drops onto themes). */
+  readonly cardsById: ReadonlyMap<string, Card>;
+  readonly onOpenDraft: (cardId: string) => void;
 }
 
 /** Renders any card kind inside the shared frame. */
-export function BoardCard({ card, walls, actions, onRead, papersById }: BoardCardProps) {
+export function BoardCard({ card, walls, actions, onRead, papersById, themes, insightsByTheme, cardsById, onOpenDraft }: BoardCardProps) {
   const frame = {
     cardId: card.id,
     accent: KIND_ACCENT[card.kind],
@@ -55,8 +62,24 @@ export function BoardCard({ card, walls, actions, onRead, papersById }: BoardCar
     case "insight": {
       const data = card.data as Card<"insight">["data"];
       const paper = data.source ? papersById.get(data.source.paperId) : undefined;
+      const theme = themes.find((t) => t.id === data.themeId);
+      const setTheme = (themeId: string | undefined) => {
+        const { themeId: _old, ...rest } = data;
+        void actions.updateCardData(card.id, themeId ? { ...rest, themeId } : rest);
+      };
+      const menuItems = [
+        ...themes
+          .filter((t) => t.id !== data.themeId)
+          .map((t) => ({ label: `Add to theme: ${t.data.name || "Untitled theme"}`, onSelect: () => setTheme(t.id) })),
+        ...(theme ? [{ label: "Remove from theme", onSelect: () => setTheme(undefined) }] : []),
+      ];
       return (
-        <CardFrame {...frame} label={INSIGHT_LABELS[data.type] ?? "Insight"}>
+        <CardFrame
+          {...frame}
+          label={INSIGHT_LABELS[data.type] ?? "Insight"}
+          tag={theme ? theme.data.name || "Untitled theme" : undefined}
+          menuItems={menuItems}
+        >
           <InsightCardBody data={data} onOpenSource={paper ? () => onRead(paper) : undefined} />
         </CardFrame>
       );
@@ -88,13 +111,30 @@ export function BoardCard({ card, walls, actions, onRead, papersById }: BoardCar
         </CardFrame>
       );
     }
-    default:
+    case "theme": {
+      const data = card.data as Card<"theme">["data"];
       return (
-        <CardFrame {...frame} label={card.kind === "theme" ? "Theme" : "Draft"}>
-          <p className="text-sm text-grey-700">
-            {card.kind === "theme" ? (card.data as Card<"theme">["data"]).name : (card.data as Card<"draft">["data"]).title || "Untitled draft"}
-          </p>
+        <CardFrame {...frame} label="Theme">
+          <ThemeCardBody
+            data={data}
+            insights={insightsByTheme.get(card.id) ?? []}
+            onRename={(name) => void actions.updateCardData(card.id, { ...data, name })}
+            onDropInsight={(droppedId) => {
+              const dropped = cardsById.get(droppedId);
+              if (dropped?.kind !== "insight") return;
+              void actions.updateCardData(droppedId, { ...(dropped.data as Card<"insight">["data"]), themeId: card.id });
+            }}
+          />
         </CardFrame>
       );
+    }
+    case "draft": {
+      const data = card.data as Card<"draft">["data"];
+      return (
+        <CardFrame {...frame} label="Draft">
+          <DraftCardBody data={data} onOpen={() => onOpenDraft(card.id)} />
+        </CardFrame>
+      );
+    }
   }
 }

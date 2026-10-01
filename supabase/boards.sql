@@ -165,3 +165,16 @@ $$;
 drop trigger if exists cards_wall_same_board on public.cards;
 create trigger cards_wall_same_board before insert or update on public.cards
   for each row execute function public.card_wall_same_board();
+
+-- ----------------------------------------------------------------------------
+-- Board format version: 1 = v1 canvas (state blob), 2 = walls of cards.
+-- The one-time converter claims a board by flipping 1 -> 2 with a
+-- conditional update, so two open tabs can never convert it twice.
+-- ----------------------------------------------------------------------------
+alter table public.canvases add column if not exists board_version smallint not null default 1;
+
+-- One wall of each built-in kind per board. Two loads racing to create the
+-- default walls (e.g. a re-render mid-load) can't produce duplicates: the
+-- second insert fails and the repository re-reads the winner's walls.
+create unique index if not exists walls_board_kind_unique
+  on public.walls (board_id, kind) where kind <> 'custom';

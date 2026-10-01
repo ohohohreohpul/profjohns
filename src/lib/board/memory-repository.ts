@@ -25,7 +25,18 @@ export class MemoryBoardRepository implements BoardRepository {
     /* No foreign keys in memory. */
   }
 
-  async ensureDefaultWalls(boardId: string): Promise<readonly Wall[]> {
+  /** In-flight creations, so concurrent calls share one (no duplicate walls). */
+  private ensuring = new Map<string, Promise<readonly Wall[]>>();
+
+  ensureDefaultWalls(boardId: string, _projectId?: string | null): Promise<readonly Wall[]> {
+    const inFlight = this.ensuring.get(boardId);
+    if (inFlight) return inFlight;
+    const p = this.createDefaultWalls(boardId).finally(() => this.ensuring.delete(boardId));
+    this.ensuring.set(boardId, p);
+    return p;
+  }
+
+  private async createDefaultWalls(boardId: string): Promise<readonly Wall[]> {
     const existing = (await this.load(boardId)).walls;
     if (existing.length > 0) return existing;
     const positions = positionsFor(DEFAULT_WALLS.length);
@@ -54,6 +65,24 @@ export class MemoryBoardRepository implements BoardRepository {
     };
     this.cards.set(card.id, card as Card);
     return card;
+  }
+
+  private versions = new Map<string, number>();
+
+  async addCards(inputs: readonly NewCard[]): Promise<readonly Card[]> {
+    const added: Card[] = [];
+    for (const input of inputs) added.push(await this.addCard(input));
+    return added;
+  }
+
+  async releaseConversion(boardId: string): Promise<void> {
+    this.versions.set(boardId, 1);
+  }
+
+  async claimConversion(boardId: string): Promise<boolean> {
+    if ((this.versions.get(boardId) ?? 1) !== 1) return false;
+    this.versions.set(boardId, 2);
+    return true;
   }
 
   async updateCard(id: string, patch: CardPatch): Promise<Card> {

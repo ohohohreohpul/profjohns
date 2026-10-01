@@ -34,7 +34,7 @@ export function CanvasesSurface() {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
   function open(canvasId: string) {
-    router.push(`/canvas?project=${projectId}&canvas=${canvasId}`);
+    router.push(`/board?project=${projectId}&canvas=${canvasId}`);
   }
 
   function create() {

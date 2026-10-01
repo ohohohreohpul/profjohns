@@ -387,9 +387,18 @@ export async function reconcileProjects(projects: Project[]): Promise<void> {
       })),
     );
   }
-  const keep = projects.map((p) => p.id);
-  const del = sb.from("projects").delete().eq("user_id", uid);
-  await (keep.length ? del.not("id", "in", `(${keep.join(",")})`) : del);
+  // Upsert only. This used to delete every server project missing from this
+  // device's list — with an empty or partial list that wiped the account
+  // (and, by cascade, every board). Deletes are explicit: deleteProjects().
+}
+
+/** Delete projects the user removed on this device (cascades to their boards). */
+export async function deleteProjects(ids: readonly string[]): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid || ids.length === 0) return;
+  const { error } = await sb.from("projects").delete().eq("user_id", uid).in("id", [...ids]);
+  if (error) throw new Error(`Couldn't delete projects: ${error.message}`);
 }
 
 /** Upsert canvas METADATA only (never the `state` blob — that syncs separately). */
@@ -408,9 +417,16 @@ export async function reconcileCanvases(canvases: Canvas[]): Promise<void> {
       })),
     );
   }
-  const keep = canvases.map((c) => c.id);
-  const del = sb.from("canvases").delete().eq("user_id", uid);
-  await (keep.length ? del.not("id", "in", `(${keep.join(",")})`) : del);
+  // Upsert only — see reconcileProjects. Deletes are explicit: deleteCanvases().
+}
+
+/** Delete boards the user removed on this device (cascades to walls/cards). */
+export async function deleteCanvases(ids: readonly string[]): Promise<void> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid || ids.length === 0) return;
+  const { error } = await sb.from("canvases").delete().eq("user_id", uid).in("id", [...ids]);
+  if (error) throw new Error(`Couldn't delete boards: ${error.message}`);
 }
 
 /** Reconcile pinned sources: upsert the source records + the project↔source joins. */

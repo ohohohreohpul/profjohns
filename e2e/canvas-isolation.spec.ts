@@ -80,36 +80,37 @@ const STUB_PAPERS = [
   },
 ];
 
-test("a new canvas created in-app never inherits the previous canvas's sources", async ({ page }) => {
-  // Stub providers + AI: with AI unavailable the scout keeps every result,
-  // which commits them to the store — the exact state that used to leak.
+test("a new board created in-app never inherits the previous board's papers", async ({ page }) => {
+  // New boards open on the v2 board (walls of cards), which loads each
+  // board's own rows. Stub search + AI + Jev so the run is deterministic.
   await page.route("**/api/openalex**", (route) =>
     route.fulfill({ json: { success: true, data: STUB_PAPERS, error: null } }),
   );
   await page.route("**/api/ai**", (route) =>
     route.fulfill({ status: 502, json: { success: false, data: null, error: "AI off in e2e" } }),
   );
+  await page.route("**/api/jev", (route) =>
+    route.fulfill({ json: { success: true, data: [90], error: null, configured: true } }),
+  );
 
-  // Create canvas A from the Canvases surface — client-side navigation,
-  // exactly as a user does it (no hard reload between boards).
+  const sourcesWall = page.locator("section", { has: page.getByRole("heading", { name: "Sources", exact: true }) });
+
+  // Board A: created from the Canvases surface, then searched.
   await page.goto("/canvases?project=p-e2e-leak");
   await page.getByRole("button", { name: "New canvas" }).click();
-  await expect(page.locator(NODE)).toHaveCount(2, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/board\?/);
+  const search = page.getByRole("textbox", { name: "Search for papers" });
+  await search.fill("alpha leak probe");
+  await page.getByRole("button", { name: "Find papers" }).click();
+  await expect(sourcesWall.getByText(STUB_PAPERS[0].title)).toBeVisible({ timeout: 20_000 });
 
-  // Run a search in canvas A's Sources node until its results are kept.
-  const topic = page.getByPlaceholder("What are you researching?");
-  await topic.fill("alpha leak probe");
-  await topic.press("Enter");
-  await page.getByRole("button", { name: /Search \d+ angle/ }).click();
-  await expect(page.getByText(STUB_PAPERS[0].title)).toBeVisible({ timeout: 20_000 });
-
-  // Back to the Canvases list (SPA), then create canvas B.
+  // Back to the list, then board B.
   await page.goBack();
   await page.getByRole("button", { name: "New canvas" }).click();
-  await expect(page.locator(NODE)).toHaveCount(2, { timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: "Sources", exact: true })).toBeVisible({ timeout: 20_000 });
 
-  // Canvas B must be a clean seed: empty topic, no results from A.
-  await expect(page.getByPlaceholder("What are you researching?")).toHaveValue("");
-  await expect(page.getByText(STUB_PAPERS[0].title)).toHaveCount(0);
-  await expect(page.getByText(/\d+ kept/)).toHaveCount(0);
+  // Board B is clean: no papers from A, empty search.
+  await expect(sourcesWall.getByRole("article")).toHaveCount(0);
+  await expect(sourcesWall.getByText(STUB_PAPERS[0].title)).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Search for papers" })).toHaveValue("");
 });

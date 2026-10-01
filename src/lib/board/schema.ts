@@ -81,7 +81,8 @@ const InsightCardSchema = z.object({
 });
 
 const ThemeCardSchema = z.object({
-  name: z.string().trim().min(1),
+  /** May be empty while the user is still naming a new theme. */
+  name: z.string(),
   summary: z.string().optional(),
 });
 
