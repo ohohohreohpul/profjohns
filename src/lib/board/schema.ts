@@ -39,6 +39,7 @@ const PaperSourceSchema = z.object({
   category: z.string().optional(),
   concepts: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
   openAccess: z.boolean().optional(),
+  pdfUrl: z.string().optional(),
   accessed: z.string().optional(),
 });
 

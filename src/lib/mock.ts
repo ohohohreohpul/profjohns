@@ -21,6 +21,8 @@ export interface PaperSource {
   category?: string;
   /** OpenAlex concept ids + labels — captured at keep-time to train "For You". */
   concepts?: { id: string; name: string }[];
+  /** Direct link to a PDF of the paper (open access), when known. */
+  pdfUrl?: string;
   /** True when a full-text version is freely available. */
   openAccess?: boolean;
   /** Set on web links (Link node) — the date the page was captured. Its

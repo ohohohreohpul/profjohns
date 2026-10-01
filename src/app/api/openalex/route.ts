@@ -62,7 +62,9 @@ interface OAWork {
   cited_by_count?: number;
   abstract_inverted_index?: Record<string, number[]>;
   authorships?: Array<{ author?: { display_name?: string } }>;
+  best_oa_location?: { pdf_url?: string | null } | null;
   primary_location?: {
+    pdf_url?: string | null;
     landing_page_url?: string;
     source?: { display_name?: string };
     is_oa?: boolean;
@@ -128,6 +130,7 @@ function mapWork(work: OAWork): PaperSource {
     url: work.primary_location?.landing_page_url ?? work.doi ?? work.id,
     concepts: concepts.length > 0 ? concepts : undefined,
     openAccess: isOa,
+    pdfUrl: work.best_oa_location?.pdf_url ?? work.primary_location?.pdf_url ?? undefined,
   };
 }
 

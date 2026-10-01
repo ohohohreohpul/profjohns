@@ -23,6 +23,8 @@ const READER_ACCENT = "var(--color-node-reader)";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { fetchReadable } from "@/lib/reader-client";
+import { PdfViewer } from "@/components/reader/pdf-viewer";
+import { pdfLinkFor } from "@/lib/pdf-url";
 import { summarizePaper, askPaper } from "@/lib/ai-client";
 import { formatReference, DEFAULT_STYLE } from "@/lib/citation";
 import { useCanvasStore } from "@/store/canvas-store";
@@ -43,6 +45,8 @@ interface ThreadItem {
 }
 
 const TARGET_PARAGRAPH = 600;
+/** Longest selected passage pre-filled into the question box. */
+const MAX_QUOTED_PASSAGE = 400;
 const EMPTY_HIGHLIGHTS: never[] = [];
 
 function paragraphize(text: string): string[] {
@@ -94,6 +98,33 @@ export function ReaderSurface() {
   const [rawText, setRawText] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [pages, setPages] = React.useState<number | null>(null);
+  // Real PDF pages when the paper has a PDF (arXiv / open access); the
+  // extracted-text view stays available as a fallback and for highlights.
+  const pdfLink = paper ? pdfLinkFor(paper) : null;
+  const [view, setView] = React.useState<"pdf" | "text">("pdf");
+  // Set when the PDF link is dead or paywalled: fall back to text, say so.
+  const [pdfFailed, setPdfFailed] = React.useState(false);
+  React.useEffect(() => {
+    setView("pdf");
+    setPdfFailed(false);
+  }, [paper?.id]);
+  const hasPdf = !!pdfLink && !pdfFailed;
+  const showPdf = hasPdf && view === "pdf";
+
+  /** The PDF's own text: lets Ask/Summarize work even when the publisher's
+   *  web page blocks automated reading. Only fills in when it adds text. */
+  function handlePdfText(text: string, pageCount: number) {
+    if (text.length < 200) return;
+    setRawText((current) => (text.length > current.length ? text : current));
+    setParagraphs((current) => (current.length === 0 ? paragraphize(text) : current));
+    setPages((current) => current ?? pageCount);
+    setState((current) => (current === "error" ? "ready" : current));
+  }
+
+  function handlePdfAsk(passage: string, page: number) {
+    setTab("assistant");
+    setQuestion(`On page ${page}: "${passage.slice(0, MAX_QUOTED_PASSAGE)}" — `);
+  }
   const [selection, setSelection] = React.useState<Selection | null>(null);
   const [savedNote, setSavedNote] = React.useState(false);
   const [tab, setTab] = React.useState<Tab>("assistant");
@@ -320,6 +351,38 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
       </header>
 
       <div className="flex min-h-0 flex-1">
+        {hasPdf && (
+          <div className="absolute left-4 top-16 z-10 flex rounded-lg border border-grey-200 bg-paper p-0.5 shadow-sm" role="radiogroup" aria-label="Reading view">
+            {(["pdf", "text"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={view === v}
+                onClick={() => setView(v)}
+                className={cn(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  view === v ? "bg-ink text-paper" : "text-grey-600 hover:text-ink",
+                )}
+              >
+                {v === "pdf" ? "PDF" : "Text"}
+              </button>
+            ))}
+          </div>
+        )}
+        {showPdf && pdfLink ? (
+          <div className="flex min-w-0 flex-1 flex-col pt-10">
+            <PdfViewer
+              pdfUrl={pdfLink}
+              onText={handlePdfText}
+              onAsk={handlePdfAsk}
+              onError={() => {
+                setPdfFailed(true);
+                setView("text");
+              }}
+            />
+          </div>
+        ) : (
         <div
           className="min-w-0 flex-1 overflow-y-auto bg-grey-50 px-6 py-10"
           onMouseUp={handleSelect}
@@ -332,6 +395,12 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
               {paper.authors} · {paper.venue} {paper.year}
               {pages ? ` · ${pages} pages` : ""}
             </p>
+
+            {pdfFailed && (
+              <p role="status" className="mt-3 rounded-md bg-grey-100 px-3 py-2 text-xs text-grey-700">
+                The PDF couldn&apos;t be opened from this source, so this is the text version. Use Original to see the publisher&apos;s copy.
+              </p>
+            )}
 
             <Separator className="my-6" />
 
@@ -372,6 +441,7 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
             )}
           </article>
         </div>
+        )}
 
         <aside className="flex w-80 shrink-0 flex-col border-l border-grey-200 bg-paper">
           <div className="flex items-center gap-1 border-b border-grey-100 p-1.5">
