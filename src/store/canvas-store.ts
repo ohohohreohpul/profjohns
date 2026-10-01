@@ -22,6 +22,7 @@ import type { JSONContent } from "@tiptap/core";
 import type { CitationStyle } from "@/lib/citation";
 import type { PaperSource } from "@/lib/mock";
 import { nextHighlightId, type Highlight } from "@/lib/highlight";
+import { layoutLeftToRight } from "@/lib/auto-layout";
 
 export interface ExtractResult {
   paperId: string;
@@ -112,6 +113,8 @@ interface CanvasState {
    *  confirm it and offer to jump there. Transient — never persisted. */
   lastPopOut: { nodeId: string; title: string; ts: number } | null;
   notePopOut: (nodeId: string, title: string) => void;
+  /** Re-lay the board left-to-right along its connections (one undo step). */
+  tidyLayout: () => void;
   /** A node is growing to `width`: shift top-level nodes it would now cover
    *  to the right so nothing ends up hidden underneath it. */
   makeRoomRight: (nodeId: string, width: number) => void;
@@ -394,6 +397,32 @@ export const useCanvasStore = create<CanvasState>()(
 
   notePopOut: (nodeId, title) =>
     set({ lastPopOut: { nodeId, title, ts: Date.now() } }),
+
+  tidyLayout: () =>
+    set((state) => {
+      // Children move with their group, so lay out top-level nodes only and
+      // treat a link to a child as a link to its group.
+      const top = state.nodes.filter((n) => !n.parentId);
+      if (top.length < 2) return {};
+      const unit = (id: string) => state.nodes.find((n) => n.id === id)?.parentId ?? id;
+      const edges = state.edges.map((e) => ({ source: unit(e.source), target: unit(e.target) }));
+      const boxes = top.map((n) => {
+        const b = nodeBox(n);
+        return { id: n.id, width: b.w, height: b.h };
+      });
+      const hint = Object.fromEntries(top.map((n) => [n.id, n.position.y]));
+      const laid = layoutLeftToRight(boxes, edges, hint);
+
+      // Anchor the tidied board where the current one starts.
+      const minOf = (xs: number[]) => Math.min(...xs);
+      const dx = minOf(top.map((n) => n.position.x)) - minOf(Object.values(laid).map((p) => p.x));
+      const dy = minOf(top.map((n) => n.position.y)) - minOf(Object.values(laid).map((p) => p.y));
+      return {
+        nodes: state.nodes.map((n) =>
+          laid[n.id] ? { ...n, position: { x: laid[n.id].x + dx, y: laid[n.id].y + dy } } : n,
+        ),
+      };
+    }),
 
   makeRoomRight: (nodeId, width) =>
     set((state) => {

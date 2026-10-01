@@ -302,6 +302,14 @@ function CanvasInner() {
     setPaneMenu(null);
   }, []);
 
+  function handleTidy() {
+    useCanvasStore.getState().tidyLayout();
+    // Let React Flow apply the new positions, then frame the whole board.
+    setTimeout(() => {
+      void fitView({ duration: FOCUS_DURATION_MS, padding: TIDY_FIT_PADDING, maxZoom: 1 });
+    }, ADD_REVEAL_DELAY_MS);
+  }
+
   function handleToolbarAdd(kind: NodeKind) {
     const center = screenToFlowPosition({
       x: window.innerWidth / 2,
@@ -480,7 +488,7 @@ function CanvasInner() {
           </linearGradient>
         </defs>
       </svg>
-      <Toolbar onAdd={handleToolbarAdd} tool={tool} onToolChange={setTool} />
+      <Toolbar onAdd={handleToolbarAdd} tool={tool} onToolChange={setTool} onTidy={handleTidy} />
       <OutlineSidebar />
       {selectedCount >= 2 && (
         <div className="absolute left-1/2 top-4 z-30 -translate-x-1/2 animate-float-in">
@@ -585,6 +593,7 @@ export function ResearchCanvas() {
 const UNDO_BANNER_MS = 6000;
 /** Let a newly added node mount and measure before checking visibility. */
 const ADD_REVEAL_DELAY_MS = 120;
+const TIDY_FIT_PADDING = 0.12;
 const POP_OUT_BANNER_MS = UNDO_BANNER_MS;
 const FOCUS_ZOOM = 1;
 const FOCUS_DURATION_MS = 400;
