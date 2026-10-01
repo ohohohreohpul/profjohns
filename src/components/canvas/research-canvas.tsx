@@ -83,7 +83,17 @@ function CanvasInner() {
     [nodes],
   );
 
-  const { screenToFlowPosition, zoomIn, zoomOut, fitView, getNodes } = useReactFlow();
+  const {
+    screenToFlowPosition,
+    zoomIn,
+    zoomOut,
+    fitView,
+    getNodes,
+    getNode,
+    getZoom,
+    setCenter,
+    setNodes,
+  } = useReactFlow();
   const dragOrigin = React.useRef<string | null>(null);
   const [spawn, setSpawn] = React.useState<SpawnRequest | null>(null);
   const [paneMenu, setPaneMenu] = React.useState<{
@@ -298,7 +308,28 @@ function CanvasInner() {
       y: window.innerHeight / 2,
     });
     const jitter = nodes.length * 24;
-    addNode(kind, { x: center.x - 144 + jitter, y: center.y - 80 + jitter });
+    const id = addNode(kind, { x: center.x - 144 + jitter, y: center.y - 80 + jitter });
+    // addNode nudges the node to a free spot, which can be off-screen when a
+    // wide node fills the view — then the click looks like it did nothing.
+    // Select it, and bring it into view if it isn't visible.
+    setTimeout(() => {
+      setNodes((all) => all.map((n) => ({ ...n, selected: n.id === id })));
+      const el = document.querySelector(`.react-flow__node[data-id="${id}"]`);
+      const pane = el?.closest(".react-flow")?.getBoundingClientRect();
+      const box = el?.getBoundingClientRect();
+      if (!pane || !box) return;
+      const visible =
+        box.left >= pane.left && box.right <= pane.right &&
+        box.top >= pane.top && box.bottom <= pane.bottom;
+      const node = getNode(id);
+      if (visible || !node) return;
+      const w = node.measured?.width ?? 0;
+      const h = node.measured?.height ?? 0;
+      void setCenter(node.position.x + w / 2, node.position.y + h / 2, {
+        zoom: getZoom(),
+        duration: FOCUS_DURATION_MS,
+      });
+    }, ADD_REVEAL_DELAY_MS);
   }
 
   // Drop a node onto a Shell to group it; drag it back out to ungroup. Uses
@@ -552,6 +583,8 @@ export function ResearchCanvas() {
 }
 
 const UNDO_BANNER_MS = 6000;
+/** Let a newly added node mount and measure before checking visibility. */
+const ADD_REVEAL_DELAY_MS = 120;
 const POP_OUT_BANNER_MS = UNDO_BANNER_MS;
 const FOCUS_ZOOM = 1;
 const FOCUS_DURATION_MS = 400;
