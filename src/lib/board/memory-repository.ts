@@ -75,6 +75,16 @@ export class MemoryBoardRepository implements BoardRepository {
     return added;
   }
 
+  async claimReturn(boardId: string): Promise<boolean> {
+    if ((this.versions.get(boardId) ?? 1) !== 2) return false;
+    this.versions.set(boardId, 3);
+    return true;
+  }
+
+  async releaseReturn(boardId: string): Promise<void> {
+    this.versions.set(boardId, 2);
+  }
+
   async releaseConversion(boardId: string): Promise<void> {
     this.versions.set(boardId, 1);
   }

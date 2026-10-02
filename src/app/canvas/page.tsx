@@ -14,6 +14,7 @@ import { loadBoard } from "@/lib/board-lifecycle";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { useProfileSync } from "@/store/use-profile-sync";
 import { useCanvasDbSync } from "@/lib/sync/use-canvas-db-sync";
+import { useBoardReturn } from "@/lib/sync/use-board-return";
 import { parseSourcesParam } from "@/components/home/hero-sources-popover";
 import { cn } from "@/lib/utils";
 import { NODE_DEFINITIONS } from "@/lib/node-catalog";
@@ -66,6 +67,8 @@ function CanvasWorkspace() {
 
   // Phase 1 — sync this board's state with Supabase when signed in (no-op otherwise).
   useCanvasDbSync(canvasId, projectId);
+  // The board is retired: its cards come back to this canvas, once.
+  const boardReturn = useBoardReturn(canvasId);
 
   const reset = useCanvasStore((s) => s.reset);
   const storedDirection = useCanvasStore((s) => s.direction);
@@ -229,6 +232,18 @@ function CanvasWorkspace() {
       </div>
       <SurfaceOverlay />
       <ReaderSurface />
+      {boardReturn.result && (
+        <div role="status" className="fixed bottom-6 left-1/2 z-50 flex max-w-xl -translate-x-1/2 items-center gap-3 rounded-xl border border-grey-200 bg-paper px-4 py-2.5 text-sm text-ink shadow-lift">
+          <span>
+            Moved {boardReturn.result.moved} item{boardReturn.result.moved === 1 ? "" : "s"} from your board onto this canvas.
+            {boardReturn.result.skippedPapers > 0 &&
+              ` ${boardReturn.result.skippedPapers} unreviewed search result${boardReturn.result.skippedPapers === 1 ? "" : "s"} stayed out; search again to see them.`}
+          </span>
+          <button type="button" onClick={boardReturn.dismiss} className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-grey-700 hover:bg-grey-100 hover:text-ink">
+            Dismiss
+          </button>
+        </div>
+      )}
     </main>
   );
 }

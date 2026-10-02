@@ -72,7 +72,7 @@ export function InsertFigureButton({ editor }: { readonly editor: Editor }) {
           </>
         )}
         {boardVisuals.length > 0 && (
-          <DropdownMenuLabel className="text-xs font-medium text-grey-600">Place a figure from your board</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-xs font-medium text-grey-600">Place a figure from your canvas</DropdownMenuLabel>
         )}
         {boardVisuals.map((v) => {
           const Icon = v.kind === "chart" ? ChartBar : ImageSquare;

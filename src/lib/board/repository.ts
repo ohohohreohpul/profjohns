@@ -41,6 +41,9 @@ export interface BoardRepository {
    */
   claimConversion(boardId: string): Promise<boolean>;
   /** Undo a claim when the conversion itself failed, so it can retry. */
+  /** Claim the one-time board -> canvas return (board_version 2 -> 3). */
+  claimReturn(boardId: string): Promise<boolean>;
+  releaseReturn(boardId: string): Promise<void>;
   releaseConversion(boardId: string): Promise<void>;
   updateCard(id: string, patch: CardPatch): Promise<Card>;
   deleteCard(id: string): Promise<void>;

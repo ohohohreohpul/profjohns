@@ -395,7 +395,7 @@ export function DiscoverHome() {
     const canvasId = addCanvas(id, "Main canvas");
     const sourcesParam = sourcesToParam(sources);
     router.push(
-      `/board?project=${id}&canvas=${canvasId}&topic=${encodeURIComponent(t)}&sources=${sourcesParam}`,
+      `/canvas?project=${id}&canvas=${canvasId}&topic=${encodeURIComponent(t)}&sources=${sourcesParam}`,
     );
   }
 

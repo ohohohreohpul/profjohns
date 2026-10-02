@@ -1,38 +1,31 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
-import { BoardView } from "@/components/board/board-view";
-import { useWorkspaceStore } from "@/store/workspace-store";
-import { parseSourcesParam } from "@/components/home/hero-sources-popover";
+import { useRouter, useSearchParams } from "next/navigation";
 
-function BoardPage() {
+/**
+ * The board is retired: the canvas is the one workspace, and a board's cards
+ * are brought onto its canvas the first time it opens. Old links land there.
+ */
+function BoardRedirect() {
+  const router = useRouter();
   const params = useSearchParams();
-  const projectId = params.get("project") ?? "";
-  const boardId = params.get("canvas") ?? "";
-  // From the home page's "Start research": becomes the Question, searched once.
-  const launchTopic = params.get("topic") ?? "";
-  const launchSources = parseSourcesParam(params.get("sources"));
-
-  // Names for the header come from the workspace store.
   React.useEffect(() => {
-    useWorkspaceStore.persist.rehydrate();
-  }, []);
-
-  if (!projectId || !boardId) {
-    return (
-      <main className="flex h-dvh items-center justify-center bg-canvas p-6">
-        <p className="text-sm text-grey-600">This link is missing its project or board. Open a board from your projects.</p>
-      </main>
-    );
-  }
-  return <BoardView projectId={projectId} boardId={boardId} launchTopic={launchTopic} launchSources={launchSources} />;
+    router.replace(`/canvas?${params.toString()}`);
+  }, [router, params]);
+  return (
+    <main className="flex h-dvh items-center justify-center bg-canvas p-6">
+      <p role="status" className="text-sm text-grey-600">
+        Opening your canvas…
+      </p>
+    </main>
+  );
 }
 
 export default function Page() {
   return (
     <React.Suspense fallback={null}>
-      <BoardPage />
+      <BoardRedirect />
     </React.Suspense>
   );
 }

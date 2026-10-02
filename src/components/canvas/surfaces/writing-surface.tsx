@@ -541,10 +541,7 @@ function ComposePanel({
   // Synthesis claims from processor nodes wired directly into this draft.
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
-  // On the v2 board, claims are the board's insights grouped by theme.
-  const boardClaims = useCanvasStore((s) => (s.boardDraftContext?.nodeId === nodeId ? s.boardDraftContext.claims : null));
   const claimsText = React.useMemo(() => {
-    if (boardClaims !== null) return boardClaims.trim() ? boardClaims.slice(0, MAX_CLAIMS_CHARS) : undefined;
     const incomerIds = edges.filter((e) => e.target === nodeId).map((e) => e.source);
     const claims = nodes
       .filter((n) => incomerIds.includes(n.id) && n.data.kind === "processor")
@@ -554,7 +551,7 @@ function ComposePanel({
     const parts = [evidence, claims.map((c) => `- ${c.claim}`).join("\n")].filter(Boolean);
     if (parts.length === 0) return undefined;
     return parts.join("\n\n").slice(0, MAX_CLAIMS_CHARS);
-  }, [nodes, edges, nodeId, boardClaims]);
+  }, [nodes, edges, nodeId]);
 
   const [busy, setBusy] = React.useState<string | null>(null); // "outline" | section title
   const [error, setError] = React.useState<string | null>(null);
@@ -632,7 +629,7 @@ function ComposePanel({
       <div className="flex-1 overflow-y-auto p-3">
         <p className="flex items-start gap-1.5 px-1 text-[11px] leading-relaxed text-grey-500">
           <Wand2 className="mt-0.5 size-3.5 shrink-0 text-[var(--color-node-writing)]" />
-          Build the paper from your board: outline from your sources
+          Build the paper from your canvas: outline from your sources
           {claimsText ? " and synthesis claims" : ""}, then draft each section
           from the sources you choose — every citation traces back.
         </p>

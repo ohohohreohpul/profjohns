@@ -94,3 +94,18 @@ export function mentionLabel(cardId: string, numbers: ReadonlyMap<string, number
 export function figureMentionFor(cardId: string): JSONContent {
   return { type: FIGURE_MENTION_NODE, attrs: { cardId } };
 }
+
+/**
+ * A copy of `content` with figure and reference card ids swapped through
+ * `map` (unknown ids stay, so a reference to a missing figure still shows
+ * as missing). Used when a board's cards become canvas nodes.
+ */
+export function remapCardIds(content: JSONContent, map: ReadonlyMap<string, string>): JSONContent {
+  const walk = (node: JSONContent): JSONContent => {
+    const isRef = node.type === FIGURE_NODE || node.type === FIGURE_MENTION_NODE;
+    const cardId = isRef ? (node.attrs?.cardId as string | undefined) : undefined;
+    const attrs = cardId && map.has(cardId) ? { ...node.attrs, cardId: map.get(cardId) } : node.attrs;
+    return { ...node, ...(attrs ? { attrs } : {}), ...(node.content ? { content: node.content.map(walk) } : {}) };
+  };
+  return walk(content);
+}

@@ -23,41 +23,6 @@ import type { CitationStyle } from "@/lib/citation";
 import type { PaperSource } from "@/lib/mock";
 import { nextHighlightId, type Highlight } from "@/lib/highlight";
 import { layoutLeftToRight } from "@/lib/auto-layout";
-import type { BoardVisual } from "@/lib/draft-figures";
-
-export interface BoardDraftContext {
-  readonly nodeId: string;
-  readonly sources: PaperSource[];
-  /** Insight statements grouped by theme, for outline + section drafting. */
-  readonly claims: string;
-  /** The board's figure and chart cards, to place in the draft. */
-  readonly visuals?: readonly BoardVisual[];
-}
-
-/**
- * Where Reader highlights are saved when not in this store: the v2 board
- * keeps them on the paper's card (server). The board mirrors them back into
- * `highlights` so the Reader reads one place either way.
- */
-export interface HighlightSink {
-  readonly add: (paperId: string, highlight: Highlight) => void;
-  readonly remove: (paperId: string, highlightId: string) => void;
-}
-
-/** A figure captured from a PDF page in the Reader. */
-export interface ReaderFigure {
-  readonly image: Blob;
-  readonly page: number;
-  readonly paper: PaperSource;
-}
-
-/** An insight made in the Reader from a selected passage. */
-export interface ReaderInsight {
-  readonly type: string;
-  readonly passage: string;
-  readonly page?: number;
-  readonly paper: PaperSource;
-}
 
 export interface ExtractResult {
   paperId: string;
@@ -159,23 +124,6 @@ interface CanvasState {
    *  confirm it and offer to jump there. Transient — never persisted. */
   lastPopOut: { nodeId: string; title: string; ts: number } | null;
   notePopOut: (nodeId: string, title: string) => void;
-  /**
-   * Where Reader insights go. The v2 board registers a handler that creates
-   * Insight cards; when unset (the canvas), insights become Text nodes.
-   * Transient — never persisted.
-   */
-  insightSink: ((insight: ReaderInsight) => void) | null;
-  /**
-   * The v2 board's Draft: which document id is the board's draft, plus the
-   * papers and insight claims it writes from (instead of canvas wiring).
-   * Transient — never persisted.
-   */
-  boardDraftContext: BoardDraftContext | null;
-  setBoardDraftContext: (ctx: BoardDraftContext | null) => void;
-  setInsightSink: (sink: ((insight: ReaderInsight) => void) | null) => void;
-  /** Where Reader figure captures go (v2 board). Unset: canvas Image node. */
-  figureSink: ((figure: ReaderFigure) => void) | null;
-  setFigureSink: (sink: ((figure: ReaderFigure) => void) | null) => void;
   /** Re-lay the board left-to-right along its connections (one undo step). */
   tidyLayout: () => void;
   /** A node is growing to `width`: shift top-level nodes it would now cover
@@ -239,8 +187,6 @@ interface CanvasState {
   openReader: (paper: PaperSource) => void;
   closeReader: () => void;
   addHighlight: (paperId: string, text: string, paraIndex: number, page?: number) => void;
-  highlightSink: HighlightSink | null;
-  setHighlightSink: (sink: HighlightSink | null) => void;
   removeHighlight: (paperId: string, highlightId: string) => void;
   setNodeExtracts: (nodeId: string, extracts: Record<string, ExtractResult>) => void;
 
@@ -400,11 +346,7 @@ export const useCanvasStore = create<CanvasState>()(
       sources: {},
       lastDeletion: null,
       lastPopOut: null,
-      insightSink: null,
-      figureSink: null,
-      boardDraftContext: null,
       highlights: {},
-      highlightSink: null,
       extracts: {},
       hasHydrated: false,
       seeded: false,
@@ -467,9 +409,6 @@ export const useCanvasStore = create<CanvasState>()(
     return id;
   },
 
-  setInsightSink: (sink) => set({ insightSink: sink }),
-  setFigureSink: (sink) => set({ figureSink: sink }),
-  setBoardDraftContext: (ctx) => set({ boardDraftContext: ctx }),
 
   notePopOut: (nodeId, title) =>
     set({ lastPopOut: { nodeId, title, ts: Date.now() } }),
@@ -702,26 +641,14 @@ export const useCanvasStore = create<CanvasState>()(
 
   closeReader: () => set({ readerPaper: null }),
 
-  setHighlightSink: (sink) => set({ highlightSink: sink }),
-
   addHighlight: (paperId, text, paraIndex, page) => {
     const highlight: Highlight = { id: nextHighlightId(), text, paraIndex, ...(page ? { page } : {}) };
-    const sink = get().highlightSink;
-    if (sink) {
-      sink.add(paperId, highlight);
-      return;
-    }
     set((state) => ({
       highlights: { ...state.highlights, [paperId]: [...(state.highlights[paperId] ?? []), highlight] },
     }));
   },
 
   removeHighlight: (paperId, highlightId) => {
-    const sink = get().highlightSink;
-    if (sink) {
-      sink.remove(paperId, highlightId);
-      return;
-    }
     set((state) => ({
       highlights: {
         ...state.highlights,

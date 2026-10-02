@@ -34,7 +34,7 @@ export function CanvasesSurface() {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
   function open(canvasId: string) {
-    router.push(`/board?project=${projectId}&canvas=${canvasId}`);
+    router.push(`/canvas?project=${projectId}&canvas=${canvasId}`);
   }
 
   function create() {
@@ -47,7 +47,7 @@ export function CanvasesSurface() {
       <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-4">
       <motion.div variants={fadeUp}>
       <p className="mb-4 text-[13px] text-grey-500">
-        {items.length} board{items.length === 1 ? "" : "s"} — one way to work on this project
+        {items.length} canvas{items.length === 1 ? "" : "es"} in this project
       </p>
       </motion.div>
       <motion.div variants={fadeUp}>

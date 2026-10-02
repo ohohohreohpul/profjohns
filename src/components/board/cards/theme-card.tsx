@@ -3,7 +3,8 @@
 import * as React from "react";
 import type { Card, CardDataFor } from "@/lib/board/schema";
 import { cn } from "@/lib/utils";
-import { CARD_DND_MIME } from "./card-frame";
+/** dataTransfer type of a dragged insight card (a theme accepts the drop). */
+const CARD_DND_MIME = "application/x-profjohns-card";
 import { TextCardBody } from "./text-card";
 
 const PREVIEW_QUOTES = 3;

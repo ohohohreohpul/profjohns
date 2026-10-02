@@ -68,49 +68,26 @@ test("boards survive a hard reload and a cold home-page visit", async ({ page })
 });
 
 /** Deterministic search results so the test never depends on OpenAlex. */
-const STUB_PAPERS = [
-  {
-    id: "stub-alpha-1",
-    title: "Alpha-only paper that must never appear on another canvas",
-    authors: "A. Tester",
-    venue: "E2E Journal",
-    year: 2024,
-    abstract: "Fixture abstract.",
-    url: "https://example.org/alpha-1",
-  },
-];
 
-test("a new board created in-app never inherits the previous board's papers", async ({ page }) => {
-  // New boards open on the v2 board (walls of cards), which loads each
-  // board's own rows. Stub search + AI + Jev so the run is deterministic.
-  await page.route("**/api/openalex**", (route) =>
-    route.fulfill({ json: { success: true, data: STUB_PAPERS, error: null } }),
-  );
-  await page.route("**/api/ai**", (route) =>
-    route.fulfill({ status: 502, json: { success: false, data: null, error: "AI off in e2e" } }),
-  );
-  await page.route("**/api/jev", (route) =>
-    route.fulfill({ json: { success: true, data: [90], error: null, configured: true } }),
-  );
-
-  const sourcesWall = page.locator("section", { has: page.getByRole("heading", { name: "Sources", exact: true }) });
-
-  // Board A: created from the Canvases surface, then searched.
+test("a new canvas created in-app never inherits the previous canvas's content", async ({ page }) => {
+  // Canvas A: created from the Canvases surface, given a uniquely worded note.
   await page.goto("/canvases?project=p-e2e-leak");
   await page.getByRole("button", { name: "New canvas" }).click();
-  await expect(page).toHaveURL(/\/board\?/);
-  const search = page.getByRole("textbox", { name: "Search for papers" });
-  await search.fill("alpha leak probe");
-  await page.getByRole("button", { name: "Find papers" }).click();
-  await expect(sourcesWall.getByText(STUB_PAPERS[0].title)).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/canvas\?/);
+  await expect(page.locator(NODE).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Add Note node" }).click();
+  const note = page.locator(`${NODE} textarea`).last();
+  await note.fill("alpha leak probe");
+  await note.blur();
+  await expect(page.locator(NODE)).toHaveCount(3);
 
-  // Back to the list, then board B.
+  // Back to the list, then canvas B.
   await page.goBack();
   await page.getByRole("button", { name: "New canvas" }).click();
-  await expect(page.getByRole("heading", { name: "Sources", exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/canvas\?/);
+  await expect(page.locator(NODE).first()).toBeVisible({ timeout: 20_000 });
 
-  // Board B is clean: no papers from A, empty search.
-  await expect(sourcesWall.getByRole("article")).toHaveCount(0);
-  await expect(sourcesWall.getByText(STUB_PAPERS[0].title)).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: "Search for papers" })).toHaveValue("");
+  // Canvas B is clean: only its own seed, nothing from A.
+  await expect(page.locator(NODE)).toHaveCount(2);
+  await expect(page.getByText("alpha leak probe")).toHaveCount(0);
 });

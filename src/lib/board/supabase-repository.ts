@@ -160,6 +160,18 @@ export class SupabaseBoardRepository implements BoardRepository {
     return (res.data as CardRow[]).map(toCard).filter((c): c is Card => c !== null);
   }
 
+  async claimReturn(boardId: string): Promise<boolean> {
+    // Conditional update: only the caller that sees version 2 moves the board back.
+    const res = await this.sb.from("canvases").update({ board_version: 3 }).eq("id", boardId).eq("board_version", 2).select("id");
+    if (res.error) throw new BoardRepositoryError("Couldn't prepare this canvas.", res.error);
+    return res.data.length === 1;
+  }
+
+  async releaseReturn(boardId: string): Promise<void> {
+    const res = await this.sb.from("canvases").update({ board_version: 2 }).eq("id", boardId);
+    if (res.error) throw new BoardRepositoryError("Couldn't reset this canvas's import.", res.error);
+  }
+
   async releaseConversion(boardId: string): Promise<void> {
     const res = await this.sb.from("canvases").update({ board_version: 1 }).eq("id", boardId);
     if (res.error) throw new BoardRepositoryError("Couldn't reset this board's conversion.", res.error);

@@ -14,7 +14,7 @@ import { ChartLegend, ChartTable, ChartView } from "@/components/board/cards/cha
 /**
  * A numbered figure (image or chart) in the Draft. The node stores a copy of
  * its board card; while the board is open the live card wins and the copy is
- * refreshed, so captions edited on the board flow into the paper. Numbers
+ * refreshed, so captions edited on the canvas flow into the paper. Numbers
  * follow document order and update as figures are added, moved or removed.
  */
 export const FigureRef = Node.create({

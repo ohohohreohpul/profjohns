@@ -169,12 +169,6 @@ export function ReaderSurface() {
     flash("Making insight…");
     const type = await classifyInsightType(passage, paper.title);
     const label = INSIGHT_LABELS[type] ?? "Quote";
-    const sink = useCanvasStore.getState().insightSink;
-    if (sink) {
-      sink({ type, passage, page, paper });
-      flash(`${label} insight added to Insights`);
-      return;
-    }
     placeFromPaper(
       "insight",
       {
@@ -195,15 +189,9 @@ export function ReaderSurface() {
     flash("Quote and reference copied");
   }
 
-  /** A region captured from a PDF page: Figure card (board) or Figure node (canvas). */
+  /** A region captured from a PDF page -> a Figure node under its paper. */
   async function handlePdfCaptureFigure(image: Blob, page: number) {
     if (!paper) return;
-    const sink = useCanvasStore.getState().figureSink;
-    if (sink) {
-      sink({ image, page, paper });
-      flash(`Figure from page ${page} added to Insights`);
-      return;
-    }
     try {
       const stored = await storeFigureImage(image);
       placeFromPaper(
