@@ -8,7 +8,7 @@ import { z } from "zod";
 export const WALL_KINDS = ["question", "sources", "reading", "insights", "themes", "draft", "custom"] as const;
 export type WallKind = (typeof WALL_KINDS)[number];
 
-export const CARD_KINDS = ["paper", "insight", "theme", "note", "question", "draft"] as const;
+export const CARD_KINDS = ["paper", "insight", "theme", "note", "question", "draft", "figure", "chart"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
 export const INSIGHT_TYPES = ["claim", "finding", "method", "limitation", "gap", "definition", "quote"] as const;
@@ -98,6 +98,45 @@ const DraftCardSchema = z.object({
   outline: z.array(z.string()).default([]),
 });
 
+/** Where an image lives: the user's private storage (path), or an inline
+ *  src for signed-out local development only. */
+const ImageRefSchema = z
+  .object({
+    path: z.string().min(1).optional(),
+    src: z.string().min(1).optional(),
+    width: z.number().positive().optional(),
+    height: z.number().positive().optional(),
+  })
+  .refine((i) => !!i.path || !!i.src, "An image needs a stored path or a src.");
+
+const FigureCardSchema = z.object({
+  image: ImageRefSchema,
+  caption: z.string().default(""),
+  source: SourceRefSchema.optional(),
+  /** 1-based PDF page the figure was captured from. */
+  page: z.number().int().min(1).optional(),
+  origin: z.enum(["upload", "paste", "pdf-capture", "migrated"]),
+});
+
+export const CHART_TYPES = ["bar", "line", "scatter", "table"] as const;
+export const MAX_CHART_ROWS = 200;
+export const MAX_CHART_COLUMNS = 12;
+const ChartCell = z.union([z.string(), z.number(), z.null()]);
+
+const ChartCardSchema = z.object({
+  title: z.string().default(""),
+  type: z.enum(CHART_TYPES),
+  columns: z.array(z.string()).min(1).max(MAX_CHART_COLUMNS),
+  rows: z.array(z.array(ChartCell).max(MAX_CHART_COLUMNS)).max(MAX_CHART_ROWS),
+  /** Column used for the x axis / categories. */
+  xColumn: z.number().int().min(0),
+  /** Columns plotted as series. */
+  yColumns: z.array(z.number().int().min(0)).max(MAX_CHART_COLUMNS),
+  caption: z.string().default(""),
+  source: SourceRefSchema.optional(),
+  page: z.number().int().min(1).optional(),
+});
+
 const CARD_DATA_SCHEMAS = {
   paper: PaperCardSchema,
   insight: InsightCardSchema,
@@ -105,6 +144,8 @@ const CARD_DATA_SCHEMAS = {
   note: NoteCardSchema,
   question: QuestionCardSchema,
   draft: DraftCardSchema,
+  figure: FigureCardSchema,
+  chart: ChartCardSchema,
 } as const;
 
 export type CardDataFor = {

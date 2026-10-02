@@ -11,6 +11,7 @@ import { InsightCardBody } from "./cards/insight-card";
 import { TextCardBody } from "./cards/text-card";
 import { ThemeCardBody } from "./cards/theme-card";
 import { DraftCardBody } from "./cards/draft-card";
+import { FigureCardBody } from "./cards/figure-card";
 
 const KIND_ACCENT: Record<Card["kind"], string> = {
   paper: "var(--color-node-explorer)",
@@ -19,6 +20,8 @@ const KIND_ACCENT: Record<Card["kind"], string> = {
   note: "var(--color-grey-500)",
   question: "var(--color-ink)",
   draft: "var(--color-node-writing)",
+  figure: "var(--color-node-media)",
+  chart: "var(--color-node-reader)",
 };
 
 interface BoardCardProps {
@@ -125,6 +128,28 @@ export function BoardCard({ card, walls, actions, onRead, papersById, themes, in
               void actions.updateCardData(droppedId, { ...(dropped.data as Card<"insight">["data"]), themeId: card.id });
             }}
           />
+        </CardFrame>
+      );
+    }
+    case "figure": {
+      const data = card.data as Card<"figure">["data"];
+      const paper = data.source ? papersById.get(data.source.paperId) : undefined;
+      return (
+        <CardFrame {...frame} label="Figure">
+          <FigureCardBody
+            data={data}
+            onCaption={(caption) => void actions.updateCardData(card.id, { ...data, caption })}
+            onOpenSource={paper ? () => onRead(paper) : undefined}
+          />
+        </CardFrame>
+      );
+    }
+    case "chart": {
+      const data = card.data as Card<"chart">["data"];
+      return (
+        <CardFrame {...frame} label="Chart">
+          <p className="text-sm font-medium text-ink">{data.title || "Untitled chart"}</p>
+          <p className="mt-1 text-xs text-grey-600">{data.rows.length} rows</p>
         </CardFrame>
       );
     }

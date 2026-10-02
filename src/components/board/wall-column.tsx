@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus } from "@phosphor-icons/react";
+import { Plus, ImageSquare } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { Card, Wall } from "@/lib/board/schema";
 import type { PaperSource } from "@/lib/mock";
@@ -32,6 +32,8 @@ interface WallColumnProps {
   readonly onStartDraft: () => void;
   readonly allowedSources?: SourceProvider[];
   readonly autoRunTopic?: string;
+  /** Image files dropped on or picked for this wall -> Figure cards. */
+  readonly onAddImages: (wallId: string, files: File[], origin: "upload" | "paste") => void;
 }
 
 /** One titled column: its cards, its starting action, and a drop target. */
@@ -43,6 +45,8 @@ export function WallColumn(props: WallColumnProps) {
   const listRef = React.useRef<HTMLUListElement>(null);
   // Index the dragged card would land at; null when nothing is over us.
   const [dropAt, setDropAt] = React.useState<number | null>(null);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
+  const imageFiles = (list: FileList | null) => Array.from(list ?? []).filter((f) => f.type.startsWith("image/"));
 
   function indexFromPointer(clientY: number): number {
     const items = listRef.current?.querySelectorAll<HTMLElement>(":scope > li") ?? [];
@@ -61,6 +65,12 @@ export function WallColumn(props: WallColumnProps) {
     <section
       aria-labelledby={headingId}
       onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+          setDropAt(cards.length);
+          return;
+        }
         if (!e.dataTransfer.types.includes(CARD_DND_MIME)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
@@ -70,6 +80,13 @@ export function WallColumn(props: WallColumnProps) {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt(null);
       }}
       onDrop={(e) => {
+        const dropped = imageFiles(e.dataTransfer.files);
+        if (dropped.length > 0) {
+          e.preventDefault();
+          setDropAt(null);
+          props.onAddImages(wall.id, dropped, "upload");
+          return;
+        }
         const id = e.dataTransfer.getData(CARD_DND_MIME);
         const at = dropAt ?? cards.length;
         setDropAt(null);
@@ -172,14 +189,37 @@ export function WallColumn(props: WallColumnProps) {
         </ul>
 
         {wall.kind !== "question" && wall.kind !== "draft" && (
-          <button
-            type="button"
-            onClick={() => void actions.addCard(wall.id, "note", { text: "" })}
-            className="mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
-          >
-            <Plus className="size-3.5" />
-            Add note
-          </button>
+          <div className="mt-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void actions.addCard(wall.id, "note", { text: "" })}
+              className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
+            >
+              <Plus className="size-3.5" />
+              Add note
+            </button>
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
+            >
+              <ImageSquare className="size-3.5" />
+              Add image
+            </button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              aria-label={`Add image to ${wall.title}`}
+              className="hidden"
+              onChange={(e) => {
+                const files = imageFiles(e.target.files);
+                e.target.value = "";
+                if (files.length > 0) props.onAddImages(wall.id, files, "upload");
+              }}
+            />
+          </div>
         )}
       </div>
     </section>

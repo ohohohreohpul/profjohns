@@ -178,3 +178,9 @@ alter table public.canvases add column if not exists board_version smallint not 
 -- second insert fails and the repository re-reads the winner's walls.
 create unique index if not exists walls_board_kind_unique
   on public.walls (board_id, kind) where kind <> 'custom';
+
+-- Figure and chart cards (images from uploads or captured from PDFs; charts
+-- from pasted data). Widen the kind check; idempotent.
+alter table public.cards drop constraint if exists cards_kind_check;
+alter table public.cards add constraint cards_kind_check
+  check (kind in ('paper', 'insight', 'theme', 'note', 'question', 'draft', 'figure', 'chart'));

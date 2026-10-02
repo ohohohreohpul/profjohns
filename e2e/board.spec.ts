@@ -103,3 +103,31 @@ test("theme -> start draft (outline from themes) -> write in the editor -> saved
 
   await expect(draft).toContainText("9 words", { timeout: 10_000 });
 });
+
+test("add an image to a wall -> Figure card with an editable caption", async ({ page }) => {
+  // A real 40x30 PNG (blue), so the browser can decode and downscale it.
+  const png = await page.evaluate(async () => {
+    const c = document.createElement("canvas");
+    c.width = 40;
+    c.height = 30;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#2563eb";
+    ctx.fillRect(0, 0, 40, 30);
+    const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), "image/png"));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await wall(page, "Insights")
+    .locator('input[type="file"][accept="image/*"]')
+    .setInputFiles({ name: "chart.png", mimeType: "image/png", buffer: Buffer.from(png) });
+
+  const figure = wall(page, "Insights").getByRole("article").filter({ hasText: "Figure" });
+  await expect(figure).toHaveCount(1, { timeout: 15_000 });
+  const img = figure.locator("img");
+  await expect(img).toBeVisible();
+  expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(40);
+
+  const caption = figure.getByRole("textbox", { name: "Figure caption" });
+  await caption.fill("Figure 1. Conversion by test arm.");
+  await caption.blur();
+  await expect(caption).toHaveValue("Figure 1. Conversion by test arm.");
+});

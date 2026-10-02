@@ -31,6 +31,13 @@ export interface BoardDraftContext {
   readonly claims: string;
 }
 
+/** A figure captured from a PDF page in the Reader. */
+export interface ReaderFigure {
+  readonly image: Blob;
+  readonly page: number;
+  readonly paper: PaperSource;
+}
+
 /** An insight made in the Reader from a selected passage. */
 export interface ReaderInsight {
   readonly type: string;
@@ -142,6 +149,9 @@ interface CanvasState {
   boardDraftContext: BoardDraftContext | null;
   setBoardDraftContext: (ctx: BoardDraftContext | null) => void;
   setInsightSink: (sink: ((insight: ReaderInsight) => void) | null) => void;
+  /** Where Reader figure captures go (v2 board). Unset: canvas Image node. */
+  figureSink: ((figure: ReaderFigure) => void) | null;
+  setFigureSink: (sink: ((figure: ReaderFigure) => void) | null) => void;
   /** Re-lay the board left-to-right along its connections (one undo step). */
   tidyLayout: () => void;
   /** A node is growing to `width`: shift top-level nodes it would now cover
@@ -363,6 +373,7 @@ export const useCanvasStore = create<CanvasState>()(
       lastDeletion: null,
       lastPopOut: null,
       insightSink: null,
+      figureSink: null,
       boardDraftContext: null,
       highlights: {},
       extracts: {},
@@ -427,6 +438,7 @@ export const useCanvasStore = create<CanvasState>()(
   },
 
   setInsightSink: (sink) => set({ insightSink: sink }),
+  setFigureSink: (sink) => set({ figureSink: sink }),
   setBoardDraftContext: (ctx) => set({ boardDraftContext: ctx }),
 
   notePopOut: (nodeId, title) =>

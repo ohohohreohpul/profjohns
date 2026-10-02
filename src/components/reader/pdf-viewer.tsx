@@ -11,6 +11,7 @@ import {
   Highlighter,
   Lightbulb,
   Quotes,
+  Crop,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -56,6 +57,8 @@ interface PdfViewerProps {
   readonly onHighlight?: (passage: string, page: number) => void;
   readonly onInsight?: (passage: string, page: number) => void;
   readonly onCite?: (passage: string, page: number) => void;
+  /** A region of a page was captured as a figure (PNG). */
+  readonly onCaptureFigure?: (image: Blob, page: number) => void;
   /** Saved highlights to mark on the pages. */
   readonly highlights?: readonly { text: string; page?: number }[];
   /** The PDF couldn't be opened (dead link, paywall); caller can fall back. */
@@ -95,13 +98,27 @@ async function loadPdf(pdfUrl: string): Promise<{ doc: PdfDoc; pdfjs: PdfJs }> {
   return { doc, pdfjs };
 }
 
-export function PdfViewer({ pdfUrl, onText, onAsk, onHighlight, onInsight, onCite, onError, highlights = [] }: PdfViewerProps) {
+export function PdfViewer({ pdfUrl, onText, onAsk, onHighlight, onInsight, onCite, onError, onCaptureFigure, highlights = [] }: PdfViewerProps) {
   const [state, setState] = React.useState<LoadState>({ status: "loading" });
   const [zoom, setZoom] = React.useState(1);
   const [fitWidth, setFitWidth] = React.useState(0);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selection, setSelection] = React.useState<{ text: string; page: number; top: number; left: number } | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+  // Capture-figure mode: drag a box on a page to cut out a figure.
+  const [capturing, setCapturing] = React.useState(false);
+  const [captureError, setCaptureError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!capturing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setCapturing(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [capturing]);
   const onTextRef = React.useRef(onText);
   onTextRef.current = onText;
   const onErrorRef = React.useRef(onError);
@@ -199,6 +216,28 @@ export function PdfViewer({ pdfUrl, onText, onAsk, onHighlight, onInsight, onCit
         <span className="tabular-nums">
           Page {currentPage} of {state.doc.numPages}
         </span>
+        {onCaptureFigure && (
+          <button
+            type="button"
+            aria-pressed={capturing}
+            onClick={() => {
+              setCaptureError(null);
+              setCapturing((c) => !c);
+            }}
+            className={cn(
+              "ml-2 flex items-center gap-1 rounded-md px-2 py-1 font-medium transition-colors",
+              capturing ? "bg-ink text-paper" : "text-ink hover:bg-grey-100",
+            )}
+          >
+            <Crop className="size-3.5" />
+            {capturing ? "Drag over a figure · Esc to cancel" : "Capture figure"}
+          </button>
+        )}
+        {captureError && (
+          <span role="alert" className="ml-2 text-feedback-danger">
+            {captureError}
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-0.5">
           <ToolbarButton label="Zoom out" disabled={zoom <= ZOOM_MIN} onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP))}>
             <MagnifyingGlassMinus className="size-4" />
@@ -226,6 +265,15 @@ export function PdfViewer({ pdfUrl, onText, onAsk, onHighlight, onInsight, onCit
             root={scrollRef}
             onVisible={setCurrentPage}
             highlights={highlights}
+            capturing={capturing}
+            onCapture={(image, page) => {
+              setCapturing(false);
+              onCaptureFigure?.(image, page);
+            }}
+            onCaptureError={() => {
+              setCapturing(false);
+              setCaptureError("Couldn't capture that area. Try again.");
+            }}
           />
         ))}
 
@@ -294,7 +342,18 @@ interface PdfPageViewProps {
   readonly root: React.RefObject<HTMLDivElement | null>;
   readonly onVisible: (page: number) => void;
   readonly highlights: readonly { text: string; page?: number }[];
+  readonly capturing: boolean;
+  readonly onCapture: (image: Blob, page: number) => void;
+  readonly onCaptureError: () => void;
 }
+
+/** Ignore boxes smaller than this (a stray click, not a figure). */
+const MIN_CAPTURE_PX = 12;
+/** Captured figures render at this multiple of the on-screen size... */
+const CAPTURE_UPSCALE = 4;
+/** ...but no side larger than this (storage downscales past 2000 anyway). */
+const CAPTURE_MAX_PX = 2000;
+type Box = { x: number; y: number; w: number; h: number };
 
 const MIN_MARK_CHARS = 3;
 const normalise = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
@@ -309,7 +368,35 @@ function markHighlights(textEl: HTMLElement, passages: readonly string[]): void 
 }
 
 /** One page: a placeholder of the right size until it nears the viewport. */
-function PdfPageView({ pageNumber, doc, pdfjs, width, height, scale, root, onVisible, highlights }: PdfPageViewProps) {
+function PdfPageView({ pageNumber, doc, pdfjs, width, height, scale, root, onVisible, highlights, capturing, onCapture, onCaptureError }: PdfPageViewProps) {
+  const [box, setBox] = React.useState<Box | null>(null);
+  const origin = React.useRef<{ x: number; y: number } | null>(null);
+
+  function pointAt(e: React.PointerEvent): { x: number; y: number } {
+    const r = holderRef.current!.getBoundingClientRect();
+    return { x: Math.max(0, Math.min(width, e.clientX - r.left)), y: Math.max(0, Math.min(height, e.clientY - r.top)) };
+  }
+
+  /**
+   * Re-render just the boxed region at print resolution (the on-screen
+   * canvas is only screen-sharp, which blurs once the figure is reused).
+   */
+  async function capture(b: Box) {
+    if (b.w < MIN_CAPTURE_PX || b.h < MIN_CAPTURE_PX) return;
+    const page = await doc.getPage(pageNumber);
+    const k = Math.min(CAPTURE_UPSCALE, CAPTURE_MAX_PX / Math.max(b.w, b.h));
+    const viewport = page.getViewport({ scale: scale * k });
+    const out = document.createElement("canvas");
+    out.width = Math.round(b.w * k);
+    out.height = Math.round(b.h * k);
+    const ctx = out.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#fff"; // PDF pages are white; transparent PNGs turn black in dark mode.
+    ctx.fillRect(0, 0, out.width, out.height);
+    // Shift so the box's top-left lands at the canvas origin.
+    await page.render({ canvasContext: ctx, viewport, transform: [1, 0, 0, 1, -b.x * k, -b.y * k] }).promise;
+    out.toBlob((blob) => blob && onCapture(blob, pageNumber), "image/png");
+  }
   const holderRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const textRef = React.useRef<HTMLDivElement>(null);
@@ -390,11 +477,37 @@ function PdfPageView({ pageNumber, doc, pdfjs, width, height, scale, root, onVis
       ref={holderRef}
       data-page={pageNumber}
       aria-label={`Page ${pageNumber}`}
-      className="relative mx-auto mb-4 bg-white shadow-sm"
+      className={cn("relative mx-auto mb-4 bg-white shadow-sm", capturing && "cursor-crosshair touch-none select-none")}
       style={{ width, height, ["--total-scale-factor" as string]: scale }}
+      onPointerDown={(e) => {
+        if (!capturing) return;
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        origin.current = pointAt(e);
+        setBox({ ...origin.current, w: 0, h: 0 });
+      }}
+      onPointerMove={(e) => {
+        if (!capturing || !origin.current) return;
+        const p = pointAt(e);
+        const o = origin.current;
+        setBox({ x: Math.min(o.x, p.x), y: Math.min(o.y, p.y), w: Math.abs(p.x - o.x), h: Math.abs(p.y - o.y) });
+      }}
+      onPointerUp={() => {
+        if (!capturing || !origin.current) return;
+        origin.current = null;
+        if (box) void capture(box).catch(() => onCaptureError());
+        setBox(null);
+      }}
     >
       <canvas ref={canvasRef} className={cn("absolute inset-0 size-full", rendering && "opacity-0")} />
-      <div ref={textRef} className="pdf-text-layer textLayer" />
+      <div ref={textRef} className="pdf-text-layer textLayer" style={capturing ? { pointerEvents: "none" } : undefined} />
+      {box && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute z-10 border-2 border-highlight bg-highlight/10"
+          style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+        />
+      )}
       {rendering && (
         <span className="absolute inset-0 grid place-items-center text-xs text-grey-500">Page {pageNumber}</span>
       )}

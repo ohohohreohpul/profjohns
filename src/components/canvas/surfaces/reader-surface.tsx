@@ -26,7 +26,7 @@ import { fetchReadable } from "@/lib/reader-client";
 import { PdfViewer } from "@/components/reader/pdf-viewer";
 import { pdfLinkFor } from "@/lib/pdf-url";
 import { PDF_PARA_INDEX } from "@/lib/highlight";
-import { classifyInsightType, formatInsightNote, INSIGHT_LABELS } from "@/lib/insight";
+import { classifyInsightType, formatInsightNote, INSIGHT_LABELS, shortCitation } from "@/lib/insight";
 import { summarizePaper, askPaper } from "@/lib/ai-client";
 import { formatReference, DEFAULT_STYLE } from "@/lib/citation";
 import { useCanvasStore } from "@/store/canvas-store";
@@ -160,6 +160,27 @@ export function ReaderSurface() {
     if (!paper) return;
     await navigator.clipboard?.writeText(`"${passage}" — ${formatReference(paper, DEFAULT_STYLE, 1)}, p. ${page}`);
     flash("Quote and reference copied");
+  }
+
+  /** A region captured from a PDF page: Figure card (board) or Image node (canvas). */
+  async function handlePdfCaptureFigure(image: Blob, page: number) {
+    if (!paper) return;
+    const sink = useCanvasStore.getState().figureSink;
+    if (sink) {
+      sink({ image, page, paper });
+      flash(`Figure from page ${page} added to Insights`);
+      return;
+    }
+    const src = await new Promise<string>((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.readAsDataURL(image);
+    });
+    const id = addNode("media", { x: 80, y: 80 }, {
+      media: { src, name: `Figure, p. ${page}`, credit: `${shortCitation(paper, page)}, ${paper.title}` },
+    });
+    notePopOut(id, `Figure from p. ${page}`);
+    flash(`Figure from page ${page} added to the canvas`);
   }
 
   function handlePdfAsk(passage: string, page: number) {
@@ -425,6 +446,7 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
               onHighlight={handlePdfHighlight}
               onInsight={handlePdfInsight}
               onCite={handlePdfCite}
+              onCaptureFigure={(image, page) => void handlePdfCaptureFigure(image, page)}
               highlights={highlights}
               onError={() => {
                 setPdfFailed(true);
