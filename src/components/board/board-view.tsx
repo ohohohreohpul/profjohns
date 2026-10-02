@@ -18,6 +18,7 @@ import { WallColumn } from "./wall-column";
 import { useBoardDraft } from "./use-board-draft";
 import { looksTabular, parseTable, suggestChart } from "@/lib/chart-data";
 import { chartFromTable } from "./cards/chart-card";
+import type { BoardVisual } from "@/lib/draft-figures";
 import { storeFigureImage, FigureError } from "@/lib/figure-storage";
 
 interface BoardViewProps {
@@ -163,6 +164,18 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
     return () => useCanvasStore.getState().setFigureSink(null);
   }, [wallOf, actions]);
 
+  const addToDraft = React.useCallback(
+    (card: Card) => {
+      if (card.kind !== "figure" && card.kind !== "chart") return;
+      void draft.addVisual({ id: card.id, kind: card.kind, data: card.data as BoardVisual["data"] }).then((n) => {
+        if (n === null) return;
+        setBoardNote({ text: `Added to the draft as Figure ${n}.`, error: false });
+        window.setTimeout(() => setBoardNote(null), NOTICE_MS);
+      });
+    },
+    [draft],
+  );
+
   const addSearchResults = React.useCallback(
     async (screened: readonly ScreenedPaper[]) => {
       const sources = wallOf("sources");
@@ -241,6 +254,7 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
               allowedSources={launchSources}
               autoRunTopic={autoRunTopic}
               onAddImages={(wallId, files, origin) => void addImages(wallId, files, origin)}
+              onAddToDraft={addToDraft}
             />
           ))}
         </div>

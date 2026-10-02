@@ -23,12 +23,15 @@ import type { CitationStyle } from "@/lib/citation";
 import type { PaperSource } from "@/lib/mock";
 import { nextHighlightId, type Highlight } from "@/lib/highlight";
 import { layoutLeftToRight } from "@/lib/auto-layout";
+import type { BoardVisual } from "@/lib/draft-figures";
 
 export interface BoardDraftContext {
   readonly nodeId: string;
   readonly sources: PaperSource[];
   /** Insight statements grouped by theme, for outline + section drafting. */
   readonly claims: string;
+  /** The board's figure and chart cards, to place in the draft. */
+  readonly visuals?: readonly BoardVisual[];
 }
 
 /** A figure captured from a PDF page in the Reader. */

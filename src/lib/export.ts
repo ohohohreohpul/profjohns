@@ -1,5 +1,6 @@
 import type { JSONContent } from "@tiptap/core";
 import type { WritingDoc } from "./document";
+import { FIGURE_NODE, captionBody, type VisualData, type VisualKind } from "./draft-figures";
 
 /** Supported export formats for a writing document. */
 export type ExportFormat = "markdown" | "latex" | "text" | "docx";
@@ -11,16 +12,25 @@ function inlineText(node: JSONContent): string {
 }
 
 interface FlatBlock {
-  type: "heading" | "paragraph" | "listItem" | "blockquote" | "other";
+  type: "heading" | "paragraph" | "listItem" | "blockquote" | "figure" | "other";
   text: string;
   ordered?: boolean;
+  /** Figure blocks: "Figure N." (the text holds the caption body). */
+  label?: string;
 }
 
 /** Walk the document into a flat list of blocks for serialization. */
 function flattenBlocks(content: JSONContent | undefined): FlatBlock[] {
   const out: FlatBlock[] = [];
+  let figures = 0;
   const walk = (node: JSONContent, listKind?: "bullet" | "ordered") => {
     switch (node.type) {
+      case FIGURE_NODE: {
+        const { kind, data } = (node.attrs ?? {}) as { kind: VisualKind; data: VisualData };
+        figures++;
+        out.push({ type: "figure", label: `Figure ${figures}.`, text: data ? captionBody(kind, data) : "" });
+        return;
+      }
       case "heading":
         out.push({ type: "heading", text: inlineText(node) });
         return;
@@ -90,7 +100,9 @@ export function docToMarkdown(doc: WritingDoc, references: string[] = []): strin
     .map((b) =>
       b.type === "heading"
         ? `## ${b.text}`
-        : b.type === "listItem"
+        : b.type === "figure"
+          ? `**${b.label}** ${b.text}`.trim()
+          : b.type === "listItem"
           ? `${b.ordered ? "1." : "-"} ${b.text}`
           : b.type === "blockquote"
             ? `> ${b.text}`
@@ -105,7 +117,7 @@ export function docToMarkdown(doc: WritingDoc, references: string[] = []): strin
 
 export function docToPlainText(doc: WritingDoc, references: string[] = []): string {
   const body = flattenBlocks(doc.content)
-    .map((b) => b.text)
+    .map((b) => (b.type === "figure" ? `${b.label} ${b.text}`.trim() : b.text))
     .join("\n\n");
   const refs = references.length
     ? `\n\nReferences\n\n${references.join("\n")}`
@@ -118,7 +130,9 @@ export function docToLatex(doc: WritingDoc, references: string[] = []): string {
     .map((b) =>
       b.type === "heading"
         ? `\\section*{${escapeLatex(b.text)}}`
-        : escapeLatex(b.text),
+        : b.type === "figure"
+          ? `\\paragraph*{${b.label}} ${escapeLatex(b.text)}`
+          : escapeLatex(b.text),
     )
     .join("\n\n");
   const refs = references.length
@@ -155,7 +169,9 @@ async function docToDocxBlob(
     ...flattenBlocks(doc.content).map((b) =>
       b.type === "heading"
         ? new Paragraph({ text: b.text, heading: HeadingLevel.HEADING_1 })
-        : new Paragraph({ children: [new TextRun(b.text)] }),
+        : b.type === "figure"
+          ? new Paragraph({ children: [new TextRun({ text: `${b.label} `, bold: true }), new TextRun(b.text)] })
+          : new Paragraph({ children: [new TextRun(b.text)] }),
     ),
   ];
   if (references.length) {

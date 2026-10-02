@@ -186,3 +186,51 @@ test("paste spreadsheet cells on the board -> Chart card in Insights; prose past
   await expect(page.getByRole("status").filter({ hasText: "Chart added to Insights" })).toBeVisible();
   await expect(wall(page, "Insights").getByRole("img", { name: /^Line chart of loss by epoch, 3 rows/ })).toBeVisible();
 });
+
+test("figures in the draft: Add to draft from a card, place another from the editor, numbered, exported", async ({ page }) => {
+  const insights = wall(page, "Insights");
+  const makeChart = async (tsv: string) => {
+    await insights.getByRole("button", { name: "Add chart" }).click();
+    await insights.getByLabel("Chart data").fill(tsv);
+    await insights.getByRole("button", { name: "Make chart" }).click();
+  };
+  await makeChart(RESULTS_TSV);
+  await makeChart("epoch\tloss\n1\t0.92\n2\t0.51\n3\t0.33");
+  const charts = insights.getByRole("article").filter({ hasText: "Chart" });
+  await expect(charts).toHaveCount(2);
+  const first = charts.first();
+  await first.getByRole("textbox", { name: "Chart title" }).fill("ImageNet accuracy");
+  await first.getByRole("textbox", { name: "Chart title" }).blur();
+
+  // From the card: creates the Draft and places Figure 1.
+  await first.getByRole("button", { name: "Chart card options" }).click();
+  await page.getByRole("menuitem", { name: "Add to draft" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Added to the draft as Figure 1." })).toBeVisible();
+
+  await wall(page, "Draft").getByRole("article").getByRole("button", { name: "Open editor" }).click();
+  const editor = page.locator(".ProseMirror").last();
+  await expect(editor).toBeVisible({ timeout: 15_000 });
+  const figures = editor.locator("figure[data-figure-ref]");
+  await expect(figures).toHaveCount(1);
+  await expect(figures.first().getByRole("img", { name: /^Bar chart of Top-1, Params by Model/ })).toBeVisible();
+  await expect(figures.first().locator("figcaption")).toHaveText("Figure 1. ImageNet accuracy.");
+
+  // From the editor toolbar: the menu marks what's placed; the new one is Figure 2.
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.getByRole("button", { name: "Figure", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: /ImageNet accuracy\s*Figure 1/ })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Untitled chart" }).click();
+  await expect(figures).toHaveCount(2);
+  await expect(figures.nth(1).getByRole("img", { name: /^Line chart of loss by epoch/ })).toBeVisible();
+  await expect(figures.nth(1).locator("figcaption")).toHaveText("Figure 2.");
+
+  // Export carries numbered captions.
+  await page.getByRole("button", { name: "Export" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: /Markdown/ }).click();
+  const fs = await import("node:fs/promises");
+  const md = await fs.readFile((await (await download).path())!, "utf8");
+  expect(md).toContain("**Figure 1.** ImageNet accuracy.");
+  expect(md).toContain("**Figure 2.**");
+});

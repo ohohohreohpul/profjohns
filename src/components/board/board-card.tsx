@@ -37,10 +37,11 @@ interface BoardCardProps {
   /** All cards by id (to validate drops onto themes). */
   readonly cardsById: ReadonlyMap<string, Card>;
   readonly onOpenDraft: (cardId: string) => void;
+  readonly onAddToDraft: (card: Card) => void;
 }
 
 /** Renders any card kind inside the shared frame. */
-export function BoardCard({ card, walls, actions, onRead, papersById, themes, insightsByTheme, cardsById, onOpenDraft }: BoardCardProps) {
+export function BoardCard({ card, walls, actions, onRead, papersById, themes, insightsByTheme, cardsById, onOpenDraft, onAddToDraft }: BoardCardProps) {
   const frame = {
     cardId: card.id,
     accent: KIND_ACCENT[card.kind],
@@ -136,7 +137,7 @@ export function BoardCard({ card, walls, actions, onRead, papersById, themes, in
       const data = card.data as Card<"figure">["data"];
       const paper = data.source ? papersById.get(data.source.paperId) : undefined;
       return (
-        <CardFrame {...frame} label="Figure">
+        <CardFrame {...frame} label="Figure" menuItems={[{ label: "Add to draft", onSelect: () => onAddToDraft(card) }]}>
           <FigureCardBody
             data={data}
             onCaption={(caption) => void actions.updateCardData(card.id, { ...data, caption })}
@@ -154,6 +155,7 @@ export function BoardCard({ card, walls, actions, onRead, papersById, themes, in
           data={data}
           onChange={(next) => void actions.updateCardData(card.id, next)}
           onOpenSource={paper ? () => onRead(paper) : undefined}
+          onAddToDraft={() => onAddToDraft(card)}
         />
       );
     }
@@ -171,15 +173,19 @@ export function BoardCard({ card, walls, actions, onRead, papersById, themes, in
 type FrameProps = Omit<React.ComponentProps<typeof CardFrame>, "label" | "children">;
 
 /** Chart card: owns whether its data editor is open (opened from the menu). */
-function ChartCard({ frame, data, onChange, onOpenSource }: {
+function ChartCard({ frame, data, onChange, onOpenSource, onAddToDraft }: {
   readonly frame: FrameProps;
   readonly data: Card<"chart">["data"];
   readonly onChange: (data: Card<"chart">["data"]) => void;
   readonly onOpenSource?: () => void;
+  readonly onAddToDraft: () => void;
 }) {
   const [editing, setEditing] = React.useState(false);
   return (
-    <CardFrame {...frame} label="Chart" menuItems={[{ label: "Edit data", onSelect: () => setEditing(true) }]}>
+    <CardFrame {...frame} label="Chart" menuItems={[
+        { label: "Edit data", onSelect: () => setEditing(true) },
+        { label: "Add to draft", onSelect: onAddToDraft },
+      ]}>
       <ChartCardBody data={data} onChange={onChange} editing={editing} onEditingChange={setEditing} onOpenSource={onOpenSource} />
     </CardFrame>
   );

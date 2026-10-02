@@ -36,6 +36,8 @@ interface WallColumnProps {
   readonly autoRunTopic?: string;
   /** Image files dropped on or picked for this wall -> Figure cards. */
   readonly onAddImages: (wallId: string, files: File[], origin: "upload" | "paste") => void;
+  /** Figure/chart card -> the end of the Draft. */
+  readonly onAddToDraft: (card: Card) => void;
 }
 
 /** One titled column: its cards, its starting action, and a drop target. */
@@ -181,6 +183,7 @@ export function WallColumn(props: WallColumnProps) {
                 insightsByTheme={props.insightsByTheme}
                 cardsById={props.cardsById}
                 onOpenDraft={props.onOpenDraft}
+                onAddToDraft={props.onAddToDraft}
               />
             </li>
           ))}

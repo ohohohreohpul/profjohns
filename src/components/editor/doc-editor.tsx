@@ -19,6 +19,8 @@ import { useCanvasStore } from "@/store/canvas-store";
 import { emptyDocContent } from "@/lib/document";
 import { Citation } from "./citation-mark";
 import { Unsupported } from "./unsupported-mark";
+import { FigureRef } from "./figure-node";
+import { InsertFigureButton } from "./insert-figure";
 import { Autocomplete } from "./autocomplete";
 import { completeText } from "@/lib/ai-client";
 
@@ -96,6 +98,7 @@ export function DocEditor({
       StarterKit.configure({ heading: { levels: [1, 2] } }),
       Citation,
       Unsupported,
+      FigureRef,
       Autocomplete.configure({ fetchSuggestion: completeText }),
       Placeholder.configure({
         placeholder: compact
@@ -249,6 +252,7 @@ function Toolbar({ editor, bare = false }: { editor: Editor; bare?: boolean }) {
       <ToolButton label="Quote" active={editor.isActive("blockquote")} onClick={() => c().toggleBlockquote().run()}>
         <Quote className="size-4" />
       </ToolButton>
+      <InsertFigureButton editor={editor} />
       <span className="mx-0.5 h-5 w-px bg-grey-200" />
       <AutocompleteToggle editor={editor} />
     </div>

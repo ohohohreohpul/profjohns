@@ -5,7 +5,7 @@ import { CHART_TYPES, type CardDataFor, type ChartType } from "@/lib/board/schem
 import { toTsv, type ChartSuggestion, type Table } from "@/lib/chart-data";
 import { cn } from "@/lib/utils";
 import { ChartComposer } from "./chart-composer";
-import { ChartTable, ChartView, Marker, describeChart, seriesColor, seriesShape } from "./chart-view";
+import { ChartLegend, ChartTable, ChartView, describeChart } from "./chart-view";
 import { SourceCitation } from "./source-citation";
 import { TextCardBody } from "./text-card";
 
@@ -84,16 +84,7 @@ export function ChartCardBody({ data, onChange, editing, onEditingChange, onOpen
         ) : (
           <>
             <ChartView data={data} />
-            <ul aria-label="Series" className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
-              {data.yColumns.map((col, s) => (
-                <li key={col} className="flex items-center gap-1 text-xs text-grey-700">
-                  <svg aria-hidden viewBox="0 0 10 10" className="size-2.5 shrink-0" fill={seriesColor(s)}>
-                    <Marker shape={data.type === "bar" ? "square" : seriesShape(s)} x={5} y={5} r={3.5} />
-                  </svg>
-                  {data.columns[col]}
-                </li>
-              ))}
-            </ul>
+            <ChartLegend data={data} />
             <button
               type="button"
               aria-expanded={showData}

@@ -17,6 +17,7 @@ import {
 import { formatReference, DEFAULT_STYLE } from "@/lib/citation";
 import { extractCitedPaperIds, type WritingDoc } from "@/lib/document";
 import { useNodeInputSources } from "@/store/use-sources";
+import { getDocEditor } from "@/components/editor/doc-editor";
 
 const FORMATS: ExportFormat[] = ["markdown", "latex", "text", "docx"];
 
@@ -33,15 +34,18 @@ export function ExportMenu({
 
   async function handleExport(format: ExportFormat) {
     if (!doc) return;
+    // The stored copy trails typing by a debounce: export what's on screen.
+    const live = getDocEditor(nodeId);
+    const current: WritingDoc = live ? { ...doc, content: live.getJSON() } : doc;
     setBusy(true);
     setError(null);
     try {
-      const style = doc.style ?? DEFAULT_STYLE;
-      const references = extractCitedPaperIds(doc.content)
+      const style = current.style ?? DEFAULT_STYLE;
+      const references = extractCitedPaperIds(current.content)
         .map((id) => allSources.find((p) => p.id === id))
         .filter((p): p is NonNullable<typeof p> => Boolean(p))
         .map((p, i) => formatReference(p, style, i + 1));
-      await exportDocument(doc, format, references);
+      await exportDocument(current, format, references);
     } catch (err: unknown) {
       setError(
         err instanceof Error

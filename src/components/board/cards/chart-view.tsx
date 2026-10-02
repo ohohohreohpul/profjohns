@@ -153,6 +153,22 @@ export function ChartView({ data }: { readonly data: ChartData }) {
   );
 }
 
+/** Which colour and marker is which series (colour is never the only cue). */
+export function ChartLegend({ data }: { readonly data: ChartData }) {
+  return (
+    <ul aria-label="Series" className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+      {data.yColumns.map((col, s) => (
+        <li key={col} className="flex items-center gap-1 text-xs text-grey-700">
+          <svg aria-hidden viewBox="0 0 10 10" className="size-2.5 shrink-0" fill={seriesColor(s)}>
+            <Marker shape={data.type === "bar" ? "square" : seriesShape(s)} x={5} y={5} r={3.5} />
+          </svg>
+          {data.columns[col]}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The data as a real table: the chart's accessible equivalent, and the "table" type. */
 export function ChartTable({ data, caption }: { readonly data: ChartData; readonly caption: string }) {
   return (

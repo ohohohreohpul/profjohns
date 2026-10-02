@@ -8,6 +8,7 @@ import { buildClaims } from "@/lib/board/claims";
 import type { BoardSnapshot, Card } from "@/lib/board/schema";
 import type { PaperSource } from "@/lib/mock";
 import type { BoardActions } from "./use-board";
+import { appendFigure, figureNodeFor, listFigures, type BoardVisual } from "@/lib/draft-figures";
 
 /** Save typing back to the Draft card after this pause. */
 const DRAFT_SAVE_DEBOUNCE_MS = 1000;
@@ -64,6 +65,13 @@ export function useBoardDraft(snapshot: BoardSnapshot | null, actions: BoardActi
     }
     return papers;
   }, [snapshot, insights]);
+  const visuals = React.useMemo(
+    () =>
+      (snapshot?.cards ?? [])
+        .filter((c): c is Card<"figure"> | Card<"chart"> => c.kind === "figure" || c.kind === "chart")
+        .map((c): BoardVisual => ({ id: c.id, kind: c.kind as BoardVisual["kind"], data: c.data })),
+    [snapshot],
+  );
   const outline = React.useMemo(() => themes.map((t) => t.data.name).filter(Boolean), [themes]);
 
   const flush = React.useCallback(() => {
@@ -80,8 +88,8 @@ export function useBoardDraft(snapshot: BoardSnapshot | null, actions: BoardActi
   // While open: keep the draft context fresh as the board changes.
   React.useEffect(() => {
     if (!openId) return;
-    useCanvasStore.getState().setBoardDraftContext({ nodeId: openId, sources, claims });
-  }, [openId, sources, claims]);
+    useCanvasStore.getState().setBoardDraftContext({ nodeId: openId, sources, claims, visuals });
+  }, [openId, sources, claims, visuals]);
 
   // While open: save editor changes back to the Draft card (debounced).
   React.useEffect(() => {
@@ -107,10 +115,10 @@ export function useBoardDraft(snapshot: BoardSnapshot | null, actions: BoardActi
         outline: data.outline.length > 0 ? data.outline : outline,
       };
       useCanvasStore.setState((s) => ({ docs: { ...s.docs, [cardId]: doc } }));
-      useCanvasStore.getState().setBoardDraftContext({ nodeId: cardId, sources, claims });
+      useCanvasStore.getState().setBoardDraftContext({ nodeId: cardId, sources, claims, visuals });
       setOpenId(cardId);
     },
-    [snapshot, outline, sources, claims],
+    [snapshot, outline, sources, claims, visuals],
   );
 
   const close = React.useCallback(() => {
@@ -134,6 +142,28 @@ export function useBoardDraft(snapshot: BoardSnapshot | null, actions: BoardActi
     if (card) setOpenId(null);
   }, [snapshot, actions, question, outline]);
 
+  /**
+   * Add a figure/chart card to the end of the Draft (creating the Draft if
+   * there isn't one). Resolves to its figure number, or null if it failed.
+   */
+  const addVisual = React.useCallback(
+    async (visual: BoardVisual): Promise<number | null> => {
+      const wall = snapshot?.walls.find((w) => w.kind === "draft");
+      if (!wall) return null;
+      const existing = snapshot?.cards.find((c): c is Card<"draft"> => c.kind === "draft");
+      const base = (existing?.data.content as WritingDoc["content"] | undefined) ?? emptyDocContent();
+      const content = appendFigure(base, figureNodeFor(visual));
+      if (existing) {
+        await actions.updateCardData(existing.id, { ...existing.data, content });
+      } else {
+        const card = await actions.addCard(wall.id, "draft", { title: question, content, style: DEFAULT_STYLE, outline });
+        if (!card) return null;
+      }
+      return listFigures(content).length;
+    },
+    [snapshot, actions, question, outline],
+  );
+
   const insightsByTheme = React.useMemo(() => {
     const m = new Map<string, Card<"insight">[]>();
     for (const i of insights) {
@@ -143,5 +173,5 @@ export function useBoardDraft(snapshot: BoardSnapshot | null, actions: BoardActi
     return m;
   }, [insights]);
 
-  return { openId, open, close, startDraft, themes, insightsByTheme };
+  return { openId, open, close, startDraft, addVisual, themes, insightsByTheme };
 }
