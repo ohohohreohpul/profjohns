@@ -14,6 +14,7 @@ import {
   type OnConnectEnd,
 } from "@xyflow/react";
 import { useCanvasStore } from "@/store/canvas-store";
+import { useWorkspaceStore } from "@/store/workspace-store";
 import { SUGGESTED_NEXT, NODE_ORDER, type NodeKind } from "@/lib/node-catalog";
 import { DEFAULT_MODEL_ID, getModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
@@ -463,6 +464,9 @@ function CanvasInner() {
           at ?? screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
         const newId = addNode("paper", { x: pos.x - 144, y: pos.y - 40 }, { paper, label: paper.title });
         setNodeSources(newId, [paper]);
+        // One library: a PDF uploaded on the canvas is saved to the project's Library too.
+        const projectId = useCanvasStore.getState().projectId;
+        if (projectId) useWorkspaceStore.getState().pinSource(projectId, paper);
         useCanvasStore.getState().notePopOut(newId, paper.title);
         useCanvasStore.getState().openReader(paper);
         setUploadNote(null);

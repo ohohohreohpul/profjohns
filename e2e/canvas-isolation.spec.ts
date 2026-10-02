@@ -29,7 +29,7 @@ test("two canvases keep independent boards across navigation", async ({ page }) 
   // Canvas alpha: seed (2 nodes) + one added Text node = 3.
   await gotoCanvas(page, "cv-e2e-alpha");
   await expect(page.locator(NODE)).toHaveCount(2);
-  await page.getByRole("button", { name: "Add Text node" }).click();
+  await page.getByRole("button", { name: "Add Note node" }).click();
   await expect(page.locator(NODE)).toHaveCount(3);
 
   // Canvas beta must open with ONLY its own fresh seed.
@@ -47,7 +47,7 @@ test("two canvases keep independent boards across navigation", async ({ page }) 
 
 test("boards survive a hard reload and a cold home-page visit", async ({ page }) => {
   await gotoCanvas(page, "cv-e2e-keep");
-  await page.getByRole("button", { name: "Add Text node" }).click();
+  await page.getByRole("button", { name: "Add Note node" }).click();
   await expect(page.locator(NODE)).toHaveCount(3);
 
   // Cold-load the home page (Discover) — pruneOrphans runs there. Before the

@@ -63,7 +63,7 @@ export const NODE_DEFINITIONS: Record<NodeKind, NodeDefinition> = {
   },
   block: {
     kind: "block",
-    label: "Note",
+    label: "Rich note",
     description: "A free-standing note — type, format, and drag anywhere.",
     icon: Type,
     isPrimary: false,
@@ -87,8 +87,8 @@ export const NODE_DEFINITIONS: Record<NodeKind, NodeDefinition> = {
   },
   text: {
     kind: "text",
-    label: "Text",
-    description: "A longer text area for notes and drafts.",
+    label: "Note",
+    description: "A note: type anything, drag it anywhere.",
     icon: FileText,
     isPrimary: false,
     accent: "var(--color-node-text)",
@@ -174,13 +174,10 @@ export const NODE_ORDER: NodeKind[] = [
   "figure",
   "chart",
   "theme",
-  "processor",
-  "block",
   "text",
   "link",
   "shell",
   "writing",
-  "assistant",
 ];
 
 /** The toolbar, in research order. Rarely-needed kinds sit under "More". */
@@ -190,10 +187,7 @@ export const CORE_ORDER: NodeKind[] = [
   "insight",
   "figure",
   "theme",
-  "processor",
-  "block",
   "text",
-  "assistant",
   "writing",
 ];
 
@@ -201,17 +195,17 @@ export const CORE_ORDER: NodeKind[] = [
 export const ADVANCED_ORDER: NodeKind[] = ["chart", "link", "shell"];
 
 export const SUGGESTED_NEXT: Record<NodeKind, NodeKind[]> = {
-  explorer: ["processor", "shell", "text", "writing"],
-  processor: ["shell", "text", "writing", "block"],
-  block: ["shell", "processor", "text", "writing"],
-  text: ["shell", "processor", "writing"],
-  shell: ["shell", "processor", "text", "writing", "block"],
-  writing: ["processor", "shell", "text"],
+  explorer: ["insight", "theme", "writing"],
+  processor: ["theme", "writing"],
+  block: ["theme", "writing"],
+  text: ["theme", "writing"],
+  shell: ["theme", "text", "writing"],
+  writing: ["text"],
   assistant: [],
-  paper: ["processor", "writing", "shell"],
-  media: ["processor", "writing", "shell"],
-  library: ["processor", "writing"],
-  link: ["processor", "writing", "shell"],
+  paper: ["insight", "writing"],
+  media: ["writing"],
+  library: ["insight", "writing"],
+  link: ["insight", "writing"],
   insight: ["theme", "writing"],
   theme: ["writing"],
   figure: ["writing"],

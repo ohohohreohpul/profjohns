@@ -33,11 +33,11 @@ test.beforeEach(async ({ page }) => {
 
 const nodeOf = (page: Page, kind: string) => page.locator(`${NODE}.react-flow__node-${kind}`);
 
-test("the toolbar offers Insight, Figure and Theme; Chart sits under More", async ({ page }) => {
-  for (const label of ["Insight", "Figure", "Theme"]) {
-    await expect(page.getByRole("button", { name: `Add ${label} node` })).toBeVisible();
-  }
-  await expect(page.getByRole("button", { name: "Add Image node" })).toHaveCount(0);
+test("the toolbar is the research loop: Sources, Library, Insight, Figure, Theme, Note, Draft; Chart under More", async ({ page }) => {
+  const labels = await page.getByRole("button", { name: /^Add .* node$/ }).evaluateAll((els) =>
+    els.map((e) => (e.getAttribute("aria-label") ?? "").replace(/^Add | node$/g, "")),
+  );
+  expect(labels).toEqual(["Sources", "Library", "Insight", "Figure", "Theme", "Note", "Draft"]);
   await page.getByRole("button", { name: "More nodes" }).click();
   await expect(page.getByRole("button", { name: "Chart", exact: true })).toBeVisible();
 });
@@ -151,7 +151,7 @@ test("a chart on the canvas can be placed in the Draft as Figure 1", async ({ pa
  */
 test("a canvas with the new node kinds survives a reload intact", async ({ page }) => {
   await page.getByRole("button", { name: "Add Theme node" }).click();
-  await page.getByRole("button", { name: "Add Text node" }).click();
+  await page.getByRole("button", { name: "Add Note node" }).click();
   await page.locator(".react-flow__pane").click({ position: { x: 600, y: 500 } });
   await page.evaluate(() => {
     const dt = new DataTransfer();
@@ -167,4 +167,49 @@ test("a canvas with the new node kinds survives a reload intact", async ({ page 
   await expect(page.locator(NODE)).toHaveCount(before);
   await expect(nodeOf(page, "theme")).toHaveCount(1);
   await expect(nodeOf(page, "chart").locator("svg[role=img]")).toBeVisible();
+});
+
+
+test("Suggest themes groups the canvas's insights into Theme nodes wired to their evidence", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1400 });
+  // Two insights, made the way the Reader makes them.
+  await page.evaluate((paper) => {
+    const pane = document.querySelector(".react-flow__pane")!;
+    const dt = new DataTransfer();
+    dt.setData("application/x-lattice-paper", JSON.stringify(paper));
+    for (const type of ["dragover", "drop"]) pane.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, clientX: 300, clientY: 300 }));
+  }, PAPER);
+  for (const passage of ["Bandit experiments reallocate traffic toward better ads", "during the test."]) {
+    await nodeOf(page, "paper").getByRole("button", { name: "Read" }).click();
+    const abstract = page.getByText(PAPER.abstract, { exact: true }).last();
+    await expect(abstract).toBeVisible({ timeout: 15_000 });
+    await abstract.evaluate((el, text) => {
+      const node = el.firstChild!;
+      const start = (node.textContent ?? "").indexOf(text);
+      const range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, start + text.length);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      el.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    }, passage);
+    await page.getByRole("button", { name: "Make insight", exact: true }).dispatchEvent("click");
+    await expect(nodeOf(page, "insight").filter({ hasText: passage })).toHaveCount(1, { timeout: 15_000 });
+    await page.getByRole("button", { name: "Close" }).first().click();
+  }
+
+  await page.route("**/api/ai**", async (r) => {
+    const body = r.request().postDataJSON() as { mode?: string };
+    if (body.mode !== "synth") return r.fulfill({ status: 502, json: { success: false, data: null, error: "off" } });
+    const answer = JSON.stringify({ claims: [], contradictions: [], themes: [{ theme: "Adaptive allocation", sources: [1] }, { theme: "Test duration", sources: [2] }] });
+    return r.fulfill({ json: { success: true, data: { answer }, error: null } });
+  });
+  await page.getByRole("button", { name: "Add Theme node" }).click();
+  await nodeOf(page, "theme").getByRole("button", { name: "Suggest themes from 2 insights" }).click();
+  await expect(nodeOf(page, "theme")).toHaveCount(2);
+  await expect(nodeOf(page, "theme").getByRole("textbox", { name: "Theme name" }).first()).toHaveValue("Adaptive allocation");
+  await expect(nodeOf(page, "theme").getByRole("textbox", { name: "Theme name" }).last()).toHaveValue("Test duration");
+  await expect(nodeOf(page, "theme").first()).toContainText("1 insight · 1 paper");
+  await expect(nodeOf(page, "theme").last()).toContainText("1 insight · 1 paper");
 });
