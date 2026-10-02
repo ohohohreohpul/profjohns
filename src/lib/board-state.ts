@@ -42,3 +42,30 @@ export function sanitizeBoardState(
   }
   return picked;
 }
+
+/** What a server read of a board returned. */
+export type ServerBoardRead =
+  | { readonly status: "ok"; readonly state: Record<string, unknown> }
+  | { readonly status: "empty" }
+  | { readonly status: "error" }
+  | { readonly status: "signed-out" };
+
+export type BoardSource = "server" | "local" | "seed" | "seed-offline";
+
+/**
+ * Where to load a board from. Signed in, the server is the truth, except
+ * for local edits that never reached it (kept, then pushed). When the server
+ * couldn't be read and there's no local copy, the fresh seed is
+ * "seed-offline": it must not be saved over the server's (unknown) board.
+ */
+export function chooseBoardSource(input: {
+  readonly hasLocal: boolean;
+  readonly localUnsynced: boolean;
+  readonly server: ServerBoardRead;
+}): BoardSource {
+  const { hasLocal, localUnsynced, server } = input;
+  if (hasLocal && localUnsynced) return "local";
+  if (server.status === "ok") return "server";
+  if (hasLocal) return "local";
+  return server.status === "error" ? "seed-offline" : "seed";
+}

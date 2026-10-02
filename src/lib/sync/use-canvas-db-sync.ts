@@ -4,6 +4,7 @@ import * as React from "react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useCanvasStore } from "@/store/canvas-store";
 import { saveCanvasState } from "@/lib/db/repo";
+import { canWriteBoardToServer } from "@/lib/board-lifecycle";
 
 const SAVE_DEBOUNCE_MS = 1200;
 
@@ -27,15 +28,11 @@ function snapshot(): Record<string, unknown> {
 }
 
 /**
- * Phase 1 — back the active canvas board up to Supabase, WRITE-ONLY.
- *
- * localStorage (the canvas store's namespaced persist) is the single source of
- * truth for a board. We deliberately do NOT read the board back from the DB:
- * doing so raced with local hydration and could override the correct board,
- * which made canvases appear to share one board / a new canvas open an old one.
- * The DB copy is a best-effort backup; cross-device board READ will be a
- * separate, properly-built step. The save is gated on `boardCanvasId` so a
- * board is only ever written to the canvas it actually represents.
+ * Save the active canvas board to Supabase (the source of truth when signed
+ * in; `loadBoard` reads it first). Every change marks the board `unsynced`
+ * until the server confirms the save, so an offline or failed save is kept
+ * locally and pushed on the next load instead of being lost. Never writes a
+ * placeholder seed over a server board that couldn't be read.
  *
  * No-op when signed out.
  */
@@ -45,9 +42,30 @@ export function useCanvasDbSync(canvasId: string, projectId: string): void {
   React.useEffect(() => {
     if (!enabled || !user || !canvasId) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // Bumped on every change; a save only clears `unsynced` if nothing changed since.
+    let version = 0;
+    const ours = () => useCanvasStore.getState().boardCanvasId === canvasId;
+
+    const save = () => {
+      if (!ours() || !canWriteBoardToServer(canvasId)) return;
+      const saving = version;
+      void saveCanvasState(canvasId, projectId, snapshot()).then((ok) => {
+        if (ok && saving === version && ours()) useCanvasStore.setState({ unsynced: false });
+      });
+    };
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(save, SAVE_DEBOUNCE_MS);
+    };
+
     const unsub = useCanvasStore.subscribe((state, prev) => {
       // Only save once the in-memory board genuinely represents this canvas.
-      if (useCanvasStore.getState().boardCanvasId !== canvasId) return;
+      if (!ours()) return;
+      // Opened with edits the server never confirmed: push them now.
+      if (state.boardCanvasId !== prev.boardCanvasId) {
+        if (state.unsynced) schedule();
+        return;
+      }
       if (
         state.nodes === prev.nodes &&
         state.edges === prev.edges &&
@@ -59,11 +77,15 @@ export function useCanvasDbSync(canvasId: string, projectId: string): void {
       ) {
         return;
       }
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        void saveCanvasState(canvasId, projectId, snapshot());
-      }, SAVE_DEBOUNCE_MS);
+      version++;
+      // A placeholder seed (server unreadable at load) is never authoritative:
+      // pushing its edits later could overwrite the real board on the server.
+      if (!canWriteBoardToServer(canvasId)) return;
+      if (!state.unsynced) useCanvasStore.setState({ unsynced: true });
+      schedule();
     });
+    // Already loaded before this effect subscribed (fast local load).
+    if (ours() && useCanvasStore.getState().unsynced) schedule();
     return () => {
       if (timer) clearTimeout(timer);
       unsub();

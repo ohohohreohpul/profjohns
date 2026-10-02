@@ -16,56 +16,76 @@
  *   function does exactly once, at the correct moment.
  * - Undo history is cleared: a fresh board must not undo into the previous
  *   canvas's state.
+ * - Signed in, the server copy is loaded first (see `chooseBoardSource`).
  */
 import {
   useCanvasStore,
   setActiveCanvasId,
   hasStoredCanvas,
+  storedCanvasUnsynced,
 } from "@/store/canvas-store";
-import { loadCanvasState } from "@/lib/db/repo";
-import { sanitizeBoardState } from "@/lib/board-state";
+import { readCanvasState } from "@/lib/db/repo";
+import { chooseBoardSource } from "@/lib/board-state";
 
 export type BoardLoadResult = "restored" | "fresh";
 
+/**
+ * Canvases opened while the server couldn't be read and with no local copy:
+ * their in-memory board is a placeholder seed, so it must never be saved
+ * over the server's real (but unread) board.
+ */
+const offlineSeeds = new Set<string>();
+/** Each load's ticket: a newer load (another canvas opened meanwhile) wins. */
+let latestLoad = 0;
+
+/** Whether the server copy of this board may be overwritten from here. */
+export function canWriteBoardToServer(canvasId: string): boolean {
+  return !offlineSeeds.has(canvasId);
+}
+
+/**
+ * Load a canvas board. Signed in, the SERVER is the truth (so edits from
+ * another device show up), except for local edits the server never
+ * confirmed, which are kept and then pushed by the sync hook.
+ */
 export async function loadBoard(
   canvasId: string,
   opts: { direction?: string } = {},
 ): Promise<BoardLoadResult> {
+  const ticket = ++latestLoad;
   setActiveCanvasId(canvasId);
+  offlineSeeds.delete(canvasId);
+  const hasLocal = !canvasId || hasStoredCanvas(canvasId);
+  const localUnsynced = Boolean(canvasId) && storedCanvasUnsynced(canvasId);
+  // Unsynced local edits win, so don't wait on the server for them.
+  const server = canvasId && !(hasLocal && localUnsynced) ? await readCanvasState(canvasId) : ({ status: "signed-out" } as const);
+  // Another canvas was opened while we waited: that load owns the store now.
+  if (ticket !== latestLoad) return "restored";
 
-  if (!canvasId || hasStoredCanvas(canvasId)) {
-    // Existing local board — rehydrate from its namespaced key. Local ALWAYS
-    // wins when present; the DB is never consulted here (that override race
-    // was the original canvases-share-a-board bug). Writes stay blocked
-    // (boardCanvasId still names the previous canvas) until the mark below.
+  const source = chooseBoardSource({ hasLocal, localUnsynced, server });
+
+  if (source === "server" && server.status === "ok") {
+    // Apply, then mark in a second update: the mark's setState opens the
+    // persistence gate, so the server copy also becomes the local copy.
+    useCanvasStore.setState({ ...server.state, unsynced: false });
+    useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
+    useCanvasStore.temporal.getState().clear();
+    return "restored";
+  }
+
+  if (source === "local") {
+    // Writes stay blocked (boardCanvasId still names the previous canvas)
+    // until the mark below, so rehydrating can't write into another board.
     await useCanvasStore.persist.rehydrate();
     useCanvasStore.setState({ boardCanvasId: canvasId });
     useCanvasStore.temporal.getState().clear();
     return "restored";
   }
 
-  // Local miss — cross-device read: this canvas may have a board saved from
-  // another device/browser. No-op (null) when signed out or unconfigured.
-  try {
-    const dbState = sanitizeBoardState(await loadCanvasState(canvasId));
-    if (dbState) {
-      // Apply, then mark in a second update: the mark's setState triggers the
-      // (now-open) persistence gate, which writes the whole board to this
-      // canvas's localStorage key — the DB copy becomes the local copy.
-      useCanvasStore.setState(dbState);
-      useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
-      useCanvasStore.temporal.getState().clear();
-      return "restored";
-    }
-  } catch {
-    // DB unreachable — fall through to a fresh seed; the board will sync up
-    // once the connection returns.
-  }
-
-  // Genuinely new canvas — seed a fresh board. The single setState marks the
-  // board as this canvas's in the same update, so the seed itself persists.
+  // Fresh seed. Offline: keep it off the server, whose board we couldn't read.
+  if (source === "seed-offline") offlineSeeds.add(canvasId);
   useCanvasStore.getState().reset(opts.direction ?? "");
-  useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId });
+  useCanvasStore.setState({ hasHydrated: true, boardCanvasId: canvasId, unsynced: false });
   useCanvasStore.temporal.getState().clear();
   return "fresh";
 }

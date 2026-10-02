@@ -88,6 +88,17 @@ export function hasStoredCanvas(id: string): boolean {
   return localStorage.getItem(`${STORAGE_KEY}::${id}`) !== null;
 }
 
+/** Whether this browser's copy of a board has edits the server never confirmed. */
+export function storedCanvasUnsynced(id: string): boolean {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY}::${id}`);
+    return raw ? Boolean((JSON.parse(raw) as { state?: { unsynced?: boolean } }).state?.unsynced) : false;
+  } catch {
+    return false;
+  }
+}
+
 export function clearStoredCanvas(id: string): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(`${STORAGE_KEY}::${id}`);
@@ -180,6 +191,8 @@ interface CanvasState {
   seeded: boolean;
   /** True once the onboarding hint has been dismissed. */
   hintSeen: boolean;
+  /** This board has edits the server hasn't confirmed saving (offline, failed save). */
+  unsynced: boolean;
   /** Shell currently in focus mode, if any. */
   focusedShellId: string | null;
   /** The project this canvas belongs to (transient context, set on load). */
@@ -396,6 +409,7 @@ export const useCanvasStore = create<CanvasState>()(
       hasHydrated: false,
       seeded: false,
       hintSeen: false,
+      unsynced: false,
       focusedShellId: null,
       projectId: "",
       boardCanvasId: "",
@@ -824,6 +838,7 @@ reset: (direction) =>
         extracts: state.extracts,
         seeded: state.seeded,
         hintSeen: state.hintSeen,
+        unsynced: state.unsynced,
       }),
       onRehydrateStorage: () => (state) => {
         // Migrate any document still on the legacy block[] shape to ProseMirror

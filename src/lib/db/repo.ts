@@ -6,6 +6,7 @@
  * for anonymous use. RLS scopes all rows to auth.uid(); we still stamp user_id
  * on writes to satisfy the insert policies.
  */
+import { sanitizeBoardState, type ServerBoardRead } from "@/lib/board-state";
 import { createClient } from "@/lib/supabase/client";
 import type { Project, Canvas } from "@/store/workspace-store";
 import type { HomeInterest } from "@/store/workspace-store";
@@ -262,21 +263,53 @@ export async function loadCanvasState(
   return state && Object.keys(state).length > 0 ? state : null;
 }
 
-/** Save a canvas board's `state` blob (upsert; leaves metadata columns intact). */
+/** A board read should never hang the canvas: past this, treat as unreachable. */
+const BOARD_READ_TIMEOUT_MS = 6000;
+
+/**
+ * Read a canvas board from the server, telling "no board saved" apart from
+ * "couldn't reach the server" (the loader must never seed over the latter).
+ */
+export async function readCanvasState(canvasId: string): Promise<ServerBoardRead> {
+  const sb = createClient();
+  const uid = await userId();
+  if (!sb || !uid || !canvasId) return { status: "signed-out" };
+  try {
+    const query = sb.from("canvases").select("state").eq("id", canvasId).maybeSingle();
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), BOARD_READ_TIMEOUT_MS));
+    const { data, error } = await Promise.race([query, timeout]);
+    if (error) throw error;
+    const state = sanitizeBoardState(data?.state);
+    return state ? { status: "ok", state } : { status: "empty" };
+  } catch (err: unknown) {
+    console.error("[canvas] couldn't read the board from the server", err);
+    return { status: "error" };
+  }
+}
+
+/**
+ * Save a canvas board's `state` blob (upsert; leaves metadata columns
+ * intact). Returns whether it was saved, so callers never assume success.
+ */
 export async function saveCanvasState(
   canvasId: string,
   projectId: string,
   state: Record<string, unknown>,
-): Promise<void> {
+): Promise<boolean> {
   const sb = createClient();
   const uid = await userId();
-  if (!sb || !uid || !canvasId) return;
-  await sb.from("canvases").upsert({
+  if (!sb || !uid || !canvasId) return false;
+  const { error } = await sb.from("canvases").upsert({
     id: canvasId,
     project_id: projectId,
     user_id: uid,
     state,
   });
+  if (error) {
+    console.error("[canvas] couldn't save the board to the server", error);
+    return false;
+  }
+  return true;
 }
 
 /** Wipe a canvas board's stored `state` (recovery for a corrupted board). */
