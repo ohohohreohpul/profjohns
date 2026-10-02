@@ -7,8 +7,10 @@ import { niceTicks, type Cell } from "@/lib/chart-data";
 type ChartData = CardDataFor["chart"];
 
 /** Drawing area in viewBox units; the card is ~240 CSS px wide, so 1:1. */
-const W = 240;
-const H = 160;
+export const CHART_W = 240;
+export const CHART_H = 160;
+const W = CHART_W;
+const H = CHART_H;
 const PAD = { top: 8, right: 8, bottom: 26, left: 34 } as const;
 const PLOT_W = W - PAD.left - PAD.right;
 const PLOT_H = H - PAD.top - PAD.bottom;
@@ -57,7 +59,7 @@ export function describeChart(data: ChartData): string {
 }
 
 /** The chart itself, as plain SVG. `type: "table"` is drawn by ChartTable. */
-export function ChartView({ data }: { readonly data: ChartData }) {
+export function ChartView({ data, print }: { readonly data: ChartData; readonly print?: { x: number; y: number } }) {
   const values = numbersIn(data);
   if (values.length === 0) {
     return <p className="rounded-md border border-dashed border-grey-300 p-3 text-xs text-grey-600">No numbers to plot. Switch to Table, or edit the data to add a column of values.</p>;
@@ -84,7 +86,13 @@ export function ChartView({ data }: { readonly data: ChartData }) {
     `${formatCell(data.rows[row][data.xColumn])}, ${data.columns[col]}: ${formatCell(data.rows[row][col])}`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={describeChart(data)} className="block h-auto w-full overflow-visible">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={describeChart(data)}
+      // Print: a fixed-size box inside a larger export SVG (chart-print.tsx).
+      {...(print ? { x: print.x, y: print.y, width: W, height: H } : { className: "block h-auto w-full overflow-visible" })}
+    >
       {yTicks.map((t) => (
         <g key={`y${t}`}>
           <line x1={PAD.left} x2={W - PAD.right} y1={yAt(t)} y2={yAt(t)} stroke="var(--color-grey-200)" strokeWidth={t === 0 ? 1.25 : 0.75} />

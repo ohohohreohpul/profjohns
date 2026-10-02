@@ -90,6 +90,13 @@ async function signedUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
+/** A loadable URL for a stored image: its data URL, or a signed storage URL. */
+export async function figureUrl(image: { path?: string; src?: string }): Promise<string> {
+  if (image.src) return image.src;
+  if (!image.path) throw new FigureError("This image has no file.");
+  return signedUrl(image.path);
+}
+
 /** Display URL for a stored image (signed for private storage). */
 export function useFigureUrl(image: { path?: string; src?: string }): { url: string | null; error: string | null } {
   const [state, setState] = React.useState<{ url: string | null; error: string | null }>({

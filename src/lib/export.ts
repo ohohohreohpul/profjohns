@@ -2,6 +2,16 @@ import type { JSONContent } from "@tiptap/core";
 import type { WritingDoc } from "./document";
 import { FIGURE_NODE, captionBody, type VisualData, type VisualKind } from "./draft-figures";
 
+/** A figure's picture, ready to embed (prepared by the export menu). */
+export interface EmbeddedImage {
+  readonly data: Uint8Array;
+  readonly type: "png" | "jpg";
+  /** Display size in the document, px at 96 dpi. */
+  readonly width: number;
+  readonly height: number;
+  readonly alt: string;
+}
+
 /** Supported export formats for a writing document. */
 export type ExportFormat = "markdown" | "latex" | "text" | "docx";
 
@@ -17,6 +27,7 @@ interface FlatBlock {
   ordered?: boolean;
   /** Figure blocks: "Figure N." (the text holds the caption body). */
   label?: string;
+  number?: number;
 }
 
 /** Walk the document into a flat list of blocks for serialization. */
@@ -28,7 +39,7 @@ function flattenBlocks(content: JSONContent | undefined): FlatBlock[] {
       case FIGURE_NODE: {
         const { kind, data } = (node.attrs ?? {}) as { kind: VisualKind; data: VisualData };
         figures++;
-        out.push({ type: "figure", label: `Figure ${figures}.`, text: data ? captionBody(kind, data) : "" });
+        out.push({ type: "figure", number: figures, label: `Figure ${figures}.`, text: data ? captionBody(kind, data) : "" });
         return;
       }
       case "heading":
@@ -160,18 +171,38 @@ export function docToLatex(doc: WritingDoc, references: string[] = []): string {
 async function docToDocxBlob(
   doc: WritingDoc,
   references: string[],
+  images: ReadonlyMap<number, EmbeddedImage>,
 ): Promise<Blob> {
-  const { Document, Packer, Paragraph, HeadingLevel, TextRun } = await import(
-    "docx"
-  );
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun, AlignmentType } = await import("docx");
+  const figure = (b: FlatBlock) => {
+    const image = b.number !== undefined ? images.get(b.number) : undefined;
+    const caption = new Paragraph({
+      spacing: { after: 240 },
+      children: [new TextRun({ text: `${b.label} `, bold: true }), new TextRun(b.text)],
+    });
+    if (!image) return [caption];
+    const picture = new Paragraph({
+      alignment: AlignmentType.CENTER,
+      keepNext: true, // never strand a figure on one page and its caption on the next
+      children: [
+        new ImageRun({
+          type: image.type,
+          data: image.data,
+          transformation: { width: image.width, height: image.height },
+          altText: { name: b.label ?? "Figure", title: b.label ?? "Figure", description: image.alt },
+        }),
+      ],
+    });
+    return [picture, caption];
+  };
   const children = [
     new Paragraph({ text: doc.title, heading: HeadingLevel.TITLE }),
-    ...flattenBlocks(doc.content).map((b) =>
+    ...flattenBlocks(doc.content).flatMap((b) =>
       b.type === "heading"
-        ? new Paragraph({ text: b.text, heading: HeadingLevel.HEADING_1 })
+        ? [new Paragraph({ text: b.text, heading: HeadingLevel.HEADING_1 })]
         : b.type === "figure"
-          ? new Paragraph({ children: [new TextRun({ text: `${b.label} `, bold: true }), new TextRun(b.text)] })
-          : new Paragraph({ children: [new TextRun(b.text)] }),
+          ? figure(b)
+          : [new Paragraph({ children: [new TextRun(b.text)] })],
     ),
   ];
   if (references.length) {
@@ -200,11 +231,13 @@ export async function exportDocument(
   doc: WritingDoc,
   format: ExportFormat,
   references: string[] = [],
+  /** Figure pictures by figure number (Word only; other formats get captions). */
+  images: ReadonlyMap<number, EmbeddedImage> = new Map(),
 ): Promise<void> {
   const filename = `${slugify(doc.title)}.${EXTENSION[format]}`;
 
   if (format === "docx") {
-    const blob = await docToDocxBlob(doc, references);
+    const blob = await docToDocxBlob(doc, references, images);
     triggerDownload(blob, filename);
     return;
   }

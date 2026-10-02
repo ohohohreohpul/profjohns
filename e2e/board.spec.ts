@@ -234,3 +234,42 @@ test("figures in the draft: Add to draft from a card, place another from the edi
   expect(md).toContain("**Figure 1.** ImageNet accuracy.");
   expect(md).toContain("**Figure 2.**");
 });
+
+test("Word export embeds each figure's picture (chart and image) above its caption", async ({ page }) => {
+  const insights = wall(page, "Insights");
+  const png = await page.evaluate(async () => {
+    const c = document.createElement("canvas");
+    c.width = 60;
+    c.height = 40;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#0e9f6e";
+    ctx.fillRect(0, 0, 60, 40);
+    const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), "image/png"));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await insights.locator('input[type="file"][accept="image/*"]').setInputFiles({ name: "fig.png", mimeType: "image/png", buffer: Buffer.from(png) });
+  const picture = insights.getByRole("article").filter({ hasText: "Figure" });
+  await expect(picture.locator("img")).toBeVisible({ timeout: 15_000 });
+  await insights.getByRole("button", { name: "Add chart" }).click();
+  await insights.getByLabel("Chart data").fill(RESULTS_TSV);
+  await insights.getByRole("button", { name: "Make chart" }).click();
+
+  for (const label of ["Figure card options", "Chart card options"]) {
+    await insights.getByRole("button", { name: label }).click();
+    await page.getByRole("menuitem", { name: "Add to draft" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Added to the draft" })).toBeVisible();
+    await page.waitForTimeout(300);
+  }
+
+  await wall(page, "Draft").getByRole("article").getByRole("button", { name: "Open editor" }).click();
+  await expect(page.locator(".ProseMirror figure[data-figure-ref]")).toHaveCount(2, { timeout: 15_000 });
+  await page.getByRole("button", { name: "Export" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: /Word/ }).click();
+  const fs = await import("node:fs/promises");
+  const docx = await fs.readFile((await (await download).path())!);
+  // A .docx is a zip: entry names are stored in the clear.
+  const entries = docx.toString("latin1").match(/word\/media\/[\w.-]+\.png/g) ?? [];
+  expect(new Set(entries).size).toBe(2);
+  await expect(page.getByRole("status").filter({ hasText: "couldn't be embedded" })).toHaveCount(0);
+});
