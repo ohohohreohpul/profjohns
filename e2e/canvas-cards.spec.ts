@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { canvasClaims, canvasVisuals, themeInsights, cardOf } from "../src/lib/canvas-cards";
+import { canvasClaims, canvasVisuals, themeInsights, cardOf, themesFromSynthesis, insightsAsSources } from "../src/lib/canvas-cards";
 
 const SOURCE = { paperId: "p1", title: "Bandits beat A/B tests", authors: "E. Schwartz", year: 2017 };
 const insight = (id: string, statement: string) => ({
@@ -41,4 +41,24 @@ test("visuals: every valid figure and chart on the canvas, by node id", () => {
     ["f1", "figure"],
     ["c1", "chart"],
   ]);
+});
+
+test("suggested themes map the AI's 1-based source numbers back to insight nodes", () => {
+  const groups = themesFromSynthesis(["i1", "i2", "i3"], [
+    { theme: "Speed", sources: [1, 3, 3] },
+    { theme: "Cost", sources: [2, 9] },
+    { theme: "Empty", sources: [7] },
+    { theme: "  ", sources: [1] },
+  ]);
+  expect(groups).toEqual([
+    { name: "Speed", insightIds: ["i1", "i3"] },
+    { name: "Cost", insightIds: ["i2"] },
+  ]);
+});
+
+test("insights become numbered sources for the synthesis, citing their papers", () => {
+  const nodes = [insight("i1", "Bandits learn faster"), theme("t1", "x"), insight("i2", "Costs drop")];
+  const { ids, sources } = insightsAsSources(nodes);
+  expect(ids).toEqual(["i1", "i2"]);
+  expect(sources[0]).toMatchObject({ title: "Bandits beat A/B tests", authors: "E. Schwartz", year: 2017, abstract: "Bandits learn faster" });
 });

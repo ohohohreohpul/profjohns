@@ -143,3 +143,28 @@ test("a chart on the canvas can be placed in the Draft as Figure 1", async ({ pa
   await expect(fig.getByRole("img", { name: /^Line chart of loss by epoch/ })).toBeVisible();
   await expect(fig.locator("figcaption")).toHaveText("Figure 1.");
 });
+
+/**
+ * Regression (prod, 2026-10-02): a hard-coded "stale node kinds" list on the
+ * canvas page didn't know the new kinds, so reloading a canvas with a Theme,
+ * Insight, Figure or Chart WIPED the whole canvas and re-seeded it.
+ */
+test("a canvas with the new node kinds survives a reload intact", async ({ page }) => {
+  await page.getByRole("button", { name: "Add Theme node" }).click();
+  await page.getByRole("button", { name: "Add Text node" }).click();
+  await page.locator(".react-flow__pane").click({ position: { x: 600, y: 500 } });
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData("text/plain", "Model\tTop-1\nViT-B\t81.8\nMixer\t76.4");
+    window.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }));
+  });
+  await expect(nodeOf(page, "chart").locator("svg[role=img]")).toBeVisible();
+  const before = await page.locator(NODE).count();
+  await page.waitForTimeout(500);
+  await page.reload();
+  await expect(page.locator(NODE).first()).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(800);
+  await expect(page.locator(NODE)).toHaveCount(before);
+  await expect(nodeOf(page, "theme")).toHaveCount(1);
+  await expect(nodeOf(page, "chart").locator("svg[role=img]")).toBeVisible();
+});

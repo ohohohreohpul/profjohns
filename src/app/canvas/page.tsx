@@ -16,6 +16,7 @@ import { useProfileSync } from "@/store/use-profile-sync";
 import { useCanvasDbSync } from "@/lib/sync/use-canvas-db-sync";
 import { parseSourcesParam } from "@/components/home/hero-sources-popover";
 import { cn } from "@/lib/utils";
+import { NODE_DEFINITIONS } from "@/lib/node-catalog";
 
 function Loader() {
   return (
@@ -135,20 +136,21 @@ function CanvasWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasId]);
 
-  // Clean up old canvas data from previous versions — resets if stale node types found
+  // Drop nodes of kinds this version can't render (old experiments), and
+  // only those. Never wipe the board: a hard-coded kind list here once
+  // missed new kinds and erased whole canvases on reload. Kinds come from
+  // the node catalog, so a new kind can't be "stale".
   React.useEffect(() => {
     if (!hasHydrated || !isBoardReady) return;
     const state = useCanvasStore.getState();
-    const validKinds = ["explorer", "processor", "block", "text", "shell", "writing", "assistant", "paper", "media", "library", "link"];
-    const hasStale = state.nodes.some(
-      (n) => !validKinds.includes(n.data.kind),
-    );
-    if (hasStale && state.nodes.length > 0) {
-      // Old data detected — clear and re-seed
-      localStorage.removeItem("lattice-canvas-v1");
-      reset(direction || state.direction);
-    }
-  }, [hasHydrated, isBoardReady, direction, reset]);
+    const stale = new Set(state.nodes.filter((n) => !(n.data.kind in NODE_DEFINITIONS)).map((n) => n.id));
+    if (stale.size === 0) return;
+    console.error(`[canvas] dropping ${stale.size} node(s) of unknown kind`, [...stale]);
+    useCanvasStore.setState({
+      nodes: state.nodes.filter((n) => !stale.has(n.id)),
+      edges: state.edges.filter((e) => !stale.has(e.source) && !stale.has(e.target)),
+    });
+  }, [hasHydrated, isBoardReady]);
 
   React.useEffect(() => {
     const state = useCanvasStore.getState();

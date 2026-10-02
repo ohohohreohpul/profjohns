@@ -8,6 +8,7 @@
 import { parseCardData, type Card, type CardDataFor } from "@/lib/board/schema";
 import { buildClaims } from "@/lib/board/claims";
 import type { BoardVisual } from "@/lib/draft-figures";
+import type { PaperSource } from "@/lib/mock";
 
 export const CARD_NODE_KINDS = ["insight", "theme", "figure", "chart"] as const;
 export type CardNodeKind = (typeof CARD_NODE_KINDS)[number];
@@ -81,5 +82,40 @@ export function canvasVisuals(nodes: readonly NodeLike[]): BoardVisual[] {
       return data ? [{ id: n.id, kind: "chart", data }] : [];
     }
     return [];
+  });
+}
+
+/** The canvas's insights as numbered sources for the synthesis prompt. */
+export function insightsAsSources(nodes: readonly NodeLike[]): { ids: string[]; sources: PaperSource[] } {
+  const ids: string[] = [];
+  const sources: PaperSource[] = [];
+  for (const n of nodes) {
+    const data = cardOf(n, "insight");
+    if (!data) continue;
+    ids.push(n.id);
+    sources.push({
+      id: n.id,
+      title: data.source?.title ?? "Untitled source",
+      authors: data.source?.authors ?? "",
+      venue: "",
+      year: data.source?.year ?? 0,
+      abstract: data.statement,
+    });
+  }
+  return { ids, sources };
+}
+
+/**
+ * The synthesis's themes as groups of insight node ids. Its `sources` are
+ * 1-based positions in `ids`; out-of-range numbers and empty themes drop.
+ */
+export function themesFromSynthesis(
+  ids: readonly string[],
+  themes: readonly { theme: string; sources: readonly number[] }[],
+): { name: string; insightIds: string[] }[] {
+  return themes.flatMap((t) => {
+    const name = t.theme.trim();
+    const insightIds = [...new Set(t.sources.map((n) => ids[n - 1]).filter((x): x is string => Boolean(x)))];
+    return name && insightIds.length > 0 ? [{ name, insightIds }] : [];
   });
 }
