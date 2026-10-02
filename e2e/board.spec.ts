@@ -364,3 +364,28 @@ test("figure references in the text renumber when figures are removed, and flag 
   const fs = await import("node:fs/promises");
   expect(await fs.readFile((await (await download).path())!, "utf8")).toContain("as shown in Figure ?");
 });
+
+test("search survives an index that's down: Semantic Scholar rate limited -> results from OpenAlex", async ({ page }) => {
+  // Replays production: every angle routed to Semantic Scholar, which answers 502 (upstream 429).
+  const s2 = { calls: 0 };
+  await page.route("**/api/semantic-scholar**", (r) => {
+    s2.calls++;
+    return r.fulfill({ status: 502, json: { success: false, data: null, error: "Semantic Scholar is rate limiting" } });
+  });
+  await page.route("**/api/ai", async (r) => {
+    const body = r.request().postDataJSON() as { mode?: string };
+    if (body.mode !== "angles") return r.fulfill({ status: 502, json: { success: false, data: null, error: "AI off in e2e" } });
+    const angles = [
+      { query: "multi-armed bandit display advertising", rationale: "core", source: "semanticscholar" },
+      { query: "A/B testing ad experiments", rationale: "baseline", source: "semanticscholar" },
+    ];
+    return r.fulfill({ json: { success: true, data: { answer: JSON.stringify(angles) }, error: null } });
+  });
+
+  await page.getByRole("textbox", { name: "Search for papers" }).fill("Do bandit experiments beat A/B tests?");
+  await page.getByRole("button", { name: "Find papers" }).click();
+  await expect(wall(page, "Sources").getByRole("article")).toHaveCount(3, { timeout: 20_000 });
+  await expect(wall(page, "Sources")).not.toContainText("Search failed");
+  // The down index is tried once, then skipped for the rest of the search.
+  expect(s2.calls).toBeLessThanOrEqual(2);
+});

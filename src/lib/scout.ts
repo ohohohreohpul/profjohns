@@ -71,7 +71,42 @@ export async function planScoutAngles(
   }
 }
 
+/** Broad indexes to retry on, in order, when an angle's own index fails. */
+const FALLBACK_ORDER: readonly SourceProvider[] = ["openalex", "semanticscholar", "arxiv"];
+
+/**
+ * Where to retry when `failed` errors: the first index in FALLBACK_ORDER the
+ * board allows (all, when unrestricted) that isn't already known to be down.
+ */
+export function fallbackProvider(
+  failed: SourceProvider,
+  down: ReadonlySet<SourceProvider>,
+  allowed?: readonly SourceProvider[],
+): SourceProvider | null {
+  return FALLBACK_ORDER.find((p) => p !== failed && !down.has(p) && (!allowed || allowed.includes(p))) ?? null;
+}
+
 const titleKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** One angle's search; on failure, the same query on a working index. */
+async function searchWithFallback(
+  source: SourceProvider,
+  query: string,
+  down: Set<SourceProvider>,
+  allowed?: readonly SourceProvider[],
+): Promise<PaperSource[]> {
+  let provider: SourceProvider | null = down.has(source) ? fallbackProvider(source, down, allowed) : source;
+  while (provider) {
+    try {
+      return await searchProvider(provider, query);
+    } catch (err: unknown) {
+      down.add(provider);
+      console.error(`[scout] ${provider} search failed; trying another index`, err);
+      provider = fallbackProvider(provider, down, allowed);
+    }
+  }
+  throw new ScoutError("Every search index failed for this angle.");
+}
 
 /** Step 2: search the angles, then rank, screen and decide what to keep. */
 export async function searchAndScreen(
@@ -87,13 +122,15 @@ export async function searchAndScreen(
   const knownTitles = new Set((opts.known ?? []).map((k) => titleKey(k.title)));
   const perAngle: PaperSource[][] = [];
   let anyOk = false;
+  // Indexes that failed during this search (rate limited, down): skipped after.
+  const down = new Set<SourceProvider>();
 
   for (let i = 0; i < angles.length; i++) {
     opts.onProgress?.(angles.length > 1 ? `Searching angle ${i + 1} of ${angles.length}…` : "Searching…");
     if (i > 0) await new Promise((r) => setTimeout(r, BETWEEN_ANGLES_MS)); // be polite to public APIs
     const mine: PaperSource[] = [];
     try {
-      const found = await searchProvider(angles[i].source, angles[i].query);
+      const found = await searchWithFallback(angles[i].source, angles[i].query, down, opts.allowedSources);
       anyOk = true;
       for (const p of found.slice(0, RESULTS_PER_ANGLE)) {
         const tk = titleKey(p.title);
