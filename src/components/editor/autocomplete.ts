@@ -56,7 +56,7 @@ export const Autocomplete = Extension.create<AutocompleteOptions, AutocompleteSt
   },
 
   addStorage() {
-    return { enabled: true };
+    return { enabled: false };
   },
 
   addCommands() {

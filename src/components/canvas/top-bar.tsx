@@ -10,10 +10,6 @@ import {
   Layout as PanelsTopLeft,
   Graph as Network,
   Books as Library,
-  Image as ImageIcon,
-  Link as Link2,
-  Robot as Bot,
-  Plug,
   ArrowLeft,
   DotsThree,
   Eraser,
@@ -35,13 +31,6 @@ import { clearCanvasState } from "@/lib/db/repo";
 const PROJECT_SURFACES = [
   { label: "Canvases", href: "/canvases", icon: Network },
   { label: "Library", href: "/library", icon: Library },
-  { label: "Media", href: "/media", icon: ImageIcon },
-  { label: "Links", href: "/links", icon: Link2 },
-] as const;
-
-const WORKSPACE_SURFACES = [
-  { label: "Agents", href: "/agents", icon: Bot },
-  { label: "Connectors", href: "/mcp", icon: Plug },
 ] as const;
 
 function SurfacesMenu({ projectId }: { projectId: string }) {
@@ -64,19 +53,6 @@ function SurfacesMenu({ projectId }: { projectId: string }) {
           This project
         </p>
         {PROJECT_SURFACES.map((s) => {
-          const Icon = s.icon;
-          return (
-            <Link key={s.href} href={`${s.href}${q}`} className={item}>
-              <Icon className="size-4 shrink-0 text-grey-500" />
-              {s.label}
-            </Link>
-          );
-        })}
-        <Separator className="my-1" />
-        <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-grey-400">
-          Workspace
-        </p>
-        {WORKSPACE_SURFACES.map((s) => {
           const Icon = s.icon;
           return (
             <Link key={s.href} href={`${s.href}${q}`} className={item}>

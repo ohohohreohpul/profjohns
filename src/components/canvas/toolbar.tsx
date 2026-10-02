@@ -170,7 +170,7 @@ export function Toolbar({ onAdd, tool, onToolChange, onTidy, onUploadPdf }: Tool
             </TooltipTrigger>
             <TooltipContent side="right">
               <p className="font-medium">More nodes</p>
-              <p className="text-grey-300">Data viz, paper &amp; more</p>
+              <p className="text-grey-300">Group, Link</p>
             </TooltipContent>
           </Tooltip>
           <PopoverContent side="right" align="end">

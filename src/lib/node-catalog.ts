@@ -140,20 +140,20 @@ export const NODE_ORDER: NodeKind[] = [
   "assistant",
 ];
 
+/** The toolbar, in research order. Rarely-needed kinds sit under "More". */
 export const CORE_ORDER: NodeKind[] = [
   "explorer",
   "library",
-  "link",
   "processor",
   "media",
   "block",
   "text",
-  "shell",
   "assistant",
   "writing",
 ];
 
-export const ADVANCED_ORDER: NodeKind[] = [];
+/** Kept, but out of the main toolbar (feature review, 2026-10-02). */
+export const ADVANCED_ORDER: NodeKind[] = ["link", "shell"];
 
 export const SUGGESTED_NEXT: Record<NodeKind, NodeKind[]> = {
   explorer: ["processor", "shell", "text", "writing"],

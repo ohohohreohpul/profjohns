@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Graph as Network, Books as Library, Image as ImageIcon, Link as Link2, ArrowUpRight } from "@phosphor-icons/react";
+import { Graph as Network, Books as Library, ArrowUpRight } from "@phosphor-icons/react";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { InlineEdit } from "@/components/ui/inline-edit";
 import { cn } from "@/lib/utils";
@@ -12,8 +12,6 @@ type SpaceTab = "canvases" | "library" | "media" | "links";
 const TABS: readonly { key: SpaceTab; label: string; href: string; icon: typeof Network }[] = [
   { key: "canvases", label: "Canvases", href: "/canvases", icon: Network },
   { key: "library", label: "Library", href: "/library", icon: Library },
-  { key: "media", label: "Media", href: "/media", icon: ImageIcon },
-  { key: "links", label: "Links", href: "/links", icon: Link2 },
 ];
 
 /**

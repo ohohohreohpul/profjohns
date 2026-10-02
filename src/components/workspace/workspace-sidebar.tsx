@@ -7,10 +7,7 @@ import {
   Compass,
   Stack as Layers,
   Books as Library,
-  Robot as Bot,
-  Plug,
   Clock,
-  Binoculars as Telescope,
   SidebarSimple as PanelLeftClose,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -34,9 +31,6 @@ export type SurfaceKey =
   | "library"
   | "media"
   | "links"
-  | "agents"
-  | "mcp"
-  | "watch"
   | "account"
   | "billing";
 
@@ -51,9 +45,6 @@ const NAV: readonly NavItem[] = [
   { key: "discover", label: "Discover", href: "/", icon: Compass },
   { key: "spaces", label: "Spaces", href: "/spaces", icon: Layers },
   { key: "library", label: "Readroom", href: "/library", icon: Library },
-  { key: "watch", label: "Watch", href: "/watch", icon: Telescope },
-  { key: "agents", label: "Agents", href: "/agents", icon: Bot },
-  { key: "mcp", label: "Connectors", href: "/mcp", icon: Plug },
 ];
 
 export function WorkspaceSidebar({ active }: { active: SurfaceKey }) {

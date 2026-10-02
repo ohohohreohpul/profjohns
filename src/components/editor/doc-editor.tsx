@@ -152,9 +152,10 @@ export function DocEditor({
     if (!editor) return;
     try {
       editor.storage.autocomplete.enabled =
-        localStorage.getItem(AUTOCOMPLETE_PREF) !== "off";
+        // Opt-in (feature review): ghost text only for those who turned it on.
+        localStorage.getItem(AUTOCOMPLETE_PREF) === "on";
     } catch {
-      /* storage unavailable — leave default (on) */
+      /* storage unavailable: leave the default (off) */
     }
   }, [editor]);
 
@@ -272,9 +273,9 @@ function Toolbar({ editor, bare = false }: { editor: Editor; bare?: boolean }) {
 
 /** Ghost-text autocomplete on/off — persists the preference. */
 function AutocompleteToggle({ editor }: { editor: Editor }) {
-  const [on, setOn] = React.useState(true);
+  const [on, setOn] = React.useState(false);
   React.useEffect(() => {
-    setOn(editor.storage.autocomplete?.enabled ?? true);
+    setOn(editor.storage.autocomplete?.enabled ?? false);
   }, [editor]);
 
   function toggle() {
