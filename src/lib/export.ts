@@ -1,6 +1,6 @@
 import type { JSONContent } from "@tiptap/core";
 import type { WritingDoc } from "./document";
-import { FIGURE_NODE, captionBody, type VisualData, type VisualKind } from "./draft-figures";
+import { FIGURE_MENTION_NODE, FIGURE_NODE, captionBody, figureNumbers, mentionLabel, type VisualData, type VisualKind } from "./draft-figures";
 
 /** A figure's picture, ready to embed (prepared by the export menu). */
 export interface EmbeddedImage {
@@ -15,10 +15,11 @@ export interface EmbeddedImage {
 /** Supported export formats for a writing document. */
 export type ExportFormat = "markdown" | "latex" | "text" | "docx";
 
-/** Flatten a block node's inline children to plain text. */
-function inlineText(node: JSONContent): string {
+/** Flatten a block node's inline children to plain text ("Figure N" for references). */
+function inlineText(node: JSONContent, numbers: ReadonlyMap<string, number>): string {
   if (node.type === "text") return node.text ?? "";
-  return (node.content ?? []).map(inlineText).join("");
+  if (node.type === FIGURE_MENTION_NODE) return mentionLabel(String(node.attrs?.cardId ?? ""), numbers);
+  return (node.content ?? []).map((c) => inlineText(c, numbers)).join("");
 }
 
 interface FlatBlock {
@@ -33,6 +34,8 @@ interface FlatBlock {
 /** Walk the document into a flat list of blocks for serialization. */
 function flattenBlocks(content: JSONContent | undefined): FlatBlock[] {
   const out: FlatBlock[] = [];
+  const numbers = figureNumbers(content);
+  const inline = (n: JSONContent) => inlineText(n, numbers);
   let figures = 0;
   const walk = (node: JSONContent, listKind?: "bullet" | "ordered") => {
     switch (node.type) {
@@ -43,20 +46,20 @@ function flattenBlocks(content: JSONContent | undefined): FlatBlock[] {
         return;
       }
       case "heading":
-        out.push({ type: "heading", text: inlineText(node) });
+        out.push({ type: "heading", text: inline(node) });
         return;
       case "paragraph": {
-        const text = inlineText(node);
+        const text = inline(node);
         if (text.trim()) out.push({ type: "paragraph", text });
         return;
       }
       case "blockquote":
-        out.push({ type: "blockquote", text: inlineText(node) });
+        out.push({ type: "blockquote", text: inline(node) });
         return;
       case "listItem":
         out.push({
           type: "listItem",
-          text: inlineText(node),
+          text: inline(node),
           ordered: listKind === "ordered",
         });
         return;

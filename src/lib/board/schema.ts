@@ -53,12 +53,25 @@ const SourceRefSchema = z.object({
   year: z.number().optional(),
 });
 
+export const MAX_HIGHLIGHTS = 500;
+const MAX_HIGHLIGHT_CHARS = 4000;
+
+/** A passage marked in the Reader (text view: paraIndex; PDF view: page). */
+const HighlightSchema = z.object({
+  id: z.string().min(1),
+  text: z.string().min(1).max(MAX_HIGHLIGHT_CHARS),
+  paraIndex: z.number().int().min(-1),
+  page: z.number().int().min(1).optional(),
+});
+
 const PaperCardSchema = z.object({
   paper: PaperSourceSchema,
   status: z.enum(["new", "kept"]).default("new"),
   /** 0-100 relevance to the board's question (Jev). */
   score: z.number().min(0).max(100).optional(),
   why: z.string().optional(),
+  /** Reader highlights in this paper, saved with the board. */
+  highlights: z.array(HighlightSchema).max(MAX_HIGHLIGHTS).default([]),
 });
 
 const InsightCardSchema = z.object({

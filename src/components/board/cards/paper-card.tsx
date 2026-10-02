@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BookOpen, Check, FilePdf } from "@phosphor-icons/react";
+import { BookOpen, Check, FilePdf, Highlighter } from "@phosphor-icons/react";
 import type { CardDataFor } from "@/lib/board/schema";
 import { pdfLinkFor } from "@/lib/pdf-url";
 
@@ -13,7 +13,7 @@ interface PaperCardBodyProps {
 
 /** A paper: title, who/when, relevance, and Read / Keep. */
 export function PaperCardBody({ data, onRead, onKeep }: PaperCardBodyProps) {
-  const { paper, status, score, why } = data;
+  const { paper, status, score, why, highlights } = data;
   const meta = [paper.authors, paper.year].filter(Boolean).join(" · ");
   const hasPdf = !!pdfLinkFor(paper);
   return (
@@ -41,6 +41,12 @@ export function PaperCardBody({ data, onRead, onKeep }: PaperCardBodyProps) {
           </button>
         )}
         <span className="ml-auto flex items-center gap-1.5 text-xs tabular-nums text-grey-600">
+          {highlights.length > 0 && (
+            <span className="flex items-center gap-0.5" title="Highlights in this paper">
+              <Highlighter aria-hidden className="size-3.5" />
+              {highlights.length} highlight{highlights.length === 1 ? "" : "s"}
+            </span>
+          )}
           {status === "new" && <span className="rounded bg-grey-100 px-1.5 py-0.5 font-medium">New</span>}
           {score !== undefined && <span title="Relevance to your question">{score}</span>}
         </span>

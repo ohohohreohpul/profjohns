@@ -92,6 +92,7 @@ function FigureRefView({ node, updateAttributes, deleteNode, selected, editor, g
     <NodeViewWrapper
       as="figure"
       data-figure-ref=""
+      data-card-id={cardId}
       className={cn(
         "figure-ref group/figure relative my-5 rounded-lg p-2 transition-shadow",
         selected && "ring-2 ring-highlight",

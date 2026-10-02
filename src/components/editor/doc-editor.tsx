@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { NodeSelection, Selection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
@@ -20,6 +21,7 @@ import { emptyDocContent } from "@/lib/document";
 import { Citation } from "./citation-mark";
 import { Unsupported } from "./unsupported-mark";
 import { FigureRef } from "./figure-node";
+import { FigureMention } from "./figure-mention";
 import { InsertFigureButton } from "./insert-figure";
 import { Autocomplete } from "./autocomplete";
 import { completeText } from "@/lib/ai-client";
@@ -99,6 +101,7 @@ export function DocEditor({
       Citation,
       Unsupported,
       FigureRef,
+      FigureMention,
       Autocomplete.configure({ fetchSuggestion: completeText }),
       Placeholder.configure({
         placeholder: compact
@@ -116,6 +119,14 @@ export function DocEditor({
           compact ? "min-h-[120px] text-[15px] leading-[1.7]" : "min-h-[320px]",
         ),
       },
+    },
+    // A draft can start with a figure; the default start selection would then
+    // select it, and the first keystroke would replace it. Start in text.
+    onCreate: ({ editor }) => {
+      const { state } = editor;
+      if (!(state.selection instanceof NodeSelection)) return;
+      const text = Selection.findFrom(state.doc.resolve(0), 1, true);
+      if (text) editor.view.dispatch(state.tr.setSelection(text).setMeta("addToHistory", false));
     },
     onUpdate: ({ editor }) => {
       writing.current = true;

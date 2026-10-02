@@ -205,6 +205,9 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
   function handleAnimEnd(e: React.AnimationEvent) {
     if (closing && e.target === readerRef.current) {
       closeReader();
+      // The surface stays mounted: without this the next paper opened replays
+      // the exit animation and closes itself a moment later.
+      setClosing(false);
     }
   }
 

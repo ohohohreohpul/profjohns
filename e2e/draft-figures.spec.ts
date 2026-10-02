@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { JSONContent } from "@tiptap/core";
-import { appendFigure, figureCaption, figureNodeFor, listFigures, FIGURE_NODE } from "../src/lib/draft-figures";
+import { appendFigure, figureCaption, figureNodeFor, figureNumbers, listFigures, mentionLabel, FIGURE_MENTION_NODE, FIGURE_NODE } from "../src/lib/draft-figures";
 import { docToMarkdown, docToPlainText, docToLatex } from "../src/lib/export";
 
 const SOURCE = { paperId: "1204.5721", title: "Regret Analysis of Bandit Problems", authors: "Sebastien Bubeck, Nicolo Cesa-Bianchi", year: 2012 };
@@ -66,4 +66,36 @@ test("exports carry numbered figure captions", () => {
   expect(md).toContain("**Figure 2.** Regret of UCB over time. Source: Sebastien Bubeck et al. (2012), p. 3.");
   expect(docToPlainText(wd as never)).toContain("Figure 1. ImageNet accuracy.");
   expect(docToLatex(wd as never)).toContain("\\paragraph*{Figure 2.} Regret of UCB over time.");
+});
+
+const mention = (cardId: string): JSONContent => ({ type: FIGURE_MENTION_NODE, attrs: { cardId } });
+const paraWith = (...inline: JSONContent[]): JSONContent => ({ type: "paragraph", content: inline });
+const text = (t: string): JSONContent => ({ type: "text", text: t });
+
+test("figure references read as the figure's current number, or Figure ? when it's gone", () => {
+  const content = doc(
+    figureNodeFor({ id: "a", kind: "chart", data: CHART }),
+    figureNodeFor({ id: "b", kind: "figure", data: FIGURE }),
+  );
+  const numbers = figureNumbers(content);
+  expect(mentionLabel("b", numbers)).toBe("Figure 2");
+  expect(mentionLabel("gone", numbers)).toBe("Figure ?");
+});
+
+test("exports write references inline with the right numbers", () => {
+  const wd = {
+    title: "T",
+    style: "apa" as const,
+    outline: [],
+    content: doc(
+      paraWith(text("Accuracy is in "), mention("b"), text(", regret in "), mention("a"), text(".")),
+      figureNodeFor({ id: "a", kind: "chart", data: CHART }),
+      figureNodeFor({ id: "b", kind: "figure", data: FIGURE }),
+      paraWith(text("See "), mention("deleted"), text(".")),
+    ),
+  };
+  const md = docToMarkdown(wd as never);
+  expect(md).toContain("Accuracy is in Figure 2, regret in Figure 1.");
+  expect(md).toContain("See Figure ?.");
+  expect(docToPlainText(wd as never)).toContain("Accuracy is in Figure 2, regret in Figure 1.");
 });

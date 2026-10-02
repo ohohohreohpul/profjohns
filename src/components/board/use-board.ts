@@ -47,6 +47,15 @@ interface BoardRef {
 export interface BoardActions {
   addCard: (wallId: string, kind: CardKind, data: unknown, where?: "top" | "bottom") => Promise<Card | null>;
   updateCardData: (cardId: string, data: unknown) => Promise<void>;
+  /**
+   * Update a card from its LATEST data (read at call time), so two quick
+   * changes (e.g. two highlights) can't both start from the same old copy.
+   */
+  patchCardData: <K extends CardKind>(
+    cardId: string,
+    kind: K,
+    change: (data: Card<K>["data"]) => Card<K>["data"],
+  ) => Promise<void>;
   /** Move to `wallId`, before the card `beforeId` (or to the end). */
   moveCard: (cardId: string, wallId: string, beforeId?: string) => Promise<void>;
   deleteCard: (cardId: string) => Promise<void>;
@@ -57,8 +66,7 @@ export type BoardState =
   | { readonly status: "error"; readonly message: string }
   | { readonly status: "ready"; readonly snapshot: BoardSnapshot };
 
-const messageFor = (err: unknown, fallback: string) =>
-  err instanceof BoardRepositoryError ? err.message : fallback;
+const messageFor = (err: unknown, fallback: string) => (err instanceof BoardRepositoryError ? err.message : fallback);
 
 /**
  * A board loaded from the server (the source of truth). Mutations apply
@@ -79,7 +87,10 @@ export function useBoard(ref: BoardRef) {
   const { boardId, projectId } = ref;
   // Names only label new rows; they arrive from the workspace store a moment
   // after mount and must not re-run the load (that raced into duplicates).
-  const names = React.useRef({ boardName: ref.boardName, projectName: ref.projectName });
+  const names = React.useRef({
+    boardName: ref.boardName,
+    projectName: ref.projectName,
+  });
   names.current = { boardName: ref.boardName, projectName: ref.projectName };
 
   const setSnapshot = React.useCallback((next: BoardSnapshot) => {
@@ -100,7 +111,11 @@ export function useBoard(ref: BoardRef) {
         const snapshot = await repo.load(boardId);
         if (!cancelled) setSnapshot(snapshot);
       } catch (err: unknown) {
-        if (!cancelled) setState({ status: "error", message: messageFor(err, "Couldn't open this board. Try again.") });
+        if (!cancelled)
+          setState({
+            status: "error",
+            message: messageFor(err, "Couldn't open this board. Try again."),
+          });
       }
     })();
     return () => {
@@ -132,8 +147,29 @@ export function useBoard(ref: BoardRef) {
   const cardsIn = (s: BoardSnapshot, wallId: string) =>
     s.cards.filter((c) => c.wallId === wallId).sort((a, b) => a.position - b.position);
 
-  const actions: BoardActions = React.useMemo(
-    () => ({
+  const actions: BoardActions = React.useMemo(() => {
+    const updateCardData: BoardActions["updateCardData"] = async (cardId, data) => {
+      const card = snapshotRef.current?.cards.find((c) => c.id === cardId);
+      if (!repo || !card) return;
+      let parsed: Card["data"];
+      try {
+        parsed = parseCardData(card.kind, data);
+      } catch {
+        setSaveError("That change isn't valid for this card.");
+        return;
+      }
+      await optimistic(
+        (s) => ({
+          ...s,
+          cards: s.cards.map((c) => (c.id === cardId ? ({ ...c, data: parsed } as Card) : c)),
+        }),
+        async () => {
+          await saveInOrder(cardId, () => repo.updateCard(cardId, { data: parsed }));
+        },
+        "Couldn't save that change.",
+      );
+    };
+    return {
       async addCard(wallId, kind, data, where = "bottom") {
         const s = snapshotRef.current;
         if (!repo || !s) return null;
@@ -143,7 +179,14 @@ export function useBoard(ref: BoardRef) {
             ? positionBetween(undefined, inWall[0]?.position)
             : positionBetween(inWall[inWall.length - 1]?.position, undefined);
         try {
-          const card = await repo.addCard({ boardId, projectId, wallId, kind, position, data });
+          const card = await repo.addCard({
+            boardId,
+            projectId,
+            wallId,
+            kind,
+            position,
+            data,
+          });
           const latest = snapshotRef.current ?? s;
           setSnapshot({ ...latest, cards: [...latest.cards, card] });
           setSaveError(null);
@@ -154,23 +197,12 @@ export function useBoard(ref: BoardRef) {
         }
       },
 
-      async updateCardData(cardId, data) {
+      updateCardData,
+
+      async patchCardData(cardId, kind, change) {
         const card = snapshotRef.current?.cards.find((c) => c.id === cardId);
-        if (!repo || !card) return;
-        let parsed: Card["data"];
-        try {
-          parsed = parseCardData(card.kind, data);
-        } catch {
-          setSaveError("That change isn't valid for this card.");
-          return;
-        }
-        await optimistic(
-          (s) => ({ ...s, cards: s.cards.map((c) => (c.id === cardId ? ({ ...c, data: parsed } as Card) : c)) }),
-          async () => {
-            await saveInOrder(cardId, () => repo.updateCard(cardId, { data: parsed }));
-          },
-          "Couldn't save that change.",
-        );
+        if (!card || card.kind !== kind) return;
+        await updateCardData(cardId, change(card.data as Card<typeof kind>["data"]));
       },
 
       async moveCard(cardId, wallId, beforeId) {
@@ -183,7 +215,10 @@ export function useBoard(ref: BoardRef) {
             ? positionBetween(others[others.length - 1]?.position, undefined)
             : positionBetween(others[at - 1]?.position, others[at].position);
         await optimistic(
-          (b) => ({ ...b, cards: b.cards.map((c) => (c.id === cardId ? { ...c, wallId, position } : c)) }),
+          (b) => ({
+            ...b,
+            cards: b.cards.map((c) => (c.id === cardId ? { ...c, wallId, position } : c)),
+          }),
           async () => {
             await saveInOrder(cardId, () => repo.updateCard(cardId, { wallId, position }));
           },
@@ -203,9 +238,8 @@ export function useBoard(ref: BoardRef) {
           "Couldn't delete that card.",
         );
       },
-    }),
-    [repo, boardId, projectId, optimistic, setSnapshot, saveInOrder],
-  );
+    };
+  }, [repo, boardId, projectId, optimistic, setSnapshot, saveInOrder]);
 
   return {
     ...state,

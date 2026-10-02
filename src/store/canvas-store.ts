@@ -34,6 +34,16 @@ export interface BoardDraftContext {
   readonly visuals?: readonly BoardVisual[];
 }
 
+/**
+ * Where Reader highlights are saved when not in this store: the v2 board
+ * keeps them on the paper's card (server). The board mirrors them back into
+ * `highlights` so the Reader reads one place either way.
+ */
+export interface HighlightSink {
+  readonly add: (paperId: string, highlight: Highlight) => void;
+  readonly remove: (paperId: string, highlightId: string) => void;
+}
+
 /** A figure captured from a PDF page in the Reader. */
 export interface ReaderFigure {
   readonly image: Blob;
@@ -216,6 +226,8 @@ interface CanvasState {
   openReader: (paper: PaperSource) => void;
   closeReader: () => void;
   addHighlight: (paperId: string, text: string, paraIndex: number, page?: number) => void;
+  highlightSink: HighlightSink | null;
+  setHighlightSink: (sink: HighlightSink | null) => void;
   removeHighlight: (paperId: string, highlightId: string) => void;
   setNodeExtracts: (nodeId: string, extracts: Record<string, ExtractResult>) => void;
 
@@ -379,6 +391,7 @@ export const useCanvasStore = create<CanvasState>()(
       figureSink: null,
       boardDraftContext: null,
       highlights: {},
+      highlightSink: null,
       extracts: {},
       hasHydrated: false,
       seeded: false,
@@ -675,27 +688,33 @@ export const useCanvasStore = create<CanvasState>()(
 
   closeReader: () => set({ readerPaper: null }),
 
-  addHighlight: (paperId, text, paraIndex, page) =>
-    set((state) => {
-      const existing = state.highlights[paperId] ?? [];
-      const highlight: Highlight = { id: nextHighlightId(), text, paraIndex, ...(page ? { page } : {}) };
-      return {
-        highlights: {
-          ...state.highlights,
-          [paperId]: [...existing, highlight],
-        },
-      };
-    }),
+  setHighlightSink: (sink) => set({ highlightSink: sink }),
 
-  removeHighlight: (paperId, highlightId) =>
+  addHighlight: (paperId, text, paraIndex, page) => {
+    const highlight: Highlight = { id: nextHighlightId(), text, paraIndex, ...(page ? { page } : {}) };
+    const sink = get().highlightSink;
+    if (sink) {
+      sink.add(paperId, highlight);
+      return;
+    }
+    set((state) => ({
+      highlights: { ...state.highlights, [paperId]: [...(state.highlights[paperId] ?? []), highlight] },
+    }));
+  },
+
+  removeHighlight: (paperId, highlightId) => {
+    const sink = get().highlightSink;
+    if (sink) {
+      sink.remove(paperId, highlightId);
+      return;
+    }
     set((state) => ({
       highlights: {
         ...state.highlights,
-        [paperId]: (state.highlights[paperId] ?? []).filter(
-          (h) => h.id !== highlightId,
-        ),
+        [paperId]: (state.highlights[paperId] ?? []).filter((h) => h.id !== highlightId),
       },
-    })),
+    }));
+  },
 
   setNodeExtracts: (nodeId, extracts) =>
     set((state) => ({

@@ -8,7 +8,8 @@ import { useCanvasStore, type ReaderInsight, type ReaderFigure } from "@/store/c
 import { ReaderSurface } from "@/components/canvas/surfaces/reader-surface";
 import { WritingSurface } from "@/components/canvas/surfaces/writing-surface";
 import { DEFAULT_MODEL_ID } from "@/lib/models";
-import type { Card } from "@/lib/board/schema";
+import { MAX_HIGHLIGHTS, type Card } from "@/lib/board/schema";
+import type { Highlight } from "@/lib/highlight";
 import type { PaperSource } from "@/lib/mock";
 import type { ScreenedPaper } from "@/lib/scout";
 import type { SourceProvider } from "@/lib/sources-client";
@@ -41,6 +42,11 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
   const openReader = useCanvasStore((s) => s.openReader);
 
   const snapshot = board.status === "ready" ? board.snapshot : null;
+  // Latest board for long-lived callbacks (the Reader's highlight sink).
+  const snapshotRef = React.useRef(snapshot);
+  React.useLayoutEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
   const wallOf = React.useCallback(
     (kind: string) => snapshot?.walls.find((w) => w.kind === kind),
     [snapshot],
@@ -175,6 +181,49 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
     },
     [draft],
   );
+
+  // Reader highlights live on the paper's card (the server), not in this
+  // browser: mirror them into the store the Reader reads, and save changes back.
+  React.useEffect(() => {
+    if (!snapshot) return;
+    const byPaper: Record<string, Highlight[]> = {};
+    for (const c of snapshot.cards) {
+      if (c.kind !== "paper") continue;
+      const data = c.data as Card<"paper">["data"];
+      if (data.highlights.length > 0) byPaper[data.paper.id] = [...(byPaper[data.paper.id] ?? []), ...data.highlights];
+    }
+    useCanvasStore.setState({ highlights: byPaper });
+    // Owned here, not by the sink effect: that one re-runs when `actions`
+    // changes, and clearing there would empty the Reader until the board changed.
+    return () => {
+      useCanvasStore.setState({ highlights: {} });
+    };
+  }, [snapshot]);
+
+  React.useEffect(() => {
+    const paperCardFor = (paperId: string) =>
+      snapshotRef.current?.cards.find((c) => c.kind === "paper" && (c.data as Card<"paper">["data"]).paper.id === paperId);
+    useCanvasStore.getState().setHighlightSink({
+      add(paperId, highlight) {
+        const card = paperCardFor(paperId);
+        if (card) {
+          void actions.patchCardData(card.id, "paper", (d) => ({ ...d, highlights: [...d.highlights, highlight].slice(-MAX_HIGHLIGHTS) }));
+          return;
+        }
+        // Reading a paper that has no card here yet: highlighting it puts it in Reading.
+        const paper = useCanvasStore.getState().readerPaper;
+        const reading = wallOf("reading");
+        if (paper?.id === paperId && reading) void actions.addCard(reading.id, "paper", { paper, status: "kept", highlights: [highlight] });
+      },
+      remove(paperId, highlightId) {
+        for (const c of snapshotRef.current?.cards ?? []) {
+          if (c.kind !== "paper" || (c.data as Card<"paper">["data"]).paper.id !== paperId) continue;
+          void actions.patchCardData(c.id, "paper", (d) => ({ ...d, highlights: d.highlights.filter((h) => h.id !== highlightId) }));
+        }
+      },
+    });
+    return () => useCanvasStore.getState().setHighlightSink(null);
+  }, [actions, wallOf]);
 
   const addSearchResults = React.useCallback(
     async (screened: readonly ScreenedPaper[]) => {

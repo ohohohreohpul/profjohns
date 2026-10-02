@@ -6,6 +6,7 @@
 
 import type { JSONContent } from "@tiptap/core";
 import { DEFAULT_STYLE, type CitationStyle } from "./citation";
+import { FIGURE_MENTION_NODE, figureNumbers, mentionLabel } from "./draft-figures";
 
 export interface WritingDoc {
   title: string;
@@ -66,8 +67,10 @@ const BLOCK_NODES = new Set([
 export function extractText(content: JSONContent | undefined): string {
   if (!content) return "";
   const parts: string[] = [];
+  const numbers = figureNumbers(content);
   const walk = (node: JSONContent) => {
     if (node.type === "text" && node.text) parts.push(node.text);
+    if (node.type === FIGURE_MENTION_NODE) parts.push(mentionLabel(String(node.attrs?.cardId ?? ""), numbers));
     (node.content ?? []).forEach(walk);
     if (node.type && BLOCK_NODES.has(node.type)) parts.push("\n\n");
   };

@@ -273,3 +273,94 @@ test("Word export embeds each figure's picture (chart and image) above its capti
   expect(new Set(entries).size).toBe(2);
   await expect(page.getByRole("status").filter({ hasText: "couldn't be embedded" })).toHaveCount(0);
 });
+
+test("Reader highlights save to the paper's card: counted on the card, back when reopened, removable", async ({ page }) => {
+  await page.route("**/api/readable**", (r) => r.fulfill({ status: 502, json: { success: false, data: null, error: "offline in e2e" } }));
+  await page.getByRole("textbox", { name: "Search for papers" }).fill("bandit experiments for display advertising");
+  await page.getByRole("button", { name: "Find papers" }).click();
+  const paper = wall(page, "Sources").getByRole("article").filter({ hasText: "Customer acquisition" });
+  await expect(paper).toBeVisible({ timeout: 20_000 });
+
+  const highlightFirstParagraph = async () => {
+    // No full text in e2e: the Reader shows the abstract, which can be highlighted too.
+    const para = page.getByText("Bandits beat A/B tests.", { exact: true });
+    await expect(para).toBeVisible({ timeout: 15_000 });
+    await para.evaluate((el) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      el.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
+    // A scripted selection has no on-screen rect, so the toolbar sits off-screen.
+    await page.getByRole("button", { name: "Highlight", exact: true }).dispatchEvent("click");
+  };
+
+  await paper.getByRole("button", { name: "Read" }).click();
+  await highlightFirstParagraph();
+  await expect(page.getByRole("button", { name: /Highlights\s*1/ })).toBeVisible();
+  await page.getByRole("button", { name: "Close" }).first().click();
+
+  // Saved on the card (the board's server copy in production).
+  await expect(paper).toContainText("1 highlight");
+
+  // Reopen: the highlight is there, from the card.
+  await paper.getByRole("button", { name: "Read" }).click();
+  await expect(page.getByRole("button", { name: /Highlights\s*1/ })).toBeVisible({ timeout: 15_000 });
+  // Regressions: the Reader must stay open on a second open (it used to replay
+  // its exit animation and close itself), and the highlight must stay.
+  await page.waitForTimeout(1500);
+  await expect(page.getByRole("button", { name: /Highlights\s*1/ })).toBeVisible();
+  await page.getByRole("button", { name: /Highlights\s*1/ }).click();
+  await page.getByRole("button", { name: /remove/i }).first().click();
+  await expect(page.getByRole("button", { name: /Highlights\s*1/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Close" }).first().click();
+  await expect(paper).not.toContainText("highlight");
+});
+
+test("figure references in the text renumber when figures are removed, and flag a missing figure", async ({ page }) => {
+  const insights = wall(page, "Insights");
+  for (const tsv of [RESULTS_TSV, "epoch\tloss\n1\t0.92\n2\t0.51\n3\t0.33"]) {
+    await insights.getByRole("button", { name: "Add chart" }).click();
+    await insights.getByLabel("Chart data").fill(tsv);
+    await insights.getByRole("button", { name: "Make chart" }).click();
+  }
+  const charts = insights.getByRole("article").filter({ hasText: "Chart" });
+  await expect(charts).toHaveCount(2);
+  for (let i = 0; i < 2; i++) {
+    await charts.nth(i).getByRole("button", { name: "Chart card options" }).click();
+    await page.getByRole("menuitem", { name: "Add to draft" }).click();
+    await expect(page.getByRole("status").filter({ hasText: `as Figure ${i + 1}.` })).toBeVisible();
+  }
+
+  await wall(page, "Draft").getByRole("article").getByRole("button", { name: "Open editor" }).click();
+  const editor = page.locator(".ProseMirror").last();
+  const figures = editor.locator("figure[data-figure-ref]");
+  await expect(figures).toHaveCount(2, { timeout: 15_000 });
+  // Opening a draft that starts with a figure must not select it (typing
+  // would replace it); click into the last paragraph and write.
+  await editor.locator("p").last().click();
+  await page.keyboard.type("Loss falls steadily, as shown in ");
+  await page.getByRole("button", { name: "Figure", exact: true }).click();
+  await page.getByRole("menuitem", { name: /^Figure 2/ }).click();
+  const ref = editor.locator("[data-figure-mention]");
+  await expect(ref).toHaveText("Figure 2");
+
+  // Figure 1 leaves the draft: the loss chart is now Figure 1, and so is the reference.
+  await figures.first().getByRole("button", { name: "Remove figure from draft" }).dispatchEvent("click");
+  await expect(figures).toHaveCount(1);
+  await expect(figures.first().locator("figcaption")).toHaveText("Figure 1.");
+  await expect(ref).toHaveText("Figure 1");
+
+  // Its figure gone too: the reference says so instead of pointing at nothing.
+  await figures.first().getByRole("button", { name: "Remove figure from draft" }).dispatchEvent("click");
+  await expect(ref).toHaveText("Figure ?");
+  await expect(ref).toHaveAttribute("title", /no longer in the draft/);
+
+  await page.getByRole("button", { name: "Export" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: /Plain text/ }).click();
+  const fs = await import("node:fs/promises");
+  expect(await fs.readFile((await (await download).path())!, "utf8")).toContain("as shown in Figure ?");
+});

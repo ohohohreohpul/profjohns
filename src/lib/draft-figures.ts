@@ -9,6 +9,8 @@ import type { CardDataFor } from "@/lib/board/schema";
 import { shortCitation } from "@/lib/insight";
 
 export const FIGURE_NODE = "figureRef";
+/** Inline "Figure N" reference in the text, pointing at a figure's card. */
+export const FIGURE_MENTION_NODE = "figureMention";
 
 export type VisualKind = "figure" | "chart";
 export type VisualData = CardDataFor["figure"] | CardDataFor["chart"];
@@ -74,4 +76,21 @@ export function appendFigure(content: JSONContent, figure: JSONContent): JSONCon
   const blocks = content.content ?? [];
   const kept = blocks.length === 1 && isEmptyParagraph(blocks[0]) ? [] : blocks;
   return { ...content, content: [...kept, figure, { type: "paragraph" }] };
+}
+
+/** Each placed figure's current number, by card id (its first appearance). */
+export function figureNumbers(content: JSONContent | undefined): Map<string, number> {
+  const numbers = new Map<string, number>();
+  for (const f of listFigures(content)) if (!numbers.has(f.cardId)) numbers.set(f.cardId, f.number);
+  return numbers;
+}
+
+/** What a reference reads as: "Figure 2", or "Figure ?" once its figure is gone. */
+export function mentionLabel(cardId: string, numbers: ReadonlyMap<string, number>): string {
+  const n = numbers.get(cardId);
+  return n ? `Figure ${n}` : "Figure ?";
+}
+
+export function figureMentionFor(cardId: string): JSONContent {
+  return { type: FIGURE_MENTION_NODE, attrs: { cardId } };
 }

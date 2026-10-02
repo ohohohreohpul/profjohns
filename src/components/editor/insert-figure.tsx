@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCanvasStore } from "@/store/canvas-store";
 import type { CardDataFor } from "@/lib/board/schema";
-import { figureNodeFor, listFigures, type BoardVisual } from "@/lib/draft-figures";
+import { figureMentionFor, figureNodeFor, listFigures, type BoardVisual } from "@/lib/draft-figures";
 
 const MENU_LABEL_CHARS = 48;
 
@@ -37,8 +37,10 @@ export function InsertFigureButton({ editor }: { readonly editor: Editor }) {
   // Opened on click: DocEditor stops pointerdown (so the canvas can't steal
   // the caret), which is the event the menu trigger would otherwise use.
   const [open, setOpen] = React.useState(false);
-  if (!visuals || visuals.length === 0) return null;
-  const placed = new Map(listFigures(editor.getJSON()).map((f) => [f.cardId, f.number]));
+  const figures = listFigures(editor.getJSON());
+  const boardVisuals = visuals ?? [];
+  if (boardVisuals.length === 0 && figures.length === 0) return null;
+  const placed = new Map(figures.map((f) => [f.cardId, f.number]));
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -54,8 +56,25 @@ export function InsertFigureButton({ editor }: { readonly editor: Editor }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72" onCloseAutoFocus={(e) => e.preventDefault()}>
-        <DropdownMenuLabel className="text-xs font-medium text-grey-600">Place a figure from your board</DropdownMenuLabel>
-        {visuals.map((v) => {
+        {figures.length > 0 && (
+          <>
+            <DropdownMenuLabel className="text-xs font-medium text-grey-600">Refer to a figure in the text</DropdownMenuLabel>
+            {figures.map((f) => (
+              <DropdownMenuItem
+                key={`ref-${f.number}`}
+                onSelect={() => editor.chain().focus().insertContent(figureMentionFor(f.cardId)).run()}
+              >
+                <span className="shrink-0 font-medium text-ink">Figure {f.number}</span>
+                <span className="min-w-0 flex-1 truncate text-grey-600">{visualName({ id: f.cardId, kind: f.kind, data: f.data })}</span>
+              </DropdownMenuItem>
+            ))}
+            {boardVisuals.length > 0 && <div role="separator" className="my-1 h-px bg-grey-200" />}
+          </>
+        )}
+        {boardVisuals.length > 0 && (
+          <DropdownMenuLabel className="text-xs font-medium text-grey-600">Place a figure from your board</DropdownMenuLabel>
+        )}
+        {boardVisuals.map((v) => {
           const Icon = v.kind === "chart" ? ChartBar : ImageSquare;
           const number = placed.get(v.id);
           return (
