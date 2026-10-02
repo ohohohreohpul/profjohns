@@ -131,3 +131,58 @@ test("add an image to a wall -> Figure card with an editable caption", async ({ 
   await caption.blur();
   await expect(caption).toHaveValue("Figure 1. Conversion by test arm.");
 });
+
+const RESULTS_TSV = "Model\tTop-1\tParams\nViT-B\t81.8\t86\nMLP-Mixer\t76.4\t59\nResMLP\t79.4\t30";
+
+test("paste a table into Add chart -> bar chart with series, data table, type switch, edit data", async ({ page }) => {
+  const insights = wall(page, "Insights");
+  await insights.getByRole("button", { name: "Add chart" }).click();
+  const data = insights.getByLabel("Chart data");
+  await data.fill("just words");
+  await expect(insights.getByRole("status")).toContainText("doesn't look like a table");
+  await expect(insights.getByRole("button", { name: "Make chart" })).toBeDisabled();
+  await data.fill(RESULTS_TSV);
+  await expect(insights.getByRole("status")).toContainText("3 columns, 3 rows: makes a bar chart");
+  await insights.getByRole("button", { name: "Make chart" }).click();
+
+  const card = insights.getByRole("article").filter({ hasText: "Chart" });
+  await expect(card.getByRole("img", { name: /Bar chart of Top-1, Params by Model, 3 rows, values from 30 to 86/ })).toBeVisible();
+  await expect(card.locator("svg[role=img] rect")).toHaveCount(6);
+  await expect(card.getByRole("list", { name: "Series" }).getByRole("listitem")).toHaveText(["Top-1", "Params"]);
+
+  // The data table is the chart's accessible equivalent.
+  await card.getByRole("button", { name: "Show data" }).click();
+  await expect(card.getByRole("table").getByRole("row")).toHaveCount(4);
+  await expect(card.getByRole("cell", { name: "76.4" })).toBeVisible();
+
+  await card.getByRole("button", { name: "Line", exact: true }).click();
+  await expect(card.getByRole("button", { name: "Line", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(card.getByRole("img", { name: /^Line chart/ })).toBeVisible();
+
+  await card.getByRole("textbox", { name: "Chart title" }).fill("ImageNet accuracy");
+  await card.getByRole("textbox", { name: "Chart title" }).blur();
+
+  // Edit data: one more row; the chosen type and title survive.
+  await card.getByRole("button", { name: "Chart card options" }).click();
+  await page.getByRole("menuitem", { name: "Edit data" }).click();
+  await card.getByLabel("Chart data").fill(`${RESULTS_TSV}\ngMLP\t81.6\t73`);
+  await card.getByRole("button", { name: "Save data" }).click();
+  await expect(card.getByRole("img", { name: /^Line chart of Top-1, Params by Model, 4 rows/ })).toBeVisible();
+  await expect(card.getByRole("textbox", { name: "Chart title" })).toHaveValue("ImageNet accuracy");
+});
+
+test("paste spreadsheet cells on the board -> Chart card in Insights; prose paste does nothing", async ({ page }) => {
+  const paste = (text: string) =>
+    page.evaluate((t) => {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", t);
+      window.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }));
+    }, text);
+  await paste("Hello, world.\nThis is a sentence, with commas.");
+  await page.waitForTimeout(300);
+  await expect(wall(page, "Insights").getByRole("article")).toHaveCount(0);
+
+  await paste("epoch\tloss\n1\t0.92\n2\t0.51\n3\t0.33");
+  await expect(page.getByRole("status").filter({ hasText: "Chart added to Insights" })).toBeVisible();
+  await expect(wall(page, "Insights").getByRole("img", { name: /^Line chart of loss by epoch, 3 rows/ })).toBeVisible();
+});

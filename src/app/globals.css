@@ -63,6 +63,7 @@
   --color-feedback-warning-bg: #fffbeb;
   --color-feedback-warning-border: #fde68a;
 
+
   /* Per-button accent set inline in toolbar.tsx; this is the default. */
   --palette-accent: var(--color-ink);
 
@@ -98,6 +99,17 @@
   --border: var(--color-grey-200);
   --muted: var(--color-grey-500);
   color-scheme: light;
+  /* Chart series (tokens/data-viz.json, color-blind-aware order). Plain
+     vars, not @theme: no utility uses them, so @theme would drop them.
+     Each meets 3:1 on paper; series also differ by marker shape. */
+  --color-viz-1: #2563eb;
+  --color-viz-2: #e8710a;
+  --color-viz-3: #0e9f6e;
+  --color-viz-4: #d81b7a;
+  --color-viz-5: #7c3aed;
+  --color-viz-6: #0891b2;
+  --color-viz-7: #b45309;
+  --color-viz-8: #64748b;
 }
 
 /*
@@ -143,6 +155,15 @@
   --color-feedback-warning: #fbbf24;
   --color-feedback-warning-bg: #2a2111;
   --color-feedback-warning-border: #5d4614;
+  /* Lighter series on dark paper (all >= 6:1 on #1b1b1e). */
+  --color-viz-1: #60a5fa;
+  --color-viz-2: #fb923c;
+  --color-viz-3: #34d399;
+  --color-viz-4: #f472b6;
+  --color-viz-5: #a78bfa;
+  --color-viz-6: #22d3ee;
+  --color-viz-7: #fbbf24;
+  --color-viz-8: #94a3b8;
 
   --shadow-flat: 0 1px 0 0 rgb(0 0 0 / 0.3);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);

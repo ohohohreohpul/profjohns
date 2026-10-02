@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, ImageSquare } from "@phosphor-icons/react";
+import { Plus, ImageSquare, ChartBar } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { Card, Wall } from "@/lib/board/schema";
 import type { PaperSource } from "@/lib/mock";
@@ -11,6 +11,8 @@ import { WALL_META } from "./wall-meta";
 import { BoardCard } from "./board-card";
 import { CARD_DND_MIME } from "./cards/card-frame";
 import { SourcesSearch } from "./sources-search";
+import { ChartComposer } from "./cards/chart-composer";
+import { chartFromTable } from "./cards/chart-card";
 import type { BoardActions } from "./use-board";
 
 interface WallColumnProps {
@@ -46,6 +48,7 @@ export function WallColumn(props: WallColumnProps) {
   // Index the dragged card would land at; null when nothing is over us.
   const [dropAt, setDropAt] = React.useState<number | null>(null);
   const imageInputRef = React.useRef<HTMLInputElement>(null);
+  const [composingChart, setComposingChart] = React.useState(false);
   const imageFiles = (list: FileList | null) => Array.from(list ?? []).filter((f) => f.type.startsWith("image/"));
 
   function indexFromPointer(clientY: number): number {
@@ -188,23 +191,47 @@ export function WallColumn(props: WallColumnProps) {
           )}
         </ul>
 
-        {wall.kind !== "question" && wall.kind !== "draft" && (
-          <div className="mt-2 flex items-center gap-1">
+        {composingChart && (
+          <div className="mt-2">
+            <ChartComposer
+              submitLabel="Make chart"
+              onCancel={() => setComposingChart(false)}
+              onSubmit={(table, suggestion) => {
+                setComposingChart(false);
+                void actions.addCard(wall.id, "chart", chartFromTable(table, suggestion));
+              }}
+            />
+          </div>
+        )}
+
+        {wall.kind !== "question" && wall.kind !== "draft" && !composingChart && (
+          <div className="mt-2 flex items-center gap-0.5">
             <button
               type="button"
+              aria-label="Add note"
               onClick={() => void actions.addCard(wall.id, "note", { text: "" })}
               className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
             >
               <Plus className="size-3.5" />
-              Add note
+              Note
             </button>
             <button
               type="button"
+              aria-label="Add image"
               onClick={() => imageInputRef.current?.click()}
               className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
             >
               <ImageSquare className="size-3.5" />
-              Add image
+              Image
+            </button>
+            <button
+              type="button"
+              aria-label="Add chart"
+              onClick={() => setComposingChart(true)}
+              className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-grey-600 transition-colors hover:bg-grey-100 hover:text-ink"
+            >
+              <ChartBar className="size-3.5" />
+              Chart
             </button>
             <input
               ref={imageInputRef}

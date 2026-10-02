@@ -4,7 +4,7 @@ import * as React from "react";
 import { ImageBroken } from "@phosphor-icons/react";
 import type { CardDataFor } from "@/lib/board/schema";
 import { useFigureUrl } from "@/lib/figure-storage";
-import { shortCitation } from "@/lib/insight";
+import { SourceCitation } from "./source-citation";
 import { TextCardBody } from "./text-card";
 
 interface FigureCardBodyProps {
@@ -45,17 +45,7 @@ export function FigureCardBody({ data, onCaption, onOpenSource }: FigureCardBody
       <div className="mt-2">
         <TextCardBody ariaLabel="Figure caption" value={data.caption} placeholder="Add a caption…" onSave={onCaption} />
       </div>
-      {data.source && (
-        <button
-          type="button"
-          onClick={onOpenSource}
-          disabled={!onOpenSource}
-          title={data.source.title}
-          className="mt-1 block max-w-full truncate text-left text-xs text-grey-600 underline-offset-2 hover:text-ink hover:underline disabled:no-underline"
-        >
-          {shortCitation({ authors: data.source.authors ?? "", year: data.source.year ?? 0, title: data.source.title }, data.page)}
-        </button>
-      )}
+      {data.source && <SourceCitation source={data.source} page={data.page} onOpen={onOpenSource} />}
     </>
   );
 }

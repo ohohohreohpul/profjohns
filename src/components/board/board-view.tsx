@@ -16,6 +16,8 @@ import { useRouter } from "next/navigation";
 import { useBoard } from "./use-board";
 import { WallColumn } from "./wall-column";
 import { useBoardDraft } from "./use-board-draft";
+import { looksTabular, parseTable, suggestChart } from "@/lib/chart-data";
+import { chartFromTable } from "./cards/chart-card";
 import { storeFigureImage, FigureError } from "@/lib/figure-storage";
 
 interface BoardViewProps {
@@ -26,7 +28,7 @@ interface BoardViewProps {
   readonly launchSources?: SourceProvider[];
 }
 
-const FIGURE_ERROR_MS = 5000;
+const NOTICE_MS = 5000;
 
 /** The v2 board: titled walls of cards, loaded from the server. */
 export function BoardView({ projectId, boardId, launchTopic, launchSources }: BoardViewProps) {
@@ -54,23 +56,23 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
 
   const { actions } = board;
   const router = useRouter();
-  const [figureNote, setFigureNote] = React.useState<{ text: string; error: boolean } | null>(null);
+  const [boardNote, setBoardNote] = React.useState<{ text: string; error: boolean } | null>(null);
 
   /** Images -> Figure cards on `wallId`, one by one, with progress. */
   const addImages = React.useCallback(
     async (wallId: string, files: File[], origin: "upload" | "paste") => {
       for (const [i, file] of files.entries()) {
-        setFigureNote({ text: files.length > 1 ? `Adding image ${i + 1} of ${files.length}…` : "Adding image…", error: false });
+        setBoardNote({ text: files.length > 1 ? `Adding image ${i + 1} of ${files.length}…` : "Adding image…", error: false });
         try {
           const image = await storeFigureImage(file);
           await actions.addCard(wallId, "figure", { image, caption: "", origin });
         } catch (err: unknown) {
-          setFigureNote({ text: err instanceof FigureError ? err.message : "Couldn't add that image.", error: true });
-          window.setTimeout(() => setFigureNote(null), FIGURE_ERROR_MS);
+          setBoardNote({ text: err instanceof FigureError ? err.message : "Couldn't add that image.", error: true });
+          window.setTimeout(() => setBoardNote(null), NOTICE_MS);
           return;
         }
       }
-      setFigureNote(null);
+      setBoardNote(null);
     },
     [actions],
   );
@@ -80,15 +82,28 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
     function onPaste(e: ClipboardEvent) {
       const target = e.target as HTMLElement | null;
       if (target?.isContentEditable || target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
-      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
       const insights = wallOf("insights");
-      if (files.length === 0 || !insights) return;
+      if (!insights) return;
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+      if (files.length > 0) {
+        e.preventDefault();
+        void addImages(insights.id, files, "paste");
+        return;
+      }
+      // Cells copied from a spreadsheet (or CSV) -> a Chart card.
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      const parsed = looksTabular(text) ? parseTable(text) : null;
+      if (!parsed?.ok) return;
       e.preventDefault();
-      void addImages(insights.id, files, "paste");
+      void actions.addCard(insights.id, "chart", chartFromTable(parsed.table, suggestChart(parsed.table))).then((card) => {
+        if (!card) return;
+        setBoardNote({ text: "Chart added to Insights. Name it and pick a chart type.", error: false });
+        window.setTimeout(() => setBoardNote(null), NOTICE_MS);
+      });
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [addImages, wallOf]);
+  }, [addImages, wallOf, actions]);
 
   // Launch from the home page: write the Question, search once, then drop
   // the topic from the URL so a reload doesn't search again.
@@ -140,8 +155,8 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
             origin: "pdf-capture",
           });
         } catch (err: unknown) {
-          setFigureNote({ text: err instanceof FigureError ? err.message : "Couldn't save that figure.", error: true });
-          window.setTimeout(() => setFigureNote(null), FIGURE_ERROR_MS);
+          setBoardNote({ text: err instanceof FigureError ? err.message : "Couldn't save that figure.", error: true });
+          window.setTimeout(() => setBoardNote(null), NOTICE_MS);
         }
       })();
     useCanvasStore.getState().setFigureSink(sink);
@@ -231,16 +246,16 @@ export function BoardView({ projectId, boardId, launchTopic, launchSources }: Bo
         </div>
       )}
 
-      {figureNote && (
+      {boardNote && (
         <div
-          role={figureNote.error ? "alert" : "status"}
+          role={boardNote.error ? "alert" : "status"}
           className={
-            figureNote.error
+            boardNote.error
               ? "fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-feedback-danger-border bg-feedback-danger-bg px-3 py-2 text-sm text-feedback-danger shadow-lift"
               : "fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-grey-200 bg-paper px-3 py-2 text-sm text-grey-700 shadow-lift"
           }
         >
-          {figureNote.text}
+          {boardNote.text}
         </div>
       )}
 

@@ -12,6 +12,7 @@ import { TextCardBody } from "./cards/text-card";
 import { ThemeCardBody } from "./cards/theme-card";
 import { DraftCardBody } from "./cards/draft-card";
 import { FigureCardBody } from "./cards/figure-card";
+import { ChartCardBody } from "./cards/chart-card";
 
 const KIND_ACCENT: Record<Card["kind"], string> = {
   paper: "var(--color-node-explorer)",
@@ -146,11 +147,14 @@ export function BoardCard({ card, walls, actions, onRead, papersById, themes, in
     }
     case "chart": {
       const data = card.data as Card<"chart">["data"];
+      const paper = data.source ? papersById.get(data.source.paperId) : undefined;
       return (
-        <CardFrame {...frame} label="Chart">
-          <p className="text-sm font-medium text-ink">{data.title || "Untitled chart"}</p>
-          <p className="mt-1 text-xs text-grey-600">{data.rows.length} rows</p>
-        </CardFrame>
+        <ChartCard
+          frame={frame}
+          data={data}
+          onChange={(next) => void actions.updateCardData(card.id, next)}
+          onOpenSource={paper ? () => onRead(paper) : undefined}
+        />
       );
     }
     case "draft": {
@@ -162,4 +166,21 @@ export function BoardCard({ card, walls, actions, onRead, papersById, themes, in
       );
     }
   }
+}
+
+type FrameProps = Omit<React.ComponentProps<typeof CardFrame>, "label" | "children">;
+
+/** Chart card: owns whether its data editor is open (opened from the menu). */
+function ChartCard({ frame, data, onChange, onOpenSource }: {
+  readonly frame: FrameProps;
+  readonly data: Card<"chart">["data"];
+  readonly onChange: (data: Card<"chart">["data"]) => void;
+  readonly onOpenSource?: () => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  return (
+    <CardFrame {...frame} label="Chart" menuItems={[{ label: "Edit data", onSelect: () => setEditing(true) }]}>
+      <ChartCardBody data={data} onChange={onChange} editing={editing} onEditingChange={setEditing} onOpenSource={onOpenSource} />
+    </CardFrame>
+  );
 }

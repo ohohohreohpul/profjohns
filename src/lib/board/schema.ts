@@ -119,6 +119,7 @@ const FigureCardSchema = z.object({
 });
 
 export const CHART_TYPES = ["bar", "line", "scatter", "table"] as const;
+export type ChartType = (typeof CHART_TYPES)[number];
 export const MAX_CHART_ROWS = 200;
 export const MAX_CHART_COLUMNS = 12;
 const ChartCell = z.union([z.string(), z.number(), z.null()]);
