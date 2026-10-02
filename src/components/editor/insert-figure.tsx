@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCanvasStore } from "@/store/canvas-store";
+import { useDraftVisuals } from "./use-draft-visuals";
 import type { CardDataFor } from "@/lib/board/schema";
 import { figureMentionFor, figureNodeFor, listFigures, type BoardVisual } from "@/lib/draft-figures";
 
@@ -33,12 +33,12 @@ function insertFigure(editor: Editor, visual: BoardVisual): void {
 
 /** Toolbar menu: place one of the board's figures or charts at the caret. */
 export function InsertFigureButton({ editor }: { readonly editor: Editor }) {
-  const visuals = useCanvasStore((s) => s.boardDraftContext?.visuals);
+  const visuals = useDraftVisuals();
   // Opened on click: DocEditor stops pointerdown (so the canvas can't steal
   // the caret), which is the event the menu trigger would otherwise use.
   const [open, setOpen] = React.useState(false);
   const figures = listFigures(editor.getJSON());
-  const boardVisuals = visuals ?? [];
+  const boardVisuals = visuals;
   if (boardVisuals.length === 0 && figures.length === 0) return null;
   const placed = new Map(figures.map((f) => [f.cardId, f.number]));
 

@@ -78,11 +78,14 @@ function buildResolver(
       kind === "explorer" ||
       kind === "paper" ||
       kind === "library" ||
-      kind === "link"
+      kind === "link" ||
+      kind === "insight" ||
+      kind === "figure"
     ) {
       // Producers: the Sources scout exposes its kept set; a Paper node exposes
       // its single source; a Library node exposes the project's saved sources;
-      // a Link node exposes its one web source. All publish into the sources
+      // a Link node exposes its one web source; an Insight or Figure exposes
+      // the paper it came from (its citation). All publish into the sources
       // map via setNodeSources.
       result = sources[id] ?? [];
     } else {

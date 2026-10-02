@@ -45,6 +45,7 @@ import type { Synthesis } from "@/lib/ai-client";
 import type { JSONContent } from "@tiptap/core";
 import { formatInText, DEFAULT_STYLE } from "@/lib/citation";
 import { getDocEditor, scrollEditorToText } from "@/components/editor/doc-editor";
+import { canvasClaims } from "@/lib/canvas-cards";
 import { LilyVoice } from "./lily-voice";
 import { AgentPicker, useNodeAgent } from "@/components/canvas/agent-picker";
 import { agentSystemPrompt } from "@/lib/agents";
@@ -548,8 +549,11 @@ function ComposePanel({
     const claims = nodes
       .filter((n) => incomerIds.includes(n.id) && n.data.kind === "processor")
       .flatMap((n) => (n.data.synthesis as Synthesis | undefined)?.claims ?? []);
-    if (claims.length === 0) return undefined;
-    return claims.map((c) => `- ${c.claim}`).join("\n").slice(0, MAX_CLAIMS_CHARS);
+    // Themes and insights wired in: quoted evidence with citations.
+    const evidence = canvasClaims(nodes, edges, nodeId);
+    const parts = [evidence, claims.map((c) => `- ${c.claim}`).join("\n")].filter(Boolean);
+    if (parts.length === 0) return undefined;
+    return parts.join("\n\n").slice(0, MAX_CLAIMS_CHARS);
   }, [nodes, edges, nodeId, boardClaims]);
 
   const [busy, setBusy] = React.useState<string | null>(null); // "outline" | section title

@@ -29,7 +29,13 @@ import { PaperNode } from "./nodes/paper-node";
 import { MediaNode } from "./nodes/media-node";
 import { LibraryNode } from "./nodes/library-node";
 import { LinkNode } from "./nodes/link-node";
-import { processImageFile } from "@/lib/image";
+import { InsightNode } from "./nodes/insight-node";
+import { ThemeNode } from "./nodes/theme-node";
+import { FigureNode } from "./nodes/figure-node";
+import { ChartNode } from "./nodes/chart-node";
+import { storeFigureImage } from "@/lib/figure-storage";
+import { looksTabular, parseTable, suggestChart } from "@/lib/chart-data";
+import { chartFromTable } from "@/components/board/cards/chart-card";
 import { isPdfFile, uploadPdf, PdfUploadError } from "@/lib/pdf-upload";
 import { ActionEdge } from "./edges/action-edge";
 import { Toolbar } from "./toolbar";
@@ -52,7 +58,23 @@ const nodeTypes = {
   media: MediaNode,
   library: LibraryNode,
   link: LinkNode,
+  insight: InsightNode,
+  theme: ThemeNode,
+  figure: FigureNode,
+  chart: ChartNode,
 };
+
+/** An image file -> a Figure node at `pos` (stored privately when signed in). */
+function addFigureFromFile(file: File, pos: { x: number; y: number }, origin: "upload" | "paste"): void {
+  const { addNode, updateNodeData } = useCanvasStore.getState();
+  const id = addNode("figure", { x: pos.x - 144, y: pos.y - 40 });
+  storeFigureImage(file)
+    .then((image) => updateNodeData(id, { card: { image, caption: "", origin } }))
+    .catch((err: unknown) => {
+      // The node stays as an empty Figure dropzone so the user can retry.
+      console.error("[canvas] couldn't store the dropped image", err);
+    });
+}
 
 const edgeTypes = { action: ActionEdge };
 
@@ -218,19 +240,31 @@ function CanvasInner() {
       const state = useCanvasStore.getState();
       if (state.openSurfaceNodeId || state.readerPaper) return;
 
-      const text = e.clipboardData?.getData("text")?.trim();
-      if (!text) return;
-      e.preventDefault();
-
       const center = screenToFlowPosition({
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
       });
       const jitter = state.nodes.length * 16;
-      addNode("text", {
-        x: center.x - 100 + jitter,
-        y: center.y - 30 + jitter,
-      }, { text });
+      const at = { x: center.x - 100 + jitter, y: center.y - 30 + jitter };
+
+      // A screenshot or copied image -> Figure node.
+      const image = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
+      if (image) {
+        e.preventDefault();
+        addFigureFromFile(image, { x: at.x + 144, y: at.y + 40 }, "paste");
+        return;
+      }
+
+      const text = e.clipboardData?.getData("text")?.trim();
+      if (!text) return;
+      e.preventDefault();
+      // Cells copied from a spreadsheet (or CSV) -> Chart node.
+      const table = looksTabular(text) ? parseTable(text) : null;
+      if (table?.ok) {
+        addNode("chart", at, { card: chartFromTable(table.table, suggestChart(table.table)) });
+        return;
+      }
+      addNode("text", at, { text });
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
@@ -345,7 +379,7 @@ function CanvasInner() {
   // the dragged node's CENTER against shell bounds, and the store's
   // reparentNode owns the relative/absolute math + parent ordering.
   const handleNodeDragStop: import("@xyflow/react").OnNodeDrag = React.useCallback(
-    (_event, draggedNode) => {
+    (event, draggedNode) => {
       const state = useCanvasStore.getState();
       if ((draggedNode.data as Record<string, unknown>).kind === "shell") return;
 
@@ -362,6 +396,23 @@ function CanvasInner() {
         x: abs.x + (draggedNode.measured?.width ?? 288) / 2,
         y: abs.y + (draggedNode.measured?.height ?? 180) / 2,
       };
+
+      // An insight dropped onto a theme becomes that theme's evidence. Aim
+      // is the pointer (a tall card's centre can sit below a short theme).
+      if ((draggedNode.data as Record<string, unknown>).kind === "insight") {
+        const at = "changedTouches" in event ? event.changedTouches[0] : event;
+        const pointer = at ? screenToFlowPosition({ x: at.clientX, y: at.clientY }) : center;
+        const over = (n: (typeof state.nodes)[number], p: { x: number; y: number }) => {
+          const w = n.measured?.width ?? 288;
+          const h = n.measured?.height ?? 160;
+          return p.x >= n.position.x && p.x <= n.position.x + w && p.y >= n.position.y && p.y <= n.position.y + h;
+        };
+        const theme = state.nodes.find((n) => n.data.kind === "theme" && !n.parentId && (over(n, pointer) || over(n, center)));
+        if (theme) {
+          state.connectMany([{ source: draggedNode.id, target: theme.id }]);
+          return;
+        }
+      }
 
       const target = state.nodes.find((n) => {
         if (n.data.kind !== "shell" || n.id === draggedNode.id) return false;
@@ -382,7 +433,7 @@ function CanvasInner() {
         reparentNode(draggedNode.id, null);
       }
     },
-    [reparentNode],
+    [reparentNode, screenToFlowPosition],
   );
 
   // Drag a found source out of the Sources node → drop it as a Paper node.
@@ -456,7 +507,7 @@ function CanvasInner() {
         return;
       }
 
-      // 3) An image file dropped from the OS → Media node.
+      // 3) An image file dropped from the OS → Figure node.
       const file = Array.from(event.dataTransfer.files ?? []).find((f) =>
         f.type.startsWith("image/"),
       );
@@ -477,23 +528,7 @@ function CanvasInner() {
         return;
       }
       event.preventDefault();
-      const pos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      const newId = addNode("media", { x: pos.x - 144, y: pos.y - 40 });
-      processImageFile(file)
-        .then((img) =>
-          useCanvasStore.getState().updateNodeData(newId, {
-            media: {
-              src: img.src,
-              width: img.width,
-              height: img.height,
-              name: img.name,
-              credit: "Uploaded",
-            },
-          }),
-        )
-        .catch(() => {
-          // leave the node in its empty dropzone state on failure
-        });
+      addFigureFromFile(file, screenToFlowPosition({ x: event.clientX, y: event.clientY }), "upload");
     },
     [screenToFlowPosition, addNode, setNodeSources],
   );

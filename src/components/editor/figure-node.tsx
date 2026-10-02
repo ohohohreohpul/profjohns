@@ -5,7 +5,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { X } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { useCanvasStore } from "@/store/canvas-store";
+import { useDraftVisuals } from "./use-draft-visuals";
 import type { CardDataFor } from "@/lib/board/schema";
 import { FIGURE_NODE, captionBody, type VisualData, type VisualKind } from "@/lib/draft-figures";
 import { FigureImage, figureAlt } from "@/components/board/cards/figure-card";
@@ -73,11 +73,11 @@ function useFigureNumber(editor: NodeViewProps["editor"], getPos: NodeViewProps[
 function FigureRefView({ node, updateAttributes, deleteNode, selected, editor, getPos }: NodeViewProps) {
   const number = useFigureNumber(editor, getPos);
   const { cardId, kind, data: stored } = node.attrs as { cardId: string; kind: VisualKind; data: VisualData | null };
-  const board = useCanvasStore((s) => s.boardDraftContext);
-  const live = board?.visuals?.find((v) => v.id === cardId);
+  const visuals = useDraftVisuals();
+  const live = visuals.find((v) => v.id === cardId);
   const data = live?.data ?? stored;
-  // The board is open but the card is gone: keep the copy, say so.
-  const orphaned = Boolean(board?.visuals) && !live;
+  // Its board card or canvas node is gone: keep the copy, say so.
+  const orphaned = !live;
 
   React.useEffect(() => {
     if (live && editor.isEditable && JSON.stringify(live.data) !== JSON.stringify(stored)) {
@@ -116,7 +116,7 @@ function FigureRefView({ node, updateAttributes, deleteNode, selected, editor, g
           {body && ` ${body}`}
         </figcaption>
         {orphaned && (
-          <p className="mt-1 text-xs text-grey-600">This card was removed from the board. The copy in your draft is kept.</p>
+          <p className="mt-1 text-xs text-grey-600">Its card or node was removed. The copy in your draft is kept.</p>
         )}
       </div>
       {editor.isEditable && (

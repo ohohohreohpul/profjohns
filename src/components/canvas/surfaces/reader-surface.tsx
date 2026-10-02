@@ -17,6 +17,7 @@ import {
   PaperPlaneTilt as Send,
   ArrowsOutSimple as Maximize2,
   ArrowsInSimple as Minimize2,
+  Lightbulb,
 } from "@phosphor-icons/react";
 
 const READER_ACCENT = "var(--color-node-reader)";
@@ -26,7 +27,8 @@ import { fetchReadable } from "@/lib/reader-client";
 import { PdfViewer } from "@/components/reader/pdf-viewer";
 import { pdfLinkFor } from "@/lib/pdf-url";
 import { PDF_PARA_INDEX } from "@/lib/highlight";
-import { classifyInsightType, formatInsightNote, INSIGHT_LABELS, shortCitation } from "@/lib/insight";
+import { classifyInsightType, INSIGHT_LABELS } from "@/lib/insight";
+import { FigureError, storeFigureImage } from "@/lib/figure-storage";
 import { summarizePaper, askPaper } from "@/lib/ai-client";
 import { formatReference, DEFAULT_STYLE } from "@/lib/citation";
 import { useCanvasStore } from "@/store/canvas-store";
@@ -51,6 +53,10 @@ const TARGET_PARAGRAPH = 600;
 const MAX_QUOTED_PASSAGE = 400;
 /** How long a PDF action confirmation stays visible. */
 const PDF_NOTICE_MS = 2600;
+/** New insights and figures stack under their paper's node, this far below it... */
+const PLACE_BELOW_PX = 300;
+/** ...and this far apart. */
+const PLACE_STACK_PX = 200;
 const EMPTY_HIGHLIGHTS: never[] = [];
 
 function paragraphize(text: string): string[] {
@@ -139,8 +145,26 @@ export function ReaderSurface() {
     flash(`Highlighted on page ${page}`);
   }
 
-  /** Verbatim quote + paper + page -> an insight on the canvas, typed by Jev. */
-  async function handlePdfInsight(passage: string, page: number) {
+  /**
+   * Put a card-backed node under `paper`'s node on the canvas, wired from it
+   * (so its citation is traceable and it can feed the Draft); centre-left
+   * when the paper has no node here.
+   */
+  function placeFromPaper(kind: "insight" | "figure", card: Record<string, unknown>, title: string): string {
+    if (!paper) return "";
+    const state = useCanvasStore.getState();
+    const from = state.nodes.find((n) => n.data.kind === "paper" && (n.data.paper as { id?: string } | undefined)?.id === paper.id);
+    const siblings = from ? state.edges.filter((e) => e.source === from.id).length : 0;
+    const at = from ? { x: from.position.x, y: from.position.y + PLACE_BELOW_PX + siblings * PLACE_STACK_PX } : { x: 80, y: 80 };
+    const id = addNode(kind, at, { card, paper });
+    state.setNodeSources(id, [paper]);
+    if (from) state.connectMany([{ source: from.id, target: id }]);
+    notePopOut(id, title);
+    return id;
+  }
+
+  /** Verbatim quote (+ page in the PDF view) -> an Insight, typed by Jev. */
+  async function handleInsight(passage: string, page?: number) {
     if (!paper) return;
     flash("Making insight…");
     const type = await classifyInsightType(passage, paper.title);
@@ -151,8 +175,17 @@ export function ReaderSurface() {
       flash(`${label} insight added to Insights`);
       return;
     }
-    const id = addNode("text", { x: 80, y: 80 }, { text: formatInsightNote(type, passage, paper, page) });
-    notePopOut(id, `${label} from p. ${page}`);
+    placeFromPaper(
+      "insight",
+      {
+        type,
+        statement: passage,
+        quote: { text: passage, ...(page ? { page } : {}) },
+        source: { paperId: paper.id, title: paper.title, authors: paper.authors, year: paper.year },
+        origin: "highlight",
+      },
+      page ? `${label} from p. ${page}` : `${label} insight`,
+    );
     flash(`${label} insight added to the canvas`);
   }
 
@@ -162,7 +195,7 @@ export function ReaderSurface() {
     flash("Quote and reference copied");
   }
 
-  /** A region captured from a PDF page: Figure card (board) or Image node (canvas). */
+  /** A region captured from a PDF page: Figure card (board) or Figure node (canvas). */
   async function handlePdfCaptureFigure(image: Blob, page: number) {
     if (!paper) return;
     const sink = useCanvasStore.getState().figureSink;
@@ -171,16 +204,23 @@ export function ReaderSurface() {
       flash(`Figure from page ${page} added to Insights`);
       return;
     }
-    const src = await new Promise<string>((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result));
-      r.readAsDataURL(image);
-    });
-    const id = addNode("media", { x: 80, y: 80 }, {
-      media: { src, name: `Figure, p. ${page}`, credit: `${shortCitation(paper, page)}, ${paper.title}` },
-    });
-    notePopOut(id, `Figure from p. ${page}`);
-    flash(`Figure from page ${page} added to the canvas`);
+    try {
+      const stored = await storeFigureImage(image);
+      placeFromPaper(
+        "figure",
+        {
+          image: stored,
+          caption: "",
+          source: { paperId: paper.id, title: paper.title, authors: paper.authors, year: paper.year },
+          page,
+          origin: "pdf-capture",
+        },
+        `Figure from p. ${page}`,
+      );
+      flash(`Figure from page ${page} added to the canvas`);
+    } catch (err: unknown) {
+      flash(err instanceof FigureError ? err.message : "Couldn't save that figure. Try again.");
+    }
   }
 
   function handlePdfAsk(passage: string, page: number) {
@@ -312,6 +352,12 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
   function doHighlight() {
     if (!paper || !selection) return;
     addHighlight(paper.id, selection.text, selection.paraIndex);
+    clearSelection();
+  }
+
+  function doInsight() {
+    if (!paper || !selection) return;
+    void handleInsight(selection.text);
     clearSelection();
   }
 
@@ -447,7 +493,7 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
               onText={handlePdfText}
               onAsk={handlePdfAsk}
               onHighlight={handlePdfHighlight}
-              onInsight={handlePdfInsight}
+              onInsight={(passage, page) => void handleInsight(passage, page)}
               onCite={handlePdfCite}
               onCaptureFigure={(image, page) => void handlePdfCaptureFigure(image, page)}
               highlights={highlights}
@@ -565,6 +611,10 @@ const [thread, setThread] = React.useState<ThreadItem[]>([]);
           <SelectAction label="Highlight" onClick={doHighlight}>
             <Highlighter className="size-3.5" />
             Highlight
+          </SelectAction>
+          <SelectAction label="Make insight" onClick={doInsight}>
+            <Lightbulb className="size-3.5" />
+            Make insight
           </SelectAction>
           <SelectAction label="Cite passage" onClick={doCite}>
             <Quote className="size-3.5" />

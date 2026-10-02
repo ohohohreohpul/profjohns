@@ -15,13 +15,15 @@ interface ThemeCardBodyProps {
   readonly onRename: (name: string) => void;
   /** An insight card was dropped onto this theme. */
   readonly onDropInsight: (cardId: string) => void;
+  /** Shown while the theme has no insights (how to add them here). */
+  readonly emptyHint?: string;
 }
 
 /**
  * A theme: an argument the paper will make, with the evidence behind it.
  * Drop an insight onto it to add that insight as evidence.
  */
-export function ThemeCardBody({ data, insights, onRename, onDropInsight }: ThemeCardBodyProps) {
+export function ThemeCardBody({ data, insights, onRename, onDropInsight, emptyHint = "Drop insights here, or use an insight's menu." }: ThemeCardBodyProps) {
   const [over, setOver] = React.useState(false);
   const papers = new Set(insights.map((i) => i.data.source?.paperId).filter(Boolean));
 
@@ -47,7 +49,7 @@ export function ThemeCardBody({ data, insights, onRename, onDropInsight }: Theme
       <TextCardBody prominent ariaLabel="Theme name" value={data.name} placeholder="Name this theme…" onSave={onRename} />
       <p className="mt-1 text-xs tabular-nums text-grey-600">
         {insights.length === 0
-          ? "Drop insights here, or use an insight's menu."
+          ? emptyHint
           : `${insights.length} insight${insights.length === 1 ? "" : "s"} · ${papers.size} paper${papers.size === 1 ? "" : "s"}`}
       </p>
       {insights.length > 0 && (

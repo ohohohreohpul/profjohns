@@ -10,6 +10,10 @@ import {
   Books as Library,
   Link as Link2,
   Robot as Bot,
+  Quotes,
+  Stack,
+  ImageSquare,
+  ChartBar,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -24,7 +28,11 @@ export type NodeKind =
   | "paper"
   | "media"
   | "library"
-  | "link";
+  | "link"
+  | "insight"
+  | "theme"
+  | "figure"
+  | "chart";
 
 export interface NodeDefinition {
   kind: NodeKind;
@@ -125,16 +133,51 @@ export const NODE_DEFINITIONS: Record<NodeKind, NodeDefinition> = {
     isPrimary: false,
     accent: "var(--color-node-link)",
   },
+  insight: {
+    kind: "insight",
+    label: "Insight",
+    description: "A verbatim quote with its page citation, typed (finding, method, limitation).",
+    icon: Quotes,
+    isPrimary: false,
+    accent: "var(--color-node-processor)",
+  },
+  theme: {
+    kind: "theme",
+    label: "Theme",
+    description: "An argument your paper makes; connect insights to it as evidence.",
+    icon: Stack,
+    isPrimary: false,
+    accent: "var(--color-node-assistant)",
+  },
+  figure: {
+    kind: "figure",
+    label: "Figure",
+    description: "An image or a figure captured from a PDF, with caption and citation.",
+    icon: ImageSquare,
+    isPrimary: false,
+    accent: "var(--color-node-media)",
+  },
+  chart: {
+    kind: "chart",
+    label: "Chart",
+    description: "Paste a table to get a bar, line or scatter chart.",
+    icon: ChartBar,
+    isPrimary: false,
+    accent: "var(--color-node-reader)",
+  },
 };
 
 export const NODE_ORDER: NodeKind[] = [
   "explorer",
   "library",
-  "link",
+  "insight",
+  "figure",
+  "chart",
+  "theme",
   "processor",
-  "media",
   "block",
   "text",
+  "link",
   "shell",
   "writing",
   "assistant",
@@ -144,8 +187,10 @@ export const NODE_ORDER: NodeKind[] = [
 export const CORE_ORDER: NodeKind[] = [
   "explorer",
   "library",
+  "insight",
+  "figure",
+  "theme",
   "processor",
-  "media",
   "block",
   "text",
   "assistant",
@@ -153,7 +198,7 @@ export const CORE_ORDER: NodeKind[] = [
 ];
 
 /** Kept, but out of the main toolbar (feature review, 2026-10-02). */
-export const ADVANCED_ORDER: NodeKind[] = ["link", "shell"];
+export const ADVANCED_ORDER: NodeKind[] = ["chart", "link", "shell"];
 
 export const SUGGESTED_NEXT: Record<NodeKind, NodeKind[]> = {
   explorer: ["processor", "shell", "text", "writing"],
@@ -167,4 +212,8 @@ export const SUGGESTED_NEXT: Record<NodeKind, NodeKind[]> = {
   media: ["processor", "writing", "shell"],
   library: ["processor", "writing"],
   link: ["processor", "writing", "shell"],
+  insight: ["theme", "writing"],
+  theme: ["writing"],
+  figure: ["writing"],
+  chart: ["writing"],
 };

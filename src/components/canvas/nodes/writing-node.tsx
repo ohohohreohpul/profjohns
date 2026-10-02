@@ -164,7 +164,7 @@ function DraftInputs({
     return (
       <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-grey-500">
         <PlugsConnected className="size-3.5 shrink-0" />
-        <span className="truncate">Connect Sources or Synthesize to write with citations</span>
+        <span className="truncate">Connect sources, insights or themes to write with citations</span>
       </p>
     );
   }
