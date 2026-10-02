@@ -9,6 +9,7 @@ import { BoardRepositoryError, type BoardRepository } from "@/lib/board/reposito
 import { parseCardData, type BoardSnapshot, type Card, type CardKind } from "@/lib/board/schema";
 import { positionBetween } from "@/lib/board/position";
 import { convertBoardOnce } from "@/lib/board/run-conversion";
+import { createKeyedQueue } from "@/lib/board/keyed-queue";
 import { loadCanvasState } from "@/lib/db/repo";
 
 /** The v1 board blob: this browser's copy first (it was authoritative), else the server's. */
@@ -72,6 +73,9 @@ export function useBoard(ref: BoardRef) {
   /** Cards moved over from the old canvas board on this open (0 = none). */
   const [converted, setConverted] = React.useState(0);
   const snapshotRef = React.useRef<BoardSnapshot | null>(null);
+  // One save at a time per card, in order: a slow earlier save must not
+  // land after a later one (prod: a type change erased a title typed after it).
+  const [saveInOrder] = React.useState(createKeyedQueue);
   const { boardId, projectId } = ref;
   // Names only label new rows; they arrive from the workspace store a moment
   // after mount and must not re-run the load (that raced into duplicates).
@@ -163,7 +167,7 @@ export function useBoard(ref: BoardRef) {
         await optimistic(
           (s) => ({ ...s, cards: s.cards.map((c) => (c.id === cardId ? ({ ...c, data: parsed } as Card) : c)) }),
           async () => {
-            await repo.updateCard(cardId, { data: parsed });
+            await saveInOrder(cardId, () => repo.updateCard(cardId, { data: parsed }));
           },
           "Couldn't save that change.",
         );
@@ -181,7 +185,7 @@ export function useBoard(ref: BoardRef) {
         await optimistic(
           (b) => ({ ...b, cards: b.cards.map((c) => (c.id === cardId ? { ...c, wallId, position } : c)) }),
           async () => {
-            await repo.updateCard(cardId, { wallId, position });
+            await saveInOrder(cardId, () => repo.updateCard(cardId, { wallId, position }));
           },
           "Couldn't move that card.",
         );
@@ -195,12 +199,12 @@ export function useBoard(ref: BoardRef) {
             cards: s.cards.filter((c) => c.id !== cardId),
             links: s.links.filter((l) => l.fromCard !== cardId && l.toCard !== cardId),
           }),
-          () => repo.deleteCard(cardId),
+          () => saveInOrder(cardId, () => repo.deleteCard(cardId)),
           "Couldn't delete that card.",
         );
       },
     }),
-    [repo, boardId, projectId, optimistic, setSnapshot],
+    [repo, boardId, projectId, optimistic, setSnapshot, saveInOrder],
   );
 
   return {
